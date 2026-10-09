@@ -45,6 +45,11 @@ macro, the gripper package includes nothing from here.
   pressed halves, the keyed hub and the hub plate), dark gray with a metallic sheen. The outer face lies on +y like
   Clearpath's mesh. `a200_look_patch` points the indoor wheel macro's visual here; the collision cylinder stays at
   the nominal 0.1651 m. The CAD export the rim comes from is not in the repo (see License).
+- **The charging connector on the rear slope**, `meshes/charging_connector.dae`, written by
+  `tools/charging_connector_mesh.py` from the vendor's STEP files: the panel-mount socket with its plug permanently in
+  it, both black, mated from the geometry (keyed turn, plug lowered until its insulator sits on the socket's contact
+  floor). The link `charging_connector` hangs on `top_chassis_link` over the lid where Clearpath's right bump stood,
+  moved down the slope clear of the top plate, along the slope's normal, as a visual alone. The STEP files are not in the repo (see License).
 - **A swappable end effector.** The xacro argument `end_effector` (default
   `rg6`) includes `urdf/tools/<name>.urdf.xacro`; `robot.yaml` passes none, so
   the robot always gets its RG6. The offboard mock takes `end_effector:=<name>`.
@@ -157,4 +162,7 @@ clearpathrobotics; the notice is carried in full in the file's `<asset><contribu
 `meshes/a200_indoor_wheel.dae` is derived from `clearpath_platform_description`'s `wheels/indoor.dae` under the same
 license and notice. Its rim comes from Clearpath Robotics' CAD "034991-MOBILITY_Simplified mCAD, STEP-Husky A200,
 Skid Steer", which comes without a BSD license: the owner's glTF export of it (`onboard/a200_rims.gltf`, untracked) is
-not redistributed, only the derived mesh, as with RoboSense's STEP behind `rs16.dae`.
+not redistributed, only the derived mesh, as with RoboSense's STEP behind `rs16.dae`. The same holds for
+`meshes/charging_connector.dae`: the vendor's STEP files of the socket and the plug come without a license for
+redistributing them, so the owner keeps them untracked at `onboard/SK2-076C04_mount.STEP` and
+`onboard/SK6-076C04_plug.STEP`.

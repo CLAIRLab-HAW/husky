@@ -130,6 +130,14 @@ def test_the_arch_carries_collision_geometry_and_a_mass(extras_text):
     assert "<inertial>" in arch and 'value="6.21"' in arch
 
 
+def test_the_charging_connector_hangs_on_the_top_chassis_as_a_visual_alone(extras_text):
+    """A collision box there would touch the chassis' and invalidate every MoveIt state unless the SRDF disabled it."""
+    link = extras_text.split('<link name="charging_connector">', 1)[1].split("</link>", 1)[0]
+    assert "<visual>" in link and "<collision>" not in link
+    joint = extras_text.split('<joint name="charging_connector_joint" type="fixed">', 1)[1].split("</joint>", 1)[0]
+    assert '<parent link="top_chassis_link"/>' in joint
+
+
 def test_the_package_installs_the_two_directories_the_uris_resolve_through():
     cmake = (REPO / "src" / PACKAGE / "CMakeLists.txt").read_text(encoding="utf-8")
     assert "DIRECTORY urdf meshes" in cmake

@@ -11,6 +11,7 @@
     - arm_0_tool0          = UR5 tool frame (ROS-Industrial all-zeros)  -> the end effector (tools/, RG6 by default)
     - top_plate_rear_mount = frame the sensor arch stands on
     - lidar3d_0_mount_link = robot.yaml's frame where the RS16 sits on the arch -> the RS16 (rs16_description)
+    - top_chassis_link     = Clearpath's top chassis -> the charging connector on its sloped rear face
 
   WHY THIS IS ITS OWN PACKAGE.  Everything here is THIS ROBOT's assembly, not a
   component: it names frames that only exist once the Clearpath generator has
@@ -99,6 +100,56 @@
     <parent link="top_plate_rear_mount"/>
     <child link="husky_top_assembly"/>
     <origin xyz="0 0.315 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== charging connector on the top chassis' sloped rear face ===== -->
+  <!-- The a200-0553's charging socket with its plug permanently in it, both black (the owner, 2026-10-10), next to
+       where Clearpath's top chassis has its right bump: a200_chassis_mesh.py leaves that bump out (REMOVED
+       bump_right) and hole_caps() lids where it stood. The DAE's frame is the socket's, origin on the center of the
+       flange's panel-facing face, +z out of the panel; tools/charging_connector_mesh.py says how the plug was mated.
+
+       ORIGIN, from Clearpath's top_chassis.dae on 2026-10-10 (charging_connector_mesh.py with chassis option), in
+       top_chassis_link, whose visual has no offset: hole_caps() lays the lid along the slope's normal
+       n = (-0.64, 0, 0.77) normalized = (-0.6392, 0, 0.7690). Seen along n, the right lid spans 29.0 mm up the slope
+       (u = y cross n = (0.7690, 0, 0.6392), u -135.18 to -106.19 mm) and 32.0 mm across (y -97.85 to -65.86 mm);
+       its middle is u -120.69, y -81.85 mm. The lid lies at n.p = 347.74 mm, 0.1 mm proud of the slope, and the
+       flange's face 0.1 mm above the lid, at n.p = 347.84 mm, so the two faces are not coplanar. From the lid's
+       middle the socket is moved 21.3 mm down the slope (along -u) and 5 mm to the robot's left (+y):
+       u * (-120.69 - 21.3) mm + (0, -81.85 + 5, 0) mm + n * 347.84 mm = (-331.53, -76.85, 176.75) mm.
+       DOWN THE SLOPE because of the top plate (large_top_plate.dae and its collision STL at top_plate_link,
+       0.224 m above base_link, python-fcl, 2026-10-10): centered on the lid, the plug and the socket's hood reached
+       up to 23.1 mm past the plate's rear edge (x -331.3 mm) and through its 6.7 mm; they come clear 18.5 mm down
+       the slope, and at 21.3 mm the plug passes the plate's rear edge 2.0 mm off and the hood its underside 2.4 mm.
+       LEFT because the owner saw it a little too far right (2026-10-10); 5 mm, as nothing on the slope asks for
+       another number. The socket's z is n, its y is u (up the slope), its x = y cross z = (0, -1, 0):
+       rpy = (atan2(0.6392, 0.7690), 0, -pi/2). The key (the hood's flat side, the socket's -y) thus faces down the
+       slope and the latches the robot's sides; the owner did not say how it is turned about n, so that is chosen,
+       not measured.
+
+       CLEARANCES (2026-10-10, against a200_top_chassis.dae): the 80.96 mm flange still covers the 29.0 x 32.0 mm
+       lid, with 4.7 mm to spare up the slope, 47.3 mm down it, 19.5 mm on the right and 29.5 mm on the left. Its
+       edge (y -117.33 mm) stays 8.2 mm off the right panel's (y -125.5 mm), whose face lies level with the lid
+       within 0.05 mm; the power button is 19.2 mm away, the status LEDs 17.2 mm, the nearest edge of the chassis
+       17.0 mm (up the slope). The flange stands wholly on the slope, which lies 0.1 to 0.7 mm under its face, as
+       its own normal is 0.28 deg off the nominal n. No vertex of the chassis or its controls lies within the
+       connector's 81 x 81 mm footprint above the flange's face, up to the plug's end 112.8 mm out along n.
+
+       NO COLLISION: a box around it would touch the chassis' collision geometry, and a contact the SRDF does not
+       disable makes every MoveIt state invalid (the D435 bracket in tools/rg6.urdf.xacro, for the same reason).
+       move_group therefore does not see the connector. -->
+  <link name="charging_connector">
+    <!-- No <material>: it would paint over the DAE's black. -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://husky_extras_description/meshes/charging_connector.dae"/>
+      </geometry>
+    </visual>
+  </link>
+  <joint name="charging_connector_joint" type="fixed">
+    <parent link="top_chassis_link"/>
+    <child link="charging_connector"/>
+    <origin xyz="-0.33153 -0.07685 0.17675" rpy="0.69346 0 -1.5708"/>
   </joint>
 
 </robot>
