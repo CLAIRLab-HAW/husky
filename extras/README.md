@@ -39,6 +39,12 @@ macro, the gripper package includes nothing from here.
   parts by `tools/a200_chassis_mesh.py`: the chassis #E29000, the emergency stop red, the power button and the key
   lock metallic silver, the status LEDs black (Clearpath's mesh has one greenish-yellow material for all of it).
   `a200_look_patch` in [husky-custom-setup](../setup/README.md) points the `top_chassis_link` visual here.
+- **The a200's indoor wheel with its real rims**, `meshes/a200_indoor_wheel.dae`, written by
+  `tools/a200_wheel_mesh.py`: Clearpath's indoor tire, shrunk radially to the measured rolling radius 0.1477 m (R58;
+  Clearpath's reaches 0.1625 m) with its bead and width kept, on the a200-0553's rim from Clearpath's CAD (two
+  pressed halves, the keyed hub and the hub plate), dark gray with a metallic sheen. The outer face lies on +y like
+  Clearpath's mesh. `a200_look_patch` points the indoor wheel macro's visual here; the collision cylinder stays at
+  the nominal 0.1651 m. The CAD export the rim comes from is not in the repo (see License).
 - **A swappable end effector.** The xacro argument `end_effector` (default
   `rg6`) includes `urdf/tools/<name>.urdf.xacro`; `robot.yaml` passes none, so
   the robot always gets its RG6. The offboard mock takes `end_effector:=<name>`.
@@ -147,4 +153,8 @@ MIT. The RG6 model this file instantiates is vendored in `onrobot-rg6`; its
 origin and the changes made to it are documented there
 (`LICENSE-THIRD-PARTY.md`). `meshes/a200_top_chassis.dae` is derived from
 `clearpath_platform_description`'s `top_chassis.dae` and stays under its BSD-3-Clause license, Copyright (c) 2023
-clearpathrobotics; the notice is carried in full in the file's `<asset><contributor><copyright>`.
+clearpathrobotics; the notice is carried in full in the file's `<asset><contributor><copyright>`. The tire of
+`meshes/a200_indoor_wheel.dae` is derived from `clearpath_platform_description`'s `wheels/indoor.dae` under the same
+license and notice. Its rim comes from Clearpath Robotics' CAD "034991-MOBILITY_Simplified mCAD, STEP-Husky A200,
+Skid Steer", which comes without a BSD license: the owner's glTF export of it (`onboard/a200_rims.gltf`, untracked) is
+not redistributed, only the derived mesh, as with RoboSense's STEP behind `rs16.dae`.
