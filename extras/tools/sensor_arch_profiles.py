@@ -3,25 +3,22 @@
 # requires-python = ">=3.12"
 # dependencies = ["mapbox-earcut", "numpy", "pycollada", "scipy", "shapely", "trimesh"]
 # ///
-"""Draws the sensor arch's right-angled bars in ``husky_sensor_arch.dae`` as the 30x30 mm slot profiles they are.
+"""Draws the sensor arch's right-angled bars in ``husky_sensor_arch.dae`` as the 20x20 mm slot profiles they are.
 
-The arch's legs, top cross beam and feet are aluminum system profiles, 30 x 30 mm with a slot on each face (the owner,
-2026-10-09). The Onshape model the mesh came from drew them as plain 20 x 20 mm square bars (sectioned 2026-10-09:
-legs x 35-55 and 565-585 mm, y 35-55; beam z 480-500; feet z 0-20, y 35-265). This script cuts those bars out and
-puts profiles in their place; the diagonal struts, the plates on the legs' outer faces and the lidar plate on the
-beam stay as the mesh has them.
+The arch's legs, top cross beam and feet are aluminum system profiles, 20 x 20 mm with a slot on each face, butted as
+on the robot (the owner, 2026-10-09): the legs run whole from the top plate to the top, the cross beam under the lidar
+sits between them, and the feet run backward from the legs' rear faces. The Onshape model the mesh came from drew
+plain square bars of the same size, joined the other way round (sectioned 2026-10-09: legs x 35-55 and 565-585 mm,
+y 35-55, z 20-480; beam x 35-585, z 480-500; feet y 35-265, z 0-20). This script cuts those bars out and puts the
+profiles in their place; the diagonal struts, the plates on the legs' outer faces and the lidar plate on the beam
+stay as the mesh has them. Every outer face stays where it was, so nothing that stands on the arch moves.
 
-The profiles keep the arch's outer faces, so nothing that stands on them moves: the legs' outer faces (x = 35 and
-585 mm), the front face (y = 35), the beam's top (z = 500, where the lidar plate sits) and the feet's underside (z = 0,
-on the top plate). They grow inward, backward and downward by 10 mm. The collision boxes in
-``clearpath_extras.urdf.xacro`` already enclose that: legs x 30-65, y 35-65, the beam z 465-515.
+The cross section is a generic slot-6 profile of that size, drawn, not taken from a maker's drawing: a 6.2 mm slot
+opening behind a 1.8 mm lip, an 11 mm undercut, its floor sloping in to the core, which leaves the four diagonal webs
+that read as an X, and a 4.2 mm core bore. It is a visual; the mass stays R47's estimate.
 
-The cross section is a generic slot-8 profile of that size, drawn, not taken from a maker's drawing: an 8.2 mm slot
-opening behind a 2.2 mm lip, a 16.5 mm undercut, its floor sloping in to the core, which leaves the four diagonal webs
-that read as an X, and a 6.8 mm core bore. It is a visual; the mass stays R47's estimate.
-
-Run it again on its output and it writes the same file: the cut boxes (:data:`CUTS`) hold the old bars and the new
-profiles alike.
+Run it again on its output and it writes the same file: the cut boxes (:data:`CUTS`) hold the Onshape bars, the
+profiles of every earlier run and these alike.
 
     uv run onboard/extras/tools/sensor_arch_profiles.py \\
         onboard/extras/src/husky_extras_description/meshes/husky_sensor_arch.dae
@@ -37,36 +34,36 @@ import trimesh
 from collada import asset, geometry, material, scene, source
 from shapely.geometry import Polygon
 
-#: One slot, on the face y = +15 mm of a profile centered on the origin, from the corner (15, 15) leftward [mm]:
-#: opening 8.2 wide, lip 2.2 deep, undercut 16.5 wide, its floor sloping to a 6 mm wide bottom 9 mm below the face.
+#: One slot, on the face y = +10 mm of a profile centered on the origin, from the corner (10, 10) leftward [mm]:
+#: opening 6.2 wide, lip 1.8 deep, undercut 11 wide, its floor sloping to a 4 mm wide bottom 6 mm below the face.
 SLOT_MM = (
-    (15.0, 15.0),
-    (4.1, 15.0),
-    (4.1, 12.8),
-    (8.25, 12.8),
-    (8.25, 10.8),
-    (3.0, 6.0),
-    (-3.0, 6.0),
-    (-8.25, 10.8),
-    (-8.25, 12.8),
-    (-4.1, 12.8),
-    (-4.1, 15.0),
+    (10.0, 10.0),
+    (3.1, 10.0),
+    (3.1, 8.2),
+    (5.5, 8.2),
+    (5.5, 6.8),
+    (2.0, 4.0),
+    (-2.0, 4.0),
+    (-5.5, 6.8),
+    (-5.5, 8.2),
+    (-3.1, 8.2),
+    (-3.1, 10.0),
 )
 #: The core bore's radius [mm] and the segments that draw it.
-BORE_MM, BORE_SEGMENTS = 3.4, 24
+BORE_MM, BORE_SEGMENTS = 2.1, 24
 
-#: The bars as boxes in the mesh frame [m]: (min corner, max corner, axis). The beam runs over the legs' full width, the
-#: legs stand on the feet, as in the Onshape model.
+#: The bars as boxes in the mesh frame [m]: (min corner, max corner, axis). The legs run whole, the beam between them,
+#: the feet behind them.
 BARS = (
-    ((0.035, 0.035, 0.030), (0.065, 0.065, 0.470), 2),  # leg, left
-    ((0.555, 0.035, 0.030), (0.585, 0.065, 0.470), 2),  # leg, right
-    ((0.035, 0.035, 0.470), (0.585, 0.065, 0.500), 0),  # cross beam
-    ((0.035, 0.035, 0.000), (0.065, 0.265, 0.030), 1),  # foot, left
-    ((0.555, 0.035, 0.000), (0.585, 0.265, 0.030), 1),  # foot, right
+    ((0.035, 0.035, 0.000), (0.055, 0.055, 0.500), 2),  # leg, left
+    ((0.565, 0.035, 0.000), (0.585, 0.055, 0.500), 2),  # leg, right
+    ((0.055, 0.035, 0.480), (0.565, 0.055, 0.500), 0),  # cross beam
+    ((0.035, 0.055, 0.000), (0.055, 0.265, 0.020), 1),  # foot, left
+    ((0.565, 0.055, 0.000), (0.585, 0.265, 0.020), 1),  # foot, right
 )
-#: What is cut out [m]: each leg's column from the top plate to the beam's top, the beam, the feet. A column, because
-#: the Onshape legs ran from z 20 to 480 mm -- into the beam's and the feet's boxes -- so no profile box holds a leg's
-#: side face; the profiles themselves lie inside these as well, which is what makes a second run write the same file.
+#: What is cut out [m]: each leg's column from the top plate to the top, the beam, the feet -- as wide as the 30 mm
+#: profiles a first run of this script drew (onboard ``b22f531``), so a file it wrote is cleaned too. A column, because
+#: a leg reaches into the beam's and the feet's boxes, and a triangle is cut only when one box holds it whole.
 CUTS = (
     ((0.035, 0.035, 0.000), (0.065, 0.065, 0.500)),
     ((0.555, 0.035, 0.000), (0.585, 0.065, 0.500)),
