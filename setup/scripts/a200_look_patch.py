@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""wheel_visual_patch: turns the a200's RIGHT wheel visuals by pi about z, so the rim faces outward on both sides.
+"""a200_look_patch: makes the a200 LOOK like the real one -- right wheels' rim outward, chassis in its real colors.
 
-``clearpath_platform_description`` places all four wheels with ``rpy="0 0 0"``
-(``urdf/a200/drivetrain/wheels.urdf.xacro``), and both wheel macros (``urdf/a200/drivetrain/wheels/indoor.urdf.xacro``
-and ``outdoor.urdf.xacro``) give the visual ``<origin xyz="0 0 0" rpy="0 0 0"/>`` with no left/right handling.  That
-is only harmless for a mesh that is symmetric along the axle, and the one this vehicle's robot.yaml selects is not.
+Two upstream defects of ``clearpath_platform_description`` that only a viewer sees.  Both are fixed in the package
+files the generator and every viewer read, after apt and before the generator, idempotently, with a backup -- the
+same shape as the other patchers here.  Neither changes a joint, a collision, an inertial or anything a planner or
+a physics engine uses.
+
+THE WHEELS: the right wheel visuals are turned by pi about z, so the rim faces outward on both sides.  The package
+places all four wheels with ``rpy="0 0 0"`` (``urdf/a200/drivetrain/wheels.urdf.xacro``), and both wheel macros
+(``urdf/a200/drivetrain/wheels/indoor.urdf.xacro`` and ``outdoor.urdf.xacro``) give the visual
+``<origin xyz="0 0 0" rpy="0 0 0"/>`` with no left/right handling.  That is only harmless for a mesh that is
+symmetric along the axle, and the one this vehicle's robot.yaml selects is not.
 
 MEASURED 2026-10-09 on ``meshes/a200/wheels/indoor.dae`` (``drivetrain.wheels.front/rear: indoor``): the mesh is
 one-sided along the axle.  Its hub and rim face (submesh ``Shape_IndexedFaceSet_311``, y +0.032..+0.051 m; the hub
@@ -17,31 +23,40 @@ the vertical axis -- which is exactly Rz(pi), tread direction included.  A mirro
 outward too, but with the tread running the wrong way.  The expression ``${pi if 'right' in prefix else 0}`` uses
 xacro's builtin ``pi`` and the macro's own ``prefix`` (``front_right``, ``rear_right``, ...); checked 2026-10-09 with
 xacro 2.1.1 in the plant-mock container, it expands to ``0 0 3.141592653589793`` for the right prefixes and ``0 0 0``
-for the left ones.
+for the left ones.  Both wheel macros are patched, as ``urdf_physics_patch`` does for the same reason: which one is
+fitted is robot.yaml's choice and this tool does not read it.  Patching the variant that is not built costs nothing;
+missing the one that is would be silent.
 
-VISUAL ONLY: the joint, its axis, the collision cylinder (rotationally symmetric about the axle anyway) and the
-inertial stay exactly as upstream ships them.  Odometry, planning and the physics engines see no difference.
+THE CHASSIS: the ``top_chassis_link`` visual is pointed at ``husky_extras_description``'s
+``meshes/a200_top_chassis.dae`` instead of the package's ``meshes/a200/top_chassis.dae``.  Clearpath's mesh is ONE
+geometry with ONE material, a greenish yellow (diffuse ``0.8 0.8 0 1``) -- the emergency stop, the power button and the
+key lock at the rear included.  The real a200-0553's chassis is #E29000, its emergency stop red, its power button and
+key lock metallic silver (the owner, 2026-10-09).  One material cannot carry that, so ``onboard/extras``' tool
+``a200_chassis_mesh.py`` splits Clearpath's mesh into its parts and writes one material per look; this tool only
+swaps the URI.  WHY THE URI AND NOT A URDF MATERIAL: the visual sets no ``<material>``, so the mesh's colors are what
+every viewer shows (Foxglove and RViz via the DAE, the MuJoCo twin via ``clair.twin.collada``), and a URDF material is
+one color for the whole link.  ``husky_extras_description`` is installed wherever the generator runs: on the robot the
+installer builds ``onboard/extras`` and robot.yaml lists its workspace, in the offboard images it is built into
+``/opt/husky-extras``.  ``ride_height_patch`` edits the same ``a200.urdf.xacro``; whichever of the two runs first
+takes the one ``.bak``, the pristine apt copy.
 
-NO LEVER IN robot.yaml: ``clearpath_config`` picks the wheel variant per axle (``indoor``/``outdoor``) and nothing
-else -- the visual origin is a literal inside the package macro.  Same situation, same answer as the other patchers
-here: patch the package after apt, before the generator, idempotently, with a backup.
+NO LEVER IN robot.yaml for either: ``clearpath_config`` picks the wheel variant per axle (``indoor``/``outdoor``)
+and nothing else -- the visual origin is a literal inside the wheel macro, the chassis mesh a literal inside the a200
+macro.
 
 WHY ITS OWN TOOL: ``urdf_physics_patch`` is about physical properties a physics engine needs (joint dynamics,
 inertials), and this changes none; ``ride_height_patch`` carries a measured property of THIS vehicle (its loaded
-tire radius), and this is not a property of our build at all -- every a200 with the indoor wheel shows it.  That
-also means it belongs upstream: an issue against ``clearpath_common`` is being prepared (the owner files it; no
-number yet).  Until then: upstream is unchanged in 2.9.15 (installed) and on the ``jazzy`` branch (checked
-2026-10-09), so an upgrade will not make this unnecessary by itself -- when upstream fixes it, the anchor below
-stops matching and the tool says so instead of patching twice.
-
-Both wheel macros are patched, as ``urdf_physics_patch`` does for the same reason: which one is fitted is
-robot.yaml's choice and this tool does not read it.  Patching the variant that is not built costs nothing; missing
-the one that is would be silent.
+tire radius), and neither look is one -- every a200 with the indoor wheel shows the first, every a200 the second.
+That also means both belong upstream: an issue against ``clearpath_common`` for the wheels is drafted (the owner
+files it; no number yet), and the chassis colors could be raised there too -- the owner decides.  Until then: both
+are unchanged in 2.9.15 (installed) and on the ``jazzy`` branch (checked 2026-10-09; its ``top_chassis.dae`` is
+byte-identical to the installed one), so an upgrade will not make this unnecessary by itself -- when upstream changes
+either, its anchor below stops matching and the tool says so instead of patching twice.
 
 Invocations:
   Robot:    from clearpath_custom_setup.py (per boot, before clearpath-robot-generate)
   Offboard: offboard entrypoint.sh, before the generate_* runs
-  Manual:   wheel-visual-patch --dry-run
+  Manual:   a200-look-patch --dry-run
 
 Self-contained: needs only python3 (no ROS environment, no PyYAML) -- the robot runs it as a root-owned copy in
 /usr/local/bin (the installer places it, like every other script here), and the offboard container copies the same
@@ -59,11 +74,11 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 
-TAG = "wheel_visual_patch"
+TAG = "a200_look_patch"
 
-#: Written above the origin this tool rewrites, so that a reader of an apt-owned file can see at a glance where the
-#: line came from.  No double dash inside: XML forbids it in a comment.
-MARKER = "<!-- husky-custom-setup:wheel_visual_patch -->"
+#: Written above what this tool rewrites, so that a reader of an apt-owned file can see at a glance where the line
+#: came from.  No double dash inside: XML forbids it in a comment.
+MARKER = "<!-- husky-custom-setup:a200_look_patch -->"
 
 #: The visual origin exactly as both wheel macros ship it (2.9.15), and what it has to become.  The same literal
 #: without the ``<visual>`` in front of it is not unique -- the collision origin differs only in its roll -- so the
@@ -73,6 +88,17 @@ ORIGIN_NEW = '<origin xyz="0 0 0" rpy="0 0 ${pi if \'right\' in prefix else 0}" 
 
 #: ``<visual>`` and the origin on the line directly below it; group 2 keeps that line's indentation.
 VISUAL_ORIGIN_RX = re.compile(r"(<visual>[ \t]*\n)([ \t]*)" + re.escape(ORIGIN_OLD))
+
+#: The chassis visual's mesh exactly as ``a200.urdf.xacro`` ships it (2.9.15), and the recolored one in
+#: ``husky_extras_description``.
+CHASSIS_MESH_OLD = '<mesh filename="package://clearpath_platform_description/meshes/a200/top_chassis.dae" />'
+CHASSIS_MESH_NEW = '<mesh filename="package://husky_extras_description/meshes/a200_top_chassis.dae" />'
+
+#: The chassis link's visual from its opening tag to the mesh line; group 2 keeps the mesh line's indentation.  The
+#: link name is part of the anchor, so a second link that might take the same mesh is never touched by accident.
+CHASSIS_VISUAL_RX = re.compile(
+    r'(<link name="top_chassis_link">\s*<visual>(?:(?!</visual>).)*?\n)([ \t]*)' + re.escape(CHASSIS_MESH_OLD), re.S
+)
 
 #: Where the ROS packages live.  A glob rather than a fixed distro, for the same reason as in
 #: ``urdf_physics_patch``: the same tool runs on the robot (jazzy from apt) and in the container (jazzy from the
@@ -85,6 +111,7 @@ PACKAGE = "clearpath_platform_description"
 #: targets, and a variant upstream renames has to be REPORTED, which a glob would simply stop finding.
 VARIANTS = ("indoor", "outdoor")
 XACRO_REL = "urdf/a200/drivetrain/wheels/{variant}.urdf.xacro"
+CHASSIS_REL = "urdf/a200/a200.urdf.xacro"
 
 
 def log(msg, err=False):
@@ -119,7 +146,16 @@ def atomic_write(path, content):
         raise
 
 
-def patch_text(content):
+def _well_formed(content, patched):
+    """``(patched, "changed")`` if ``patched`` parses as XML, else the untouched ``content`` and the reason."""
+    try:
+        ET.fromstring(patched)
+    except ET.ParseError as e:
+        return content, f"the patched text is not well-formed ({e}) -- nothing written"
+    return patched, "changed"
+
+
+def patch_wheel_text(content):
     """Turn the visual origin of one wheel macro.
 
     String surgery rather than an XML round trip, for the reason ``urdf_physics_patch.element_spans`` gives: this is
@@ -138,26 +174,44 @@ def patch_text(content):
         # tool was not written against.  Either way nothing is guessed.
         return content, f"{hits} visual origin(s) of the shipped form found, expected exactly 1 -- upstream changed?"
     patched = VISUAL_ORIGIN_RX.sub(lambda m: f"{m.group(1)}{m.group(2)}{MARKER}\n{m.group(2)}{ORIGIN_NEW}", content)
-    try:
-        ET.fromstring(patched)
-    except ET.ParseError as e:
-        return content, f"the patched text is not well-formed ({e}) -- nothing written"
-    return patched, "changed"
+    return _well_formed(content, patched)
 
 
-def patch_file(path, dry_run):
-    """Apply :func:`patch_text` to one file.
+def patch_chassis_text(content):
+    """Point the ``top_chassis_link`` visual of ``a200.urdf.xacro`` at the recolored chassis mesh.
+
+    String surgery for the same reason as :func:`patch_wheel_text`, with the same marker above the rewritten line.
+
+    :returns: ``(content, status)`` as :func:`patch_wheel_text` returns it.
+    """
+    if MARKER in content and CHASSIS_MESH_NEW in content:
+        return content, "clean"
+    hits = len(CHASSIS_VISUAL_RX.findall(content))
+    if hits != 1:
+        # Zero is an upstream rewrite of the chassis visual or its mesh; nothing is guessed.
+        return (
+            content,
+            f"{hits} chassis visual mesh(es) of the shipped form found, expected exactly 1 -- upstream changed?",
+        )
+    patched = CHASSIS_VISUAL_RX.sub(
+        lambda m: f"{m.group(1)}{m.group(2)}{MARKER}\n{m.group(2)}{CHASSIS_MESH_NEW}", content
+    )
+    return _well_formed(content, patched)
+
+
+def patch_file(path, patcher, dry_run):
+    """Apply ``patcher`` (:func:`patch_wheel_text` or :func:`patch_chassis_text`) to one file.
 
     :returns: ``"changed"``, ``"clean"`` or ``"failed"`` -- the last one when the file cannot be read or written or
         the anchor does not match, each logged on stderr with the reason.
     """
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             content = f.read()
     except OSError as e:
         log(f"cannot read {path}, skipping: {e}", err=True)
         return "failed"
-    patched, status = patch_text(content)
+    patched, status = patcher(content)
     if status == "clean":
         return "clean"
     if status != "changed":
@@ -172,6 +226,16 @@ def patch_file(path, dry_run):
         log(f"cannot write {path}: {e}", err=True)
         return "failed"
     return "changed"
+
+
+def targets(package):
+    """``(path, patcher, what it fixes)`` for every file this tool patches in one ``package`` directory."""
+    wheels = "the right wheels' visual turned by pi about z"
+    macros = [(os.path.join(package, XACRO_REL.format(variant=v)), patch_wheel_text, wheels) for v in VARIANTS]
+    return [
+        *macros,
+        (os.path.join(package, CHASSIS_REL), patch_chassis_text, "the chassis mesh swapped for the recolored one"),
+    ]
 
 
 def main(argv=None) -> int:
@@ -190,31 +254,30 @@ def main(argv=None) -> int:
         if os.path.isdir(os.path.join(share, PACKAGE))
     )
     # Finding nothing is an error, not a steady state: with the package gone or moved the right wheels silently show
-    # the rim to the chassis again.  The nonzero exit is what the offboard entrypoint and the boot service
-    # (run_root_tool) log; neither stops over it.
+    # the rim to the chassis again and the chassis its greenish yellow.  The nonzero exit is what the offboard
+    # entrypoint and the boot service (run_root_tool) log; neither stops over it.
     if not packages:
         log(f"WARN: no {PACKAGE} under {args.ros_share} -- package missing or moved?", err=True)
         return 1
 
     results = []
     for package in packages:
-        for variant in VARIANTS:
-            path = os.path.join(package, XACRO_REL.format(variant=variant))
+        for path, patcher, look in targets(package):
             if not os.path.isfile(path):
-                log(f"WARN: no {variant} wheel macro at {path} -- upstream renamed or moved it?", err=True)
-                results.append((path, "failed"))
+                log(f"WARN: no {os.path.basename(path)} at {path} -- upstream renamed or moved it?", err=True)
+                results.append((path, look, "failed"))
                 continue
-            results.append((path, patch_file(path, args.dry_run)))
+            results.append((path, look, patch_file(path, patcher, args.dry_run)))
 
-    changed = [os.path.basename(p) for p, result in results if result == "changed"]
-    failed = [os.path.basename(p) for p, result in results if result == "failed"]
+    changed = [f"{os.path.basename(p)} ({look})" for p, look, result in results if result == "changed"]
+    failed = [f"{os.path.basename(p)} ({look})" for p, look, result in results if result == "failed"]
     if changed:
-        did = "would turn" if args.dry_run else "turned"
-        log(f"{did} the right wheels' visual by pi about z in: {', '.join(changed)}.")
+        did = "would patch" if args.dry_run else "patched"
+        log(f"{did}: {', '.join(changed)}.")
     elif not failed:
-        log(f"right wheel visuals already turned -- no change ({len(results)} macro(s) checked).")
+        log(f"a200 look already patched -- no change ({len(results)} file(s) checked).")
     if failed:
-        log(f"failed to patch: {', '.join(failed)} -- the right wheels there show the rim to the chassis.", err=True)
+        log(f"failed to patch: {', '.join(failed)} -- that part of the a200 keeps the upstream look.", err=True)
         return 1
     return 0
 

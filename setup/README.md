@@ -35,11 +35,13 @@ in the `--verify` manifest it belongs in `scripts/`; if it is not, somebody star
   the Clearpath generator writes (the sensor mesh URIs, the arm `joint_states` bus, the RG6's SRDF); three edit what
   it reads and therefore run first: `urdf_physics_patch` (the UR joints' zero `<dynamics>`, the wheel joints' missing
   one, `top_plate_link` without an `<inertial>`), `ride_height_patch` (this vehicle's loaded wheel radius under
-  `base_footprint`) and `wheel_visual_patch` (the right wheels' visual turned by pi about z, so the one-sided indoor
-  wheel mesh shows its rim outward on both sides). Five of the steps are calls to a root-owned copy under
-  `/usr/local/bin`, so the boot service never runs code out of a directory a user can write to.
+  `base_footprint`) and `a200_look_patch` (the right wheels' visual turned by pi about z, so the one-sided indoor
+  wheel mesh shows its rim outward on both sides, and the chassis visual pointed at `husky_extras_description`'s
+  recolored mesh: #E29000, a red emergency stop, a silver power button and key lock).
+  Five of the steps are calls to a root-owned copy under `/usr/local/bin`, so the boot service never runs code out of
+  a directory a user can write to.
 - **Four of those patchers are shared with the offboard container.** `sensor_mesh_uri_patch`, `urdf_physics_patch`,
-  `ride_height_patch` and `wheel_visual_patch` are self-contained scripts of this repo, and `deploy/offboard` copies the
+  `ride_height_patch` and `a200_look_patch` are self-contained scripts of this repo, and `deploy/offboard` copies the
   same files out of it. The robot and the container each generate a URDF of their own; a difference between the two
   must never be explainable by a fix having run on one side only.
 - **Both Cockpit packages are deployed and measured** — the diagnostics fork and the page *Roboter-Werkzeuge*.
@@ -441,7 +443,7 @@ the other three which xacros they would rewrite:
 python3 scripts/urdf_physics_patch.py --dry-run
 python3 scripts/sensor_mesh_uri_patch.py --dry-run
 python3 scripts/ride_height_patch.py --dry-run
-python3 scripts/wheel_visual_patch.py --dry-run
+python3 scripts/a200_look_patch.py --dry-run
 ```
 
 Off the robot they find no `/opt/ros/*/share` to work in and say so; point

@@ -26,7 +26,7 @@
 #   - build ~/onboard/extras (colcon): the URDF extras robot.yaml
 #     addresses under platform.extras.urdf and lists as a workspace
 #   - root-owned copies of urdf_physics_patch, sensor_mesh_uri_patch,
-#     ride_height_patch and wheel_visual_patch (all this repo) under
+#     ride_height_patch and a200_look_patch (all this repo) under
 #     /usr/local/bin, likewise for the boot service
 #   - optional: clearpath-custom-ur-dashboard.service: starts the ur_robot_driver
 #     dashboard_client (power_on/brake_release/unlock_protective_stop/restart_safety)
@@ -130,9 +130,10 @@ SENSOR_MESH_URI_PATCH_BIN="${BIN_DIR}/sensor-mesh-uri-patch"
 # the ground reference every calibrated height is measured against -- sits where the squashed tyres put it.  Also
 # copied into the offboard container from this repo, for the same reason as the mesh URI fix.
 RIDE_HEIGHT_PATCH_BIN="${BIN_DIR}/ride-height-patch"
-# wheel-visual-patch turns the right wheels' visual by pi about z in both a200 wheel macros, so the one-sided indoor
-# mesh shows its rim outward on both sides.  Visual only; copied into the offboard container for the same reason.
-WHEEL_VISUAL_PATCH_BIN="${BIN_DIR}/wheel-visual-patch"
+# a200-look-patch makes the a200 look like the real one: the right wheels' visual turned by pi about z in both wheel
+# macros (the one-sided indoor mesh shows its rim outward on both sides) and the chassis visual pointed at the recolored
+# mesh in husky_extras_description (built below).  Visual only; copied into the offboard container for the same reason.
+A200_LOOK_PATCH_BIN="${BIN_DIR}/a200-look-patch"
 
 # THREE files live in the rg6 workspace, not in setup/, and each can be taken either from a built workspace or
 # straight from the sources: rg6_moveit_patch (the SRDF patch), rg6_grip_bridge.py (the gripper driver) and its
@@ -451,7 +452,7 @@ verify_deployments() {
         "${URDF_PHYSICS_PATCH_BIN}|scripts/urdf_physics_patch.py"
         "${SENSOR_MESH_URI_PATCH_BIN}|scripts/sensor_mesh_uri_patch.py"
         "${RIDE_HEIGHT_PATCH_BIN}|scripts/ride_height_patch.py"
-        "${WHEEL_VISUAL_PATCH_BIN}|scripts/wheel_visual_patch.py"
+        "${A200_LOOK_PATCH_BIN}|scripts/a200_look_patch.py"
     )
     echo "=== --verify: rolled-out copies against the checkout ==="
     for entry in "${MANIFEST[@]}"; do
@@ -1044,8 +1045,8 @@ fi
 # the apt descriptions the generator reads (urdf_physics_patch), rewrites the
 # sensor mesh URIs the foxglove_bridge will only serve as package://
 # (sensor_mesh_uri_patch), puts the loaded wheel radius into the a200
-# description (ride_height_patch) and turns the right wheels' visual
-# (wheel_visual_patch). None of them may be called from where it is edited -
+# description (ride_height_patch) and fixes the a200's look -- right wheels'
+# visual, chassis color (a200_look_patch). None of them may be called from where it is edited -
 # running user-writable code as root on every boot is a privilege escalation
 # (whoever can write there gets root; via git pull even the remote repo). Hence
 # root-owned copies: they only change through another installer run.
@@ -1126,8 +1127,8 @@ install_repo_tool scripts/urdf_physics_patch.py "$URDF_PHYSICS_PATCH_BIN" \
     "$URDF_PHYSICS_PATCH_BIN" --dry-run || true
 install_repo_tool scripts/ride_height_patch.py "$RIDE_HEIGHT_PATCH_BIN" \
     "$RIDE_HEIGHT_PATCH_BIN" --dry-run || true
-install_repo_tool scripts/wheel_visual_patch.py "$WHEEL_VISUAL_PATCH_BIN" \
-    "$WHEEL_VISUAL_PATCH_BIN" --dry-run || true
+install_repo_tool scripts/a200_look_patch.py "$A200_LOOK_PATCH_BIN" \
+    "$A200_LOOK_PATCH_BIN" --dry-run || true
 
 # --- UR dashboard_client as a boot service (optional) ----------------------
 # Provides the dashboard services (power_on/brake_release/unlock_protective_stop/
@@ -1972,8 +1973,8 @@ echo "  ${URDF_PHYSICS_PATCH_BIN}   : root-owned copy of scripts/urdf_physics_pa
 echo "  ${SENSOR_MESH_URI_PATCH_BIN}: root-owned copy of scripts/sensor_mesh_uri_patch.py (same; offboard too)"
 [ -f "$RIDE_HEIGHT_PATCH_BIN" ] && \
 echo "  ${RIDE_HEIGHT_PATCH_BIN}    : root-owned copy of scripts/ride_height_patch.py (same; offboard too)"
-[ -f "$WHEEL_VISUAL_PATCH_BIN" ] && \
-echo "  ${WHEEL_VISUAL_PATCH_BIN}   : root-owned copy of scripts/wheel_visual_patch.py (same; offboard too)"
+[ -f "$A200_LOOK_PATCH_BIN" ] && \
+echo "  ${A200_LOOK_PATCH_BIN}   : root-owned copy of scripts/a200_look_patch.py (same; offboard too)"
 [ -f "$OCTO_UNIT_PATH" ] && \
 echo "  ${OCTO_UNIT}   : depth─▶PointCloud2 for MoveIt's octomap (the move_group sensor parameters come from robot.yaml)"
 [ -f "$LIDAR_UNIT_PATH" ] && \

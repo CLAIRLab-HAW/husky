@@ -27,9 +27,11 @@ Patches:
      calibrated height is measured against -- sits where the squashed tyres put
      it. Same window as step 5.
 
-  7. The right wheels' visual turned by pi about z (run_wheel_visual_patch), so
-     the one-sided indoor wheel mesh shows its rim outward on both sides.
-     Visual only; same window as step 5.
+  7. The a200's look (run_a200_look_patch): the right wheels' visual turned
+     by pi about z, so the one-sided indoor wheel mesh shows its rim outward
+     on both sides, and the chassis visual on husky_extras_description's
+     recolored mesh (#E29000, red emergency stop, silver power button and
+     key lock). Visual only; same window as step 5.
 
 Every edit is surgical, idempotent, with a .bak backup and an atomic write.
 If a file or a key is missing, that change is skipped (with a warning).
@@ -230,17 +232,18 @@ def run_ride_height_patch(label):
     )
 
 
-def run_wheel_visual_patch(label):
-    """Turn the right wheels' visual by pi about z in both a200 wheel macros, before the generator expands them.
+def run_a200_look_patch(label):
+    """Fix the a200's look -- right wheels' visual turned by pi about z, chassis colors -- before the generator runs.
 
-    The tool is a script of this repo (``scripts/wheel_visual_patch.py``) and carries the mesh measurement.  Same
-    window as ``ride_height_patch`` -- it edits a package xacro the generator CONSUMES -- but a separate tool: it is
-    an upstream defect every a200 with the indoor wheel shows, not a property of this vehicle, and it touches no
-    joint, collision or inertial.  Without it the right wheels show their rim to the chassis in RViz and Foxglove."""
+    The tool is a script of this repo (``scripts/a200_look_patch.py``) and carries the mesh measurement and the
+    chassis mesh URI.  Same window as ``ride_height_patch`` -- it edits the a200 xacros the generator CONSUMES
+    -- but a separate tool: both are upstream defects, not properties of this vehicle, and it touches
+    no joint, collision or inertial.  Without it the right wheels show their rim to the chassis and the chassis a
+    greenish yellow in RViz, Foxglove and the MuJoCo twin."""
     return run_root_tool(
         label,
-        "/usr/local/bin/wheel-visual-patch",
-        missing="the right wheels show their rim to the chassis.",
+        "/usr/local/bin/a200-look-patch",
+        missing="the right wheels show their rim to the chassis, the chassis its greenish yellow.",
     )
 
 
@@ -320,9 +323,10 @@ def main() -> int:
     #    reference every calibrated height is measured against -- matches the squashed tyres under the UR mass.
     #    Runs in the same window as step 5 and for the same reason: it edits what the generator reads.
     run_ride_height_patch("ride height")
-    # 7) The right wheels' visual turned by pi about z, so the one-sided indoor wheel mesh shows its rim outward on
-    #    both sides, the way the real Husky mounts the same wheel.  Same window as steps 5 and 6.
-    run_wheel_visual_patch("wheel visual")
+    # 7) The a200's look: the right wheels' visual turned by pi about z, so the one-sided indoor wheel mesh shows its
+    #    rim outward on both sides the way the real Husky mounts the same wheel, and the chassis on the recolored mesh
+    #    husky_extras_description ships.  Same window as steps 5 and 6.
+    run_a200_look_patch("a200 look")
     # 4) RG6 into MoveIt: patch robot.srdf (group 'gripper' + EE)
     #    (onrobot-rg6 tool).  For the SRDF there is no lever in robot.yaml --
     #    clearpath_config does not know the word 'srdf', and the gripper enum
