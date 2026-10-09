@@ -10,9 +10,9 @@ on the robot (the owner, 2026-10-09): the legs run whole from the top plate to t
 sits between them, and the feet run backward from the legs' rear faces. The Onshape model the mesh came from drew
 plain square bars of the same size, joined the other way round (sectioned 2026-10-09: legs x 35-55 and 565-585 mm,
 y 35-55, z 20-480; beam x 35-585, z 480-500; feet y 35-265, z 0-20). This script cuts those bars out and puts the
-profiles in their place; the diagonal struts, the plates on the legs' outer faces and the lidar plate on the beam
-stay as the mesh has them, and the legs' top ends get their black caps (:data:`CAPS`). Every outer face stays where
-it was, so nothing that stands on the arch moves.
+profiles in their place. The left diagonal strut, on the left leg's outer face, and the lidar plate on the beam stay
+as the mesh has them; the right strut goes, as the robot has none (:data:`CUTS`). The legs' top ends get their black
+caps (:data:`CAPS`). Every outer face stays where it was, so nothing that stands on the arch moves.
 
 The cross section is a generic slot-6 profile of that size, drawn, not taken from a maker's drawing: a 6.2 mm slot
 opening behind a 1.8 mm lip, an 11 mm undercut, its floor sloping in to the core, which leaves the four diagonal webs
@@ -71,13 +71,18 @@ CUTS = (
     ((0.035, 0.035, 0.470), (0.585, 0.065, 0.500)),
     ((0.035, 0.035, 0.000), (0.065, 0.265, 0.030)),
     ((0.555, 0.035, 0.000), (0.585, 0.265, 0.030)),
+    # The right diagonal strut: the robot has one on the left side alone (the owner, 2026-10-09). The mesh frame's
+    # x = 585-590 mm is the robot's right -- the arch hangs at y = +0.315 m, turned by -90 deg about z.
+    ((0.585, 0.035, 0.000), (0.590, 0.265, 0.210)),
 )
 #: The black plastic caps on the legs' open top ends, so no one cuts a hand on the edge (the owner, 2026-10-09): a
 #: 20 x 20 mm base on the end face, 3 mm high, its top 1 mm in from each edge. Their own geometry and material,
 #: ``caps``; a run reads the arch's geometry alone and draws them anew.
 CAPS = ((0.045, 0.045), (0.575, 0.045))
 CAP_BASE_M, CAP_TOP_M, CAP_HEIGHT_M, CAP_TOP_Z_M = 0.020, 0.018, 0.003, 0.500
-#: Each geometry's look [sRGB diffuse, specular, shininess]: the arch's color is the one the mesh carries.
+#: Each geometry's look [sRGB diffuse, specular, shininess]: the profiles and struts anodized aluminum, metallic
+#: (the owner, 2026-10-09); the caps black plastic. The twin (``clair.twin.collada``) takes the diffuse alone.
+ARCH_LOOK = ((0.74, 0.76, 0.79), 0.50, 30.0)
 CAP_LOOK = ((0.04, 0.04, 0.04), 0.25, 20.0)
 #: A vertex on a box's face counts as inside: the old bars' faces lie exactly on the profiles' outer faces.
 CUT_TOLERANCE_M = 1e-4
@@ -126,13 +131,11 @@ def outside_bars(triangles: np.ndarray) -> np.ndarray:
     return triangles[keep]
 
 
-def read(dae_path: str) -> tuple[np.ndarray, tuple[float, ...]]:
-    """The arch geometry's triangles and its diffuse color -- not the caps'."""
+def read(dae_path: str) -> np.ndarray:
+    """The arch geometry's triangles -- not the caps'."""
     dae = collada.Collada(dae_path)
     arch = [g for g in dae.scene.objects("geometry") if g.original.id == "arch-mesh"]
-    triangles = np.concatenate([p.vertex[p.vertex_index].reshape(-1, 3, 3) for g in arch for p in g.primitives()])
-    diffuse = next(m for m in dae.materials if m.id == "arch-material").effect.diffuse
-    return triangles, tuple(diffuse[:3]) if isinstance(diffuse, tuple) else (0.8, 0.8, 0.8)
+    return np.concatenate([p.vertex[p.vertex_index].reshape(-1, 3, 3) for g in arch for p in g.primitives()])
 
 
 def write(parts: dict[str, tuple[trimesh.Trimesh, tuple]], dae_path: str) -> None:
@@ -184,7 +187,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("dae", help="husky_sensor_arch.dae, rewritten in place")
     args = parser.parse_args()
-    triangles, color = read(args.dae)
+    triangles = read(args.dae)
     rest = outside_bars(triangles)
     section = cross_section()
     # Each profile on its own: merging vertices across them would weld the beam's end faces to the legs' tops.
@@ -192,7 +195,7 @@ def main() -> None:
     parts += [profile(low, high, axis, section) for low, high, axis in BARS]
     mesh = flat(parts)
     caps = flat([cap(x, y) for x, y in CAPS])
-    write({"arch": (mesh, (color, 0.1, 0.0)), "caps": (caps, CAP_LOOK)}, args.dae)
+    write({"arch": (mesh, ARCH_LOOK), "caps": (caps, CAP_LOOK)}, args.dae)
     print(
         f"kept {len(rest)} of {len(triangles)} triangles outside the bars, {len(BARS)} profiles of "
         f"{section.area * 1e6:.0f} mm^2 section, {len(mesh.faces)} triangles, {len(CAPS)} caps, "

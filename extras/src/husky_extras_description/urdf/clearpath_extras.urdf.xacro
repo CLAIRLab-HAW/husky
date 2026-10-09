@@ -90,9 +90,9 @@
       <origin xyz="0.1500 -0.0475 0.0810" rpy="0 0 -1.5708"/>
       <geometry><box size="0.035 0.230 0.158"/></geometry>
     </collision>
-    <collision>  <!-- foot, right, incl. diagonal strut -->
-      <origin xyz="0.1500 -0.5725 0.0810" rpy="0 0 -1.5708"/>
-      <geometry><box size="0.035 0.230 0.158"/></geometry>
+    <collision>  <!-- foot, right: no diagonal strut on this side -->
+      <origin xyz="0.1600 -0.5750 0.0110" rpy="0 0 -1.5708"/>
+      <geometry><box size="0.020 0.210 0.018"/></geometry>
     </collision>
   </link>
   <joint name="husky_top_assembly_joint" type="fixed">
