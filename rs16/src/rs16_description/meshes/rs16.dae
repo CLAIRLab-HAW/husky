@@ -1,7 +1,7 @@
 <COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
   <asset>
-    <created>2026-10-09T13:40:56.212560</created>
-    <modified>2026-10-09T13:40:56.212568</modified>
+    <created>2026-10-09T23:25:24.591165</created>
+    <modified>2026-10-09T23:25:24.591173</modified>
     <up_axis>Z_UP</up_axis>
   </asset>
   <library_effects>
@@ -16,13 +16,13 @@
               <color>0.0 0.0 0.0 1.0</color>
             </ambient>
             <diffuse>
-              <color>0.6407769884456236 0.6407769884456236 0.6407769884456236 1.0</color>
+              <color>0.5 0.52 0.55 1.0</color>
             </diffuse>
             <specular>
-              <color>0.1 0.1 0.1 1.0</color>
+              <color>0.35 0.35 0.35 1.0</color>
             </specular>
             <shininess>
-              <float>0.0</float>
+              <float>12.0</float>
             </shininess>
             <reflective>
               <color>0.0 0.0 0.0 1.0</color>
@@ -53,13 +53,13 @@
               <color>0.0 0.0 0.0 1.0</color>
             </ambient>
             <diffuse>
-              <color>0.666666999306647 0.7058820084412476 0.7647059881133624 1.0</color>
+              <color>0.67 0.7 0.74 1.0</color>
             </diffuse>
             <specular>
-              <color>0.1 0.1 0.1 1.0</color>
+              <color>0.5 0.5 0.5 1.0</color>
             </specular>
             <shininess>
-              <float>0.0</float>
+              <float>30.0</float>
             </shininess>
             <reflective>
               <color>0.0 0.0 0.0 1.0</color>
@@ -90,13 +90,13 @@
               <color>0.0 0.0 0.0 1.0</color>
             </ambient>
             <diffuse>
-              <color>0.6690619914150692 0.6699029991561463 0.6552170097354887 1.0</color>
+              <color>0.58 0.6 0.63 1.0</color>
             </diffuse>
             <specular>
-              <color>0.1 0.1 0.1 1.0</color>
+              <color>0.35 0.35 0.35 1.0</color>
             </specular>
             <shininess>
-              <float>0.0</float>
+              <float>12.0</float>
             </shininess>
             <reflective>
               <color>0.0 0.0 0.0 1.0</color>
@@ -127,13 +127,13 @@
               <color>0.0 0.0 0.0 1.0</color>
             </ambient>
             <diffuse>
-              <color>0.3299999972442969 0.25000000067158873 0.0 1.0</color>
+              <color>0.05 0.45 0.82 1.0</color>
             </diffuse>
             <specular>
-              <color>0.1 0.1 0.1 1.0</color>
+              <color>0.6 0.6 0.6 1.0</color>
             </specular>
             <shininess>
-              <float>0.0</float>
+              <float>40.0</float>
             </shininess>
             <reflective>
               <color>0.0 0.0 0.0 1.0</color>

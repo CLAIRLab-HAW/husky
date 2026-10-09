@@ -7,8 +7,9 @@
 
 The source is ``RS16.stp`` from robosense.ai (Downloads, "RS-LiDAR-16 3D Model", 2020-07-23), a Creo assembly in mm
 of 15 parts. It is not in the repo: RoboSense's download page states no license for redistributing it. This script
-keeps the four parts one sees from outside -- housing, cap, optical window, M12 cable gland -- each in the color the
-STEP gives it, and drops the inner ones (seal ring, screw, pins, bracket).
+keeps the four parts one sees from outside -- housing, cap, optical window, M12 cable gland -- and drops the inner ones
+(seal ring, screw, pins, bracket). Their look is :data:`LOOK`, not the STEP's colors: the STEP paints the window
+brown and the housing a flat light gray, where the sensor is matte metallic gray with a metallic blue window.
 
 The frame is the one ``rs16.urdf.xacro`` hangs the mesh on: the STEP's axis of rotation is its -y, the mounting face
 at y = +7.7 mm. Rotated -90 deg about x, that face lies on z = 0 and the axis on +z; the gland then points along -x,
@@ -50,6 +51,15 @@ VISIBLE = {
     "20202-0144-00_16_Y0001": "cap",
     "160001": "window",
     "M12X1-5_5_0001": "gland",
+}
+#: How each part looks [sRGB diffuse, specular, shininess], read off RoboSense's product photo with the owner on
+#: 2026-10-09: housing and cap matte metallic gray, the window metallic blue, the gland bright metal. The twin
+#: (``clair.twin.collada``) takes the diffuse alone; Foxglove and RViz shade with all three.
+LOOK = {
+    "housing": ((0.50, 0.52, 0.55), 0.35, 12.0),
+    "cap": ((0.58, 0.60, 0.63), 0.35, 12.0),
+    "window": ((0.05, 0.45, 0.82), 0.60, 40.0),
+    "gland": ((0.67, 0.70, 0.74), 0.50, 30.0),
 }
 #: Where the STEP puts the mounting face along its axis [mm].
 FACE_Y_MM = 7.7
@@ -137,7 +147,8 @@ def write_dae(parts: dict[str, tuple[np.ndarray, np.ndarray, list[float]]], dae_
     dae = collada.Collada()
     dae.assetInfo.upaxis = asset.UP_AXIS.Z_UP
     nodes = []
-    for key, (v, f, color) in parts.items():
+    for key, (v, f, _step_color) in parts.items():
+        color, specular, shininess = LOOK[key]
         placed = np.c_[v[:, 0], v[:, 2], FACE_Y_MM - v[:, 1]] / 1000.0  # -90 deg about x, face onto z = 0
         mesh = trimesh.Trimesh(placed, f, process=True)
         effect = material.Effect(
@@ -145,7 +156,8 @@ def write_dae(parts: dict[str, tuple[np.ndarray, np.ndarray, list[float]]], dae_
             [],
             "phong",
             diffuse=(*color, 1.0),
-            specular=(0.1, 0.1, 0.1, 1.0),
+            specular=(specular, specular, specular, 1.0),
+            shininess=shininess,
             transparent=None,
             transparency=None,
         )
