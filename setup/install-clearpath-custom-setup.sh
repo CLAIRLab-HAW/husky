@@ -25,9 +25,9 @@
 #     extras file includes, a workspace robot.yaml lists
 #   - build ~/onboard/extras (colcon): the URDF extras robot.yaml
 #     addresses under platform.extras.urdf and lists as a workspace
-#   - root-owned copies of urdf_physics_patch, sensor_mesh_uri_patch and
-#     ride_height_patch (all this repo) under /usr/local/bin, likewise for the
-#     boot service
+#   - root-owned copies of urdf_physics_patch, sensor_mesh_uri_patch,
+#     ride_height_patch and wheel_visual_patch (all this repo) under
+#     /usr/local/bin, likewise for the boot service
 #   - optional: clearpath-custom-ur-dashboard.service: starts the ur_robot_driver
 #     dashboard_client (power_on/brake_release/unlock_protective_stop/restart_safety)
 #     at boot
@@ -115,7 +115,7 @@ RG6_BRIDGE_UNIT_PATH="/etc/systemd/system/${RG6_BRIDGE_UNIT}"
 # rg6 build). The boot service clearpath-custom-setup (root) calls ONLY this
 # copy - never the user-writable workspace directly.
 RG6_MOVEIT_PATCH_BIN="${BIN_DIR}/rg6-moveit-patch"
-# The other two patch tools are scripts of THIS repo, so both take the ordinary repo_file route like every other
+# The other four patch tools are scripts of THIS repo, so all take the ordinary repo_file route like every other
 # deployed script here -- not rg6_tool_src, which resolves against a foreign workspace.
 #
 # urdf-physics-patch edits the apt descriptions the Clearpath generator READS (joint dynamics, top plate
@@ -130,6 +130,9 @@ SENSOR_MESH_URI_PATCH_BIN="${BIN_DIR}/sensor-mesh-uri-patch"
 # the ground reference every calibrated height is measured against -- sits where the squashed tyres put it.  Also
 # copied into the offboard container from this repo, for the same reason as the mesh URI fix.
 RIDE_HEIGHT_PATCH_BIN="${BIN_DIR}/ride-height-patch"
+# wheel-visual-patch turns the right wheels' visual by pi about z in both a200 wheel macros, so the one-sided indoor
+# mesh shows its rim outward on both sides.  Visual only; copied into the offboard container for the same reason.
+WHEEL_VISUAL_PATCH_BIN="${BIN_DIR}/wheel-visual-patch"
 
 # THREE files live in the rg6 workspace, not in setup/, and each can be taken either from a built workspace or
 # straight from the sources: rg6_moveit_patch (the SRDF patch), rg6_grip_bridge.py (the gripper driver) and its
@@ -448,6 +451,7 @@ verify_deployments() {
         "${URDF_PHYSICS_PATCH_BIN}|scripts/urdf_physics_patch.py"
         "${SENSOR_MESH_URI_PATCH_BIN}|scripts/sensor_mesh_uri_patch.py"
         "${RIDE_HEIGHT_PATCH_BIN}|scripts/ride_height_patch.py"
+        "${WHEEL_VISUAL_PATCH_BIN}|scripts/wheel_visual_patch.py"
     )
     echo "=== --verify: rolled-out copies against the checkout ==="
     for entry in "${MANIFEST[@]}"; do
@@ -987,8 +991,8 @@ if [ "$DO_RG6" -eq 1 ]; then
     #
     # Three files of that workspace are rolled out here as root-owned copies: the SRDF patch for the boot service,
     # and the bridge plus its linkage table for the gripper service (see rg6_tool_src).  clearpath-custom-joint-states
-    # starts the relay out of the same workspace.  The second patch tool, urdf_physics_patch, is a script of THIS
-    # repo and needs none of this build.
+    # starts the relay out of the same workspace.  The other patch tools (urdf_physics_patch and its siblings) are
+    # scripts of THIS repo and need none of this build.
     #
     # These two are the whole workspace -- rg6 ships no interface
     # package.  The bridge publishes its state as flat JSON on rg6/bridge_state,
@@ -1034,19 +1038,21 @@ else
     echo ">>> extras: skipped (the existing build stays)."
 fi
 
-# --- install the three patch tools as root-owned copies ---------------------
+# --- install the five patch tools as root-owned copies ----------------------
 # The boot service clearpath-custom-setup runs as root: it hooks the RG6 into
 # the generated MoveIt config (rg6_moveit_patch), puts physical properties into
-# the apt descriptions the generator reads (urdf_physics_patch) and rewrites the
+# the apt descriptions the generator reads (urdf_physics_patch), rewrites the
 # sensor mesh URIs the foxglove_bridge will only serve as package://
-# (sensor_mesh_uri_patch). None of them may be called from where it is edited -
+# (sensor_mesh_uri_patch), puts the loaded wheel radius into the a200
+# description (ride_height_patch) and turns the right wheels' visual
+# (wheel_visual_patch). None of them may be called from where it is edited -
 # running user-writable code as root on every boot is a privilege escalation
 # (whoever can write there gets root; via git pull even the remote repo). Hence
 # root-owned copies: they only change through another installer run.
 #
 # They differ in WHERE they come from, and only there. rg6_moveit_patch is a
 # file of the rg6 workspace (rg6_tool_src), so it is installed here on
-# its own. The other two are scripts of setup/ and take the same route as
+# its own. The other four are scripts of setup/ and take the same route as
 # every other one here (repo_file: next to the installer, then the checkout,
 # then main) -- hence one function for both, further down.
 
@@ -1073,7 +1079,7 @@ else
 fi
 
 # Every script of THIS repo that lands under /usr/local/bin takes the same route, so it takes the same function:
-# the two patchers directly below, the octomap feed and the manipulator diagnostics further down.
+# the four patchers directly below, the octomap feed and the manipulator diagnostics further down.
 #
 # repo_file and NOT require_repo_file: a missing tool of this kind is a warning, not a dead unit -- each caller
 # owns what its absence costs (the boot service skips that one patch by name, the optional services stay
@@ -1120,6 +1126,8 @@ install_repo_tool scripts/urdf_physics_patch.py "$URDF_PHYSICS_PATCH_BIN" \
     "$URDF_PHYSICS_PATCH_BIN" --dry-run || true
 install_repo_tool scripts/ride_height_patch.py "$RIDE_HEIGHT_PATCH_BIN" \
     "$RIDE_HEIGHT_PATCH_BIN" --dry-run || true
+install_repo_tool scripts/wheel_visual_patch.py "$WHEEL_VISUAL_PATCH_BIN" \
+    "$WHEEL_VISUAL_PATCH_BIN" --dry-run || true
 
 # --- UR dashboard_client as a boot service (optional) ----------------------
 # Provides the dashboard services (power_on/brake_release/unlock_protective_stop/
@@ -1962,6 +1970,10 @@ echo "  ${RG6_MOVEIT_PATCH_BIN}     : root-owned copy of rg6_moveit_patch (used 
 echo "  ${URDF_PHYSICS_PATCH_BIN}   : root-owned copy of scripts/urdf_physics_patch.py (used by the boot service, updated only by the installer)"
 [ -f "$SENSOR_MESH_URI_PATCH_BIN" ] && \
 echo "  ${SENSOR_MESH_URI_PATCH_BIN}: root-owned copy of scripts/sensor_mesh_uri_patch.py (same; offboard too)"
+[ -f "$RIDE_HEIGHT_PATCH_BIN" ] && \
+echo "  ${RIDE_HEIGHT_PATCH_BIN}    : root-owned copy of scripts/ride_height_patch.py (same; offboard too)"
+[ -f "$WHEEL_VISUAL_PATCH_BIN" ] && \
+echo "  ${WHEEL_VISUAL_PATCH_BIN}   : root-owned copy of scripts/wheel_visual_patch.py (same; offboard too)"
 [ -f "$OCTO_UNIT_PATH" ] && \
 echo "  ${OCTO_UNIT}   : depth─▶PointCloud2 for MoveIt's octomap (the move_group sensor parameters come from robot.yaml)"
 [ -f "$LIDAR_UNIT_PATH" ] && \

@@ -31,16 +31,17 @@ in the `--verify` manifest it belongs in `scripts/`; if it is not, somebody star
   inside a window the app opens, and nothing else.
 - **Manipulator diagnostics in Cockpit**: arm mode, control, joints, controllers and gripper as `diagnostic_msgs`, with
   an explicit state *out of service* instead of invented numbers.
-- **A boot patcher with four steps** — everything `robot.yaml` can express has moved there. Three of the four edit what
-  the Clearpath generator writes (the sensor mesh URIs, the arm `joint_states` bus, the RG6's SRDF);
-  `urdf_physics_patch` edits what it reads — the UR joints' zero `<dynamics>`, the wheel joints' missing one,
-  `top_plate_link` without an `<inertial>` — and therefore runs first. Three of the steps are calls to a root-owned copy
-  under
+- **A boot patcher with six steps** — everything `robot.yaml` can express has moved there. Three of the six edit what
+  the Clearpath generator writes (the sensor mesh URIs, the arm `joint_states` bus, the RG6's SRDF); three edit what
+  it reads and therefore run first: `urdf_physics_patch` (the UR joints' zero `<dynamics>`, the wheel joints' missing
+  one, `top_plate_link` without an `<inertial>`), `ride_height_patch` (this vehicle's loaded wheel radius under
+  `base_footprint`) and `wheel_visual_patch` (the right wheels' visual turned by pi about z, so the one-sided indoor
+  wheel mesh shows its rim outward on both sides). Five of the steps are calls to a root-owned copy under
   `/usr/local/bin`, so the boot service never runs code out of a directory a user can write to.
-- **Two of those patchers are shared with the offboard container.**
-  `sensor_mesh_uri_patch` and `urdf_physics_patch` are self-contained scripts of this repo, and `deploy/offboard`
-  copies the same files out of it. The robot and the container each generate a URDF of their own; a difference between
-  the two must never be explainable by a fix having run on one side only.
+- **Four of those patchers are shared with the offboard container.** `sensor_mesh_uri_patch`, `urdf_physics_patch`,
+  `ride_height_patch` and `wheel_visual_patch` are self-contained scripts of this repo, and `deploy/offboard` copies the
+  same files out of it. The robot and the container each generate a URDF of their own; a difference between the two
+  must never be explainable by a fix having run on one side only.
 - **Both Cockpit packages are deployed and measured** — the diagnostics fork and the page *Roboter-Werkzeuge*.
   `--verify` hashes the second one file by file, so a page that looks installed but is three commits old says so.
 
@@ -432,16 +433,18 @@ The fourth, `rg6_grip_bridge --selftest`, moved with the node into
 [onrobot-rg6](../rg6/README.md) and runs there; the installer still executes it against the copy it has just
 deployed.
 
-The two patch tools have a dry run instead, which writes nothing —
+The patch tools have a dry run instead, which writes nothing —
 `urdf_physics_patch` reports every target still waiting for a measurement,
-`sensor_mesh_uri_patch` which sensor xacros it would rewrite:
+the other three which xacros they would rewrite:
 
 ```bash
 python3 scripts/urdf_physics_patch.py --dry-run
 python3 scripts/sensor_mesh_uri_patch.py --dry-run
+python3 scripts/ride_height_patch.py --dry-run
+python3 scripts/wheel_visual_patch.py --dry-run
 ```
 
-Off the robot both find no `/opt/ros/*/share` to work in and say so; point
+Off the robot they find no `/opt/ros/*/share` to work in and say so; point
 `--ros-share` at a copy to exercise them against real package files.
 
 Its own suite runs from the workspace root, without a robot and without ROS:

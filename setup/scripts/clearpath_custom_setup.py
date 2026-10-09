@@ -27,6 +27,10 @@ Patches:
      calibrated height is measured against -- sits where the squashed tyres put
      it. Same window as step 5.
 
+  7. The right wheels' visual turned by pi about z (run_wheel_visual_patch), so
+     the one-sided indoor wheel mesh shows its rim outward on both sides.
+     Visual only; same window as step 5.
+
 Every edit is surgical, idempotent, with a .bak backup and an atomic write.
 If a file or a key is missing, that change is skipped (with a warning).
 
@@ -226,6 +230,20 @@ def run_ride_height_patch(label):
     )
 
 
+def run_wheel_visual_patch(label):
+    """Turn the right wheels' visual by pi about z in both a200 wheel macros, before the generator expands them.
+
+    The tool is a script of this repo (``scripts/wheel_visual_patch.py``) and carries the mesh measurement.  Same
+    window as ``ride_height_patch`` -- it edits a package xacro the generator CONSUMES -- but a separate tool: it is
+    an upstream defect every a200 with the indoor wheel shows, not a property of this vehicle, and it touches no
+    joint, collision or inertial.  Without it the right wheels show their rim to the chassis in RViz and Foxglove."""
+    return run_root_tool(
+        label,
+        "/usr/local/bin/wheel-visual-patch",
+        missing="the right wheels show their rim to the chassis.",
+    )
+
+
 def selftest():
     """Exercise the remap pattern without touching a file or needing ROS.
 
@@ -302,6 +320,9 @@ def main() -> int:
     #    reference every calibrated height is measured against -- matches the squashed tyres under the UR mass.
     #    Runs in the same window as step 5 and for the same reason: it edits what the generator reads.
     run_ride_height_patch("ride height")
+    # 7) The right wheels' visual turned by pi about z, so the one-sided indoor wheel mesh shows its rim outward on
+    #    both sides, the way the real Husky mounts the same wheel.  Same window as steps 5 and 6.
+    run_wheel_visual_patch("wheel visual")
     # 4) RG6 into MoveIt: patch robot.srdf (group 'gripper' + EE)
     #    (onrobot-rg6 tool).  For the SRDF there is no lever in robot.yaml --
     #    clearpath_config does not know the word 'srdf', and the gripper enum
