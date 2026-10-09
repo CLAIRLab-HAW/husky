@@ -26,7 +26,10 @@ MSG_SOURCE_PCAP = 3
 PCAP_RATE = 1
 
 #: The RS16's sweep, for a simulator that casts one: 16 rings from -15° to +15°, 2° apart, 10 revolutions a second,
-#: a 0.2 m blind zone (RS-LiDAR-16 datasheet).
+#: a 0.2 m blind zone (RS-LiDAR-16 datasheet).  The rings are this unit's own: the vertical calibration its DIFOP
+#: packets carry (``pitch_cali``, read 2026-10-09 out of data/recordings/rs16_labor.pcap) lies within 0.003° of the
+#: nominal angles.  Elevations fitted to the points disagree by up to 0.27° near the sensor, and that is not the
+#: beams: rs_driver casts each return from the lens center, 38 mm ahead of the axis and 11 mm beside it.
 RS16_RINGS_DEG = tuple(float(e) for e in range(-15, 16, 2))
 RS16_RATE_HZ = 10.0
 RS16_RANGE_MIN_M = 0.2
