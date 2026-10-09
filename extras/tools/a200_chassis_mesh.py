@@ -17,8 +17,8 @@ bounding box in the mesh frame [mm] (:data:`CONTROLS`), so the order trimesh spl
 emergency stop is the big mushroom on a collar, the key lock the domed knob with a ring below it (both on +y, the
 robot's left), the power button the cylinder with a flat ringed face (on -y), and the two flat panels they sit on,
 one per side. The owner named them. The two bumps between the panels (:data:`REMOVED`) the a200-0553 does not have:
-they are left out, and as each stands in a closed tube through the rear face, a flat lid in the chassis' color covers
-where it stood (:func:`hole_caps`). Everything else is the chassis, the small pin beside the power button included.
+they are left out, and the middle panel they stood in is drawn anew in one piece with the body (:func:`middle_slab`).
+Everything else is the chassis, the small pin beside the power button included.
 A box that matches no component, or more than one, stops the script: the source mesh changed, and nothing is guessed.
 
 The status LEDs are no component of their own: they are small boxes in the chassis body's sloped rear face (normal
@@ -53,7 +53,6 @@ import collada
 import numpy as np
 import trimesh
 from collada import asset, geometry, material, scene, source
-from scipy.spatial import ConvexHull
 
 #: The controls' and their panels' bounding boxes in the mesh frame [mm] as (min corner, max corner), read off the
 #: split on 2026-10-09 (faces: 2768, 2430, 3808, 20, 20), and the tolerance a box is matched with [mm]. Every other
@@ -73,17 +72,17 @@ REMOVED = {
     "bump_left": ((-332, 66, 156), (-284, 98, 209)),
     "bump_right": ((-332, -98, 156), (-284, -66, 209)),
 }
-#: The middle panel of the rear face, between the two bumps (300 faces): a separate plate whose sides stop at
-#: y +-96.8 mm in the rear body's opening, whose walls stand at y +-97.35 mm, both flush with the slope at
-#: n.p 347.64 mm (measured 2026-10-10). The 0.55 mm slits show as seams, and one looks into the body through them;
-#: on the a200-0553 the rear face is one piece (the owner, 2026-10-10). Its sides are moved out to the walls.
+#: The middle panel of the rear face (300 faces): a separate 3.2 mm plate over the whole rear profile -- the wall at
+#: the bottom, the slope, the top edge -- with the bumps' tubes through it, set into an opening of the rear body whose
+#: walls stand at y +-97.35 mm while the plate stops at +-96.8 mm, tilted 0.26 deg against the body (measured
+#: 2026-10-10). Echo outlines every mesh with three.js' EdgesGeometry(geometry, 40): each crease over 40 deg and each
+#: edge no other triangle shares (ModelCache.ts, read 2026-10-10), so the plate's rim showed as a line all round; on
+#: the a200-0553 the rear face is one piece (the owner, 2026-10-10). The plate and the opening's walls go, and
+#: :func:`middle_slab` spans the opening anew from its two rims, sharing their corners.
 MIDDLE_PANEL = ((-406.0, -96.8, 71.0), (-272.3, 96.8, 224.1))
-MIDDLE_PANEL_SIDE_MM = 97.35
-#: The rear face's level along the slope's nominal normal [m], and how far a face may lie off it and still be shaded
-#: as the rear face: the middle panel is tilted 0.26 deg against the face around it (normals (-0.6392, 0, 0.769)
-#: against (-0.6428, 0, 0.766), measured 2026-10-10), so under a highlight it showed its outline though it meets the
-#: face along the seam. Every face of the rear face gets the one area-weighted normal (:func:`one_rear_face`).
-REAR_FACE_LEVEL_M, REAR_FACE_TOLERANCE_M = 0.34764, 0.0015
+MIDDLE_OPENING_Y_M = 0.09735
+#: Corner positions count as one when they agree to this grid [m] -- three.js' EdgesGeometry hashes them to 1e-4.
+WELD_M = 1e-4
 BOX_TOLERANCE_MM = 1.5
 #: The box the source's status LED boxes lie in, in the mesh frame [mm] as (min corner, max corner) (2026-10-09). They
 #: sit 1.6 mm INTO the sloped rear face, under its own triangles and the right panel, so no color shows them; their
@@ -156,43 +155,6 @@ def read(dae_path: str) -> tuple[np.ndarray, np.ndarray]:
     return np.concatenate(triangles), np.concatenate(normals)
 
 
-def close_middle_panel(triangles: np.ndarray, labels: np.ndarray) -> np.ndarray:
-    """``triangles`` with the middle panel's sides (:data:`MIDDLE_PANEL`) moved out to the opening's walls."""
-    hits = [
-        label
-        for label in np.unique(labels)
-        if np.allclose(
-            [triangles[labels == label].min(axis=(0, 1)) * 1000, triangles[labels == label].max(axis=(0, 1)) * 1000],
-            MIDDLE_PANEL,
-            atol=BOX_TOLERANCE_MM,
-        )
-    ]
-    if len(hits) != 1:
-        raise SystemExit(f"middle panel: {len(hits)} components in the box {MIDDLE_PANEL} mm -- source changed?")
-    closed = triangles.copy()
-    panel = closed[labels == hits[0]]
-    side = np.abs(panel[..., 1]) * 1000.0 > MIDDLE_PANEL[1][1] - 0.1
-    panel[..., 1] = np.where(side, np.sign(panel[..., 1]) * MIDDLE_PANEL_SIDE_MM / 1000.0, panel[..., 1])
-    closed[labels == hits[0]] = panel
-    return closed
-
-
-def one_rear_face(triangles: np.ndarray, normals: np.ndarray) -> np.ndarray:
-    """``normals`` with every face of the sloped rear face shaded by one normal, its area-weighted mean."""
-    slope = np.array([-0.64, 0.0, 0.77])
-    slope /= np.linalg.norm(slope)
-    faces = np.cross(triangles[:, 1] - triangles[:, 0], triangles[:, 2] - triangles[:, 0])
-    area = np.linalg.norm(faces, axis=1)
-    unit = faces / (area[:, None] + 1e-12)
-    level = triangles.mean(axis=1) @ slope
-    rear = (unit @ slope > 0.995) & (np.abs(level - REAR_FACE_LEVEL_M) < REAR_FACE_TOLERANCE_M)
-    rear &= triangles[:, :, 0].max(axis=1) < -0.26
-    common = (unit[rear] * area[rear, None]).sum(axis=0)
-    shaded = normals.copy()
-    shaded[rear] = common / np.linalg.norm(common)
-    return shaded
-
-
 def components(triangles: np.ndarray) -> np.ndarray:
     """Each triangle's connected component, in the source's triangle order."""
     mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles), process=False)
@@ -226,44 +188,101 @@ def assign(triangles: np.ndarray, labels: np.ndarray) -> dict[str, np.ndarray]:
     return masks
 
 
-def hole_caps(triangles: np.ndarray, labels: np.ndarray, chassis: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Flat lids where the left-out bumps (:data:`REMOVED`) were: each bump stands in a closed tube through the rear
-    face, and without it one looks through. The lid is the bump's outline seen along the slope's normal, laid
-    0.1 mm proud of the face around it, in the chassis' color."""
-    normal = np.array([-0.64, 0.0, 0.77])
-    normal /= np.linalg.norm(normal)
-    along = np.cross([0.0, 1.0, 0.0], normal)
-    faces = triangles[chassis]
-    face_normals = np.cross(faces[:, 1] - faces[:, 0], faces[:, 2] - faces[:, 0])
-    face_normals /= np.linalg.norm(face_normals, axis=1, keepdims=True) + 1e-12
-    on_slope = faces[face_normals @ normal > 0.99].reshape(-1, 3)
-    lids, lid_normals = [], []
-    for low, high in REMOVED.values():
-        bump = [
-            label
-            for label in np.unique(labels)
-            if np.allclose(
-                [
-                    triangles[labels == label].min(axis=(0, 1)) * 1000,
-                    triangles[labels == label].max(axis=(0, 1)) * 1000,
-                ],
-                [low, high],
-                atol=BOX_TOLERANCE_MM,
-            )
-        ]
-        corners = triangles[labels == bump[0]].reshape(-1, 3)
-        near = on_slope[np.abs(on_slope[:, 1] - corners[:, 1].mean()) < 0.03]
-        offset = float((near @ normal).max()) + 0.0001
-        flat = np.c_[corners @ along, corners[:, 1]]
-        ring = flat[ConvexHull(flat).vertices]  # the outline's corners alone, counterclockwise
-        points = np.outer(ring[:, 0], along) + np.outer(ring[:, 1], [0.0, 1.0, 0.0]) + normal * offset
-        middle = points.mean(axis=0)
-        fan = np.array([[middle, a, b] for a, b in zip(points, np.roll(points, -1, axis=0))])
-        if (np.cross(fan[:, 1] - fan[:, 0], fan[:, 2] - fan[:, 0]) @ normal).sum() < 0:
-            fan = fan[:, ::-1]
-        lids.append(fan)
-        lid_normals.append(np.broadcast_to(normal, fan.shape))
-    return np.concatenate(lids), np.concatenate(lid_normals)
+def open_edges(triangles: np.ndarray) -> dict[tuple, tuple[int, int]]:
+    """The edges no other triangle runs the other way, as three.js pairs them: ``{(corner, next corner): (triangle,
+    edge)}``, corners on the :data:`WELD_M` grid."""
+    grid = np.round(triangles / WELD_M).astype(np.int64)
+    edges: dict[tuple, tuple[int, int]] = {}
+    for index, triangle in enumerate(grid):
+        corners = [tuple(corner) for corner in triangle]
+        for edge in range(3):
+            key = (corners[edge], corners[(edge + 1) % 3])
+            if (key[1], key[0]) in edges:
+                edges.pop((key[1], key[0]))
+            else:
+                edges[key] = (index, edge)
+    return edges
+
+
+def opening_rim(triangles: np.ndarray, side: float) -> np.ndarray:
+    """The open rim the opening's wall left at ``y = side`` [m], in order, as a closed loop: the body is a shell, so
+    its outer and inner skin meet at the ends."""
+    following, where = {}, {}
+    for (start, stop), (index, edge) in open_edges(triangles).items():
+        a, b = triangles[index][edge], triangles[index][(edge + 1) % 3]
+        if max(abs(a[1] - side), abs(b[1] - side)) < 0.0003 and max(a[0], b[0]) < -0.26:
+            following[start], where[start], where[stop] = stop, a, b
+    if not following or set(following) != set(following.values()):
+        raise SystemExit(
+            f"middle panel: the opening's rim at y {side * 1000:+.2f} mm is no closed loop -- source changed?"
+        )
+    corner = min(following, key=lambda key: (where[key][2], where[key][0]))
+    loop = [where[corner]]
+    for _ in range(len(following) - 1):
+        corner = following[corner]
+        loop.append(where[corner])
+    return np.array(loop)
+
+
+def zipper(first: np.ndarray, second: np.ndarray) -> np.ndarray:
+    """Triangles between two loops whose corners run alike, each corner its own: the strip a ruled surface makes,
+    walked by the corners' share of their loop's length."""
+    first, second = np.r_[first, first[:1]], np.r_[second, second[:1]]
+    reach = [np.r_[0.0, np.cumsum(np.linalg.norm(np.diff(loop, axis=0), axis=1))] for loop in (first, second)]
+    along_first, along_second = (r / r[-1] for r in reach)
+    i = j = 0
+    strip = []
+    while i < len(first) - 1 or j < len(second) - 1:
+        if j == len(second) - 1 or (i < len(first) - 1 and along_first[i + 1] <= along_second[j + 1]):
+            strip.append([first[i], first[i + 1], second[j]])
+            i += 1
+        else:
+            strip.append([first[i], second[j + 1], second[j]])
+            j += 1
+    return np.array(strip)
+
+
+def middle_slab(chassis: np.ndarray, labels: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """The chassis' triangles with the middle panel (:data:`MIDDLE_PANEL`) and its opening's walls taken out and the
+    opening spanned anew between its two rims; the new triangles' flat normals; and which of ``chassis`` were kept.
+    Welded to the body: every edge of the rims is shared, so no outline is drawn along them."""
+    hits = [
+        label
+        for label in np.unique(labels)
+        if np.allclose(
+            [chassis[labels == label].min(axis=(0, 1)) * 1000, chassis[labels == label].max(axis=(0, 1)) * 1000],
+            MIDDLE_PANEL,
+            atol=BOX_TOLERANCE_MM,
+        )
+    ]
+    if len(hits) != 1:
+        raise SystemExit(f"middle panel: {len(hits)} components in the box {MIDDLE_PANEL} mm -- source changed?")
+    faces = np.cross(chassis[:, 1] - chassis[:, 0], chassis[:, 2] - chassis[:, 0])
+    faces /= np.linalg.norm(faces, axis=1, keepdims=True) + 1e-12
+    walls = (np.abs(faces[:, 1]) > 0.95) & (chassis[:, :, 0].max(axis=1) < -0.26)
+    walls &= np.all(np.abs(np.abs(chassis[:, :, 1]) - MIDDLE_OPENING_Y_M) < 0.0003, axis=1)
+    body = chassis[(labels != hits[0]) & ~walls]
+    left, right = opening_rim(body, MIDDLE_OPENING_Y_M), opening_rim(body, -MIDDLE_OPENING_Y_M)
+    right = np.roll(right, -int(np.argmin(np.linalg.norm(right[:, [0, 2]] - left[0, [0, 2]], axis=1))), axis=0)
+
+    def turn(loop: np.ndarray) -> float:
+        x, z = loop[:, 0], loop[:, 2]
+        return float(np.sum(x * np.roll(z, -1) - np.roll(x, -1) * z))
+
+    if np.sign(turn(left)) != np.sign(turn(right)):
+        right = np.r_[right[:1], right[1:][::-1]]
+    # Of the slab's two windings, the one whose rim edges run against the body's: each is then shared.
+    slab = min((zipper(left, right), zipper(left, right)[:, ::-1]), key=lambda s: len(open_edges(np.r_[body, s])))
+    unit = np.cross(slab[:, 1] - slab[:, 0], slab[:, 2] - slab[:, 0])
+    unit /= np.linalg.norm(unit, axis=1, keepdims=True) + 1e-12
+    joined = np.r_[body, slab]
+    unshared = [
+        joined[index][edge]
+        for index, edge in open_edges(joined).values()
+        if abs(abs(joined[index][edge][1]) - MIDDLE_OPENING_Y_M) < 0.0003 and joined[index][edge][0] < -0.26
+    ]
+    print(f"middle panel: {len(slab)} triangles span the opening, {len(unshared)} rim edges left unshared")
+    return joined, np.repeat(unit[:, None], 3, axis=1), (labels != hits[0]) & ~walls
 
 
 def led_fields(triangles: np.ndarray, sunken: np.ndarray, panel: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -366,13 +385,11 @@ def main() -> None:
     args = parser.parse_args()
     triangles, normals = read(args.source)
     labels = components(triangles)
-    triangles = close_middle_panel(triangles, labels)
     print(f"{len(triangles)} triangles in {len(np.unique(labels))} components")
     masks = assign(triangles, labels)
     parts = {key: (triangles[mask], normals[mask]) for key, mask in masks.items()}
-    lids, lid_normals = hole_caps(triangles, labels, masks["chassis"])
-    chassis = np.concatenate([parts["chassis"][0], lids])
-    parts["chassis"] = (chassis, one_rear_face(chassis, np.concatenate([parts["chassis"][1], lid_normals])))
+    chassis, slab_normals, kept = middle_slab(triangles[masks["chassis"]], labels[masks["chassis"]])
+    parts["chassis"] = (chassis, np.r_[normals[masks["chassis"]][kept], slab_normals])
     parts["status_leds"] = led_fields(triangles, masks["status_leds"], masks["panel_right"])
     write(parts, args.dae)
 
