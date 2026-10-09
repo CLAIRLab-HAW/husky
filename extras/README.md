@@ -35,6 +35,10 @@ macro, the gripper package includes nothing from here.
 - **The RS16 where robot.yaml measured it.** `robot.yaml` places the frame `lidar3d_0_mount_link`; this file hangs
   [rs16_description](../rs16/src/rs16_description/README.md)'s macro on it, which brings the lidar's mesh,
   collision cylinder, mass and `lidar3d_0_laser`.
+- **The a200's top chassis in its real colors**, `meshes/a200_top_chassis.dae`: Clearpath's mesh split into its
+  parts by `tools/a200_chassis_mesh.py`: the chassis #E29000, the emergency stop red, the power button and the key
+  lock metallic silver, the status LEDs black (Clearpath's mesh has one greenish-yellow material for all of it).
+  `a200_look_patch` in [husky-custom-setup](../setup/README.md) points the `top_chassis_link` visual here.
 - **A swappable end effector.** The xacro argument `end_effector` (default
   `rg6`) includes `urdf/tools/<name>.urdf.xacro`; `robot.yaml` passes none, so
   the robot always gets its RG6. The offboard mock takes `end_effector:=<name>`.
@@ -141,4 +145,6 @@ compared nothing.
 
 MIT. The RG6 model this file instantiates is vendored in `onrobot-rg6`; its
 origin and the changes made to it are documented there
-(`LICENSE-THIRD-PARTY.md`).
+(`LICENSE-THIRD-PARTY.md`). `meshes/a200_top_chassis.dae` is derived from
+`clearpath_platform_description`'s `top_chassis.dae` and stays under its BSD-3-Clause license, Copyright (c) 2023
+clearpathrobotics; the notice is carried in full in the file's `<asset><contributor><copyright>`.
