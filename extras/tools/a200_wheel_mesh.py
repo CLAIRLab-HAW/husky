@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["numpy", "pycollada", "scipy", "trimesh"]
+# dependencies = ["numpy", "open3d==0.19.0", "pycollada", "rtree", "scipy", "trimesh"]
 # ///
 """Writes ``a200_indoor_wheel.dae``: Clearpath's a200 indoor tire on the a200-0553's real rim.
 
@@ -44,14 +44,22 @@ The fit is checked and printed (:func:`check_fit`): the rim's bead seat must sta
 0.8 mm on 2026-10-10), and the flanges may reach into the tire's bead faces by no more than
 :data:`MAX_FLANGE_OVERLAP_M`. Otherwise the script stops.
 
-The rim's look is :data:`RIM_LOOK`: the glTF's base color as the diffuse, with a metallic sheen. The tire keeps the
-source's own effect. The normals are the sources' own, per corner.
+THE RIM IS DECIMATED to a tenth (:func:`decimate`): the CAD's tessellation gave it 115106 triangles and the DAE 7.1 MB.
+Each body is decimated on its own by quadric error to its count in :data:`BODIES`, 10650 in all, and must stay within
+:data:`MAX_DEVIATION_M` of the CAD; on 2026-10-10 the four stayed within 0.15 mm, the hub plate's flat and tabs,
+the bores and the keyway kept (the web has no openings), and the DAE came to 1.2 MB. The tire is not decimated
+(3952 triangles).
+
+The rim's look is :data:`RIM_LOOK`: black painted steel, as on the robot, set apart from the tire's near-black rubber
+by a lighter diffuse and a highlight. The tire keeps the source's own effect and normals; the rim's normals are made
+per corner by :func:`corner_normals`.
 
 SOURCES AND LICENSES. Clearpath's ``indoor.dae`` is BSD-3-Clause (``LICENSE`` of ``clearpath_common``, "Copyright (c)
 2023, clearpathrobotics"); the DAE's first ``<asset><contributor>`` carries the notice in full (:data:`NOTICE`). The
 rim's CAD comes from Clearpath's download without a BSD license, so the glTF is NOT in the repo -- the same practice as
 ``onboard/rs16/tools/rs16_mesh.py`` with RoboSense's STEP: the owner keeps it at ``onboard/a200_rims.gltf`` (untracked,
-4.8 MB, 2026-10-10), and the derived DAE is committed, like ``rs16.dae``. The second contributor names the CAD.
+4.8 MB, 2026-10-10), and the derived, decimated DAE is committed, like ``rs16.dae``. The second
+contributor names the CAD.
 
     docker cp offboard-plant-mock-1:/opt/ros/jazzy/share/clearpath_platform_description/meshes/a200/wheels/indoor.dae \\
         /tmp/indoor.dae
@@ -68,16 +76,17 @@ import datetime
 
 import collada
 import numpy as np
+import open3d as o3d
 import trimesh
 from collada import asset, geometry, material, scene, source
 
-#: The glTF's bodies by their mesh name (Onshape export, 2026-10-10) and what each is; a body missing or one more
-#: stops the script.
+#: The glTF's bodies by their mesh name (Onshape export, 2026-10-10): what each is, and how many triangles it is
+#: decimated to (of 56448, 56070, 1116, 1472). A body missing or one more stops the script.
 BODIES = {
-    "mesh16": "inner rim half",
-    "mesh44": "outer rim half",
-    "mesh0": "hub, keyed to the shaft",
-    "mesh8": "hub plate, on the web's outer face",
+    "mesh16": ("inner rim half", 5000),
+    "mesh44": ("outer rim half", 5000),
+    "mesh0": ("hub, keyed to the shaft", 280),
+    "mesh8": ("hub plate, on the web's outer face", 370),
 }
 #: The rim half that faces outward on the wheel: toward -y in the glTF, the front-right wheel.
 OUTER_HALF = "mesh44"
@@ -86,6 +95,14 @@ AXIS_SHELLS = ("mesh16_mesh_9", "mesh44_mesh_9")
 #: How far a round shell's corners may lie off its two radii, and its center off the other shell's [m]; the export is
 #: round to 0.01 mm (2026-10-10).
 ROUND_TOLERANCE_M = 0.0001
+#: How far a decimated body's surface may lie from the CAD's, either way [m]; on 2026-10-10 the four bodies stayed
+#: within 0.15 mm.
+MAX_DEVIATION_M = 0.0005
+#: How many points :func:`deviation` samples on each surface, with a fixed seed.
+DEVIATION_SAMPLES = 20000
+#: Two faces at a corner of the decimated rim share its normal up to this angle between them [rad]; beyond it the edge
+#: is shaded sharp, as the CAD's faces meet.
+CREASE_RAD = np.radians(60.0)
 #: The tire's tread radius [m]: the a200-0553's ROLLING radius, ``platform_velocity_controller.wheel_radius`` in
 #: ``onboard/setup/config/robot.yaml`` -- a straight run of 2.515 m on a folding rule turned the wheels by 17.026 rad
 #: (2026-10-07, R58), and the odometry agrees to 0.1 % since; by tape 29-30 cm across unloaded. Clearpath's tire
@@ -102,10 +119,11 @@ FILLET_M = 0.003
 #: How far the flanges' inner walls may reach into the tire's bead faces [m]: the tire's bead is 63.0 mm wide, the rim
 #: 61.2 mm between its flanges, 0.9 mm on each side (2026-10-10).
 MAX_FLANGE_OVERLAP_M = 0.0015
-#: The rim's look [sRGB diffuse, sRGB specular, shininess]: the glTF's baseColorFactor (49, 52, 52)/255 as the diffuse,
-#: with a metallic sheen the glTF's metallic 0 does not give -- the real rims are painted steel. The twin
+#: The rim's look [sRGB diffuse, sRGB specular, shininess]: black painted steel, as the a200-0553's rims are (the owner,
+#: 2026-10-10; the glTF's dark gray (49, 52, 52)/255 is not). Black, but apart from the tire's rubber: a diffuse of
+#: 0.06 against the tire's 0.023, a touch of blue, and a highlight the tire's ``lambert`` has none of. The twin
 #: (``clair.twin.collada``) takes the diffuse alone; Foxglove and RViz shade with all three.
-RIM_LOOK = ((49 / 255, 52 / 255, 52 / 255), (0.5, 0.5, 0.5), 30.0)
+RIM_LOOK = ((0.06, 0.06, 0.07), (0.5, 0.5, 0.5), 40.0)
 #: Written into every run's ``<created>``/``<modified>``, so a second run on the same sources writes the same file.
 STAMP = datetime.datetime(2026, 10, 10)
 #: The CAD the rim comes from, as Clearpath names it.
@@ -144,7 +162,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."""
 #: Where the rim comes from: Clearpath's CAD, not BSD-licensed, so not redistributed as a source.
 RIM_NOTE = f"""Rim (two halves, hub, hub plate) from Clearpath Robotics' CAD "{CAD}", exported by the owner
-as a glTF (Onshape, 2026-10-10), recentered on the wheel axis and turned by pi about z by
+as a glTF (Onshape, 2026-10-10), decimated per body, recentered on the wheel axis and turned by pi about z by
 onboard/extras/tools/a200_wheel_mesh.py. The CAD itself is not redistributed."""
 
 
@@ -190,10 +208,77 @@ def read_rim(gltf_path: str) -> dict[str, Part]:
         points = trimesh.transform_points(mesh.vertices, transform)
         normals = mesh.vertex_normals @ rotation.T
         faces[name] = (points[mesh.faces], normals[mesh.faces])
-    bodies = {name.split("_mesh")[0] for name in faces}
+    bodies = {body_of(name) for name in faces}
     if bodies != set(BODIES):
         raise SystemExit(f"rim: bodies {sorted(bodies)} in the glTF, expected {sorted(BODIES)} -- export changed?")
     return faces
+
+
+def body_of(name: str) -> str:
+    """The glTF body a CAD face's geometry belongs to: ``mesh16_mesh_9`` -> ``mesh16``."""
+    return name.split("_mesh")[0]
+
+
+def deviation(a: trimesh.Trimesh, b: trimesh.Trimesh) -> float:
+    """The larger of the two one-sided distances between two surfaces [m]: from :data:`DEVIATION_SAMPLES` points on
+    each to the other, a sampled Hausdorff distance."""
+    worst = 0.0
+    for here, there in ((a, b), (b, a)):
+        points, _ = trimesh.sample.sample_surface(here, DEVIATION_SAMPLES, seed=0)
+        worst = max(worst, float(trimesh.proximity.closest_point(there, points)[1].max()))
+    return worst
+
+
+def corner_normals(mesh: trimesh.Trimesh) -> np.ndarray:
+    """Each corner's normal, ``(n, 3, 3)``: the area-weighted mean of the normals of the faces at its vertex that lie
+    within :data:`CREASE_RAD` of its own face.
+
+    ``trimesh.graph.smooth_shade`` was looked at and not taken: it smooths over connected regions of gentle edges, so a
+    sharp edge is smoothed as soon as its two faces connect through gentle ones elsewhere (2026-10-10).
+    """
+    weighted = mesh.face_normals * mesh.area_faces[:, None]
+    adjacent = mesh.vertex_faces[mesh.faces]  # (n, 3, k), padded with -1
+    gentle = (mesh.face_normals[adjacent] * mesh.face_normals[:, None, None, :]).sum(-1) > np.cos(CREASE_RAD)
+    normals = (weighted[adjacent] * ((adjacent >= 0) & gentle)[..., None]).sum(axis=2)
+    length = np.linalg.norm(normals, axis=-1, keepdims=True)
+    if not length.all():
+        raise SystemExit("rim: a decimated corner has no normal -- a degenerate triangle?")
+    return normals / length
+
+
+def decimate(faces: dict[str, Part]) -> dict[str, Part]:
+    """Each glTF body decimated to its triangle count in :data:`BODIES`, by quadric error (Open3D's
+    ``simplify_quadric_decimation``), with :func:`corner_normals`; keyed by body, in the glTF's frame.
+
+    A body is decimated as a whole, its CAD faces welded where they share an edge, so the decimation may cross them;
+    bodies are decimated apart. The deviation from the CAD must stay below :data:`MAX_DEVIATION_M`. Open3D, not the
+    ``fast-simplification`` behind ``trimesh.Trimesh.simplify_quadric_decimation`` nor ``pyfqmr``: both are the
+    fast-quadric-mesh-simplification scheme of rising error thresholds, and on a rim half they stalled at 8400..9500
+    triangles at 0.2..0.9 mm, where Open3D's ordered collapses reach 5000 within 0.15 mm (2026-10-10).
+    """
+    decimated = {}
+    for body, (what, target) in BODIES.items():
+        triangles = np.concatenate([part[0] for name, part in faces.items() if body_of(name) == body])
+        # The CAD faces share their edges' corners to 0.1 um; welded, a body is closed.
+        points, index = np.unique(np.round(triangles.reshape(-1, 3), 7), axis=0, return_inverse=True)
+        cad = trimesh.Trimesh(points, index.reshape(-1, 3), process=False)
+        if not cad.is_watertight:
+            raise SystemExit(f"rim: {body} ({what}) is not closed after welding its CAD faces -- export changed?")
+        # Decimated in millimeters: in meters Open3D's quadrics, of squared distances near 1e-8, kept the rim halves
+        # only within 0.21 and 0.27 mm, in millimeters within 0.14 and 0.15 mm (2026-10-10).
+        simple = o3d.geometry.TriangleMesh(
+            o3d.utility.Vector3dVector(cad.vertices * 1000), o3d.utility.Vector3iVector(cad.faces)
+        )
+        simple = simple.simplify_quadric_decimation(target)
+        mesh = trimesh.Trimesh(np.asarray(simple.vertices) / 1000, np.asarray(simple.triangles), process=False)
+        off = deviation(cad, mesh)
+        print(f"rim: {body} ({what}) {len(cad.faces)} -> {len(mesh.faces)} triangles, deviation {off * 1000:.3f} mm")
+        if off > MAX_DEVIATION_M:
+            raise SystemExit(
+                f"rim: {body} deviates {off * 1000:.2f} mm from the CAD, more than {MAX_DEVIATION_M * 1000} mm"
+            )
+        decimated[body] = (mesh.triangles, corner_normals(mesh))
+    return decimated
 
 
 def axis(faces: dict[str, Part]) -> np.ndarray:
@@ -217,11 +302,12 @@ def axis(faces: dict[str, Part]) -> np.ndarray:
     return np.mean(centers, axis=0)
 
 
-def place_rim(faces: dict[str, Part], tire: Part) -> Part:
+def place_rim(faces: dict[str, Part], bodies: dict[str, Part], tire: Part) -> Part:
     """The rim's triangles and normals in the wheel link's frame: its axis on the y axis, its halves centered on the
-    tire's bead seat, turned by pi about z so the outer half lies on +y."""
+    tire's bead seat, turned by pi about z so the outer half lies on +y. The axis and the middle are taken from the
+    CAD's ``faces``, what is placed are the decimated ``bodies``."""
     center_xz = axis(faces)
-    halves = np.concatenate([part[0] for name, part in faces.items() if name.split("_mesh")[0] in ("mesh16", "mesh44")])
+    halves = np.concatenate([part[0] for name, part in faces.items() if body_of(name) in ("mesh16", "mesh44")])
     rim_middle_y = (halves[..., 1].min() + halves[..., 1].max()) / 2
     lo, hi = bead(tire)[1]
     shift = np.array([center_xz[0], rim_middle_y - (lo + hi) / 2, center_xz[1]])
@@ -230,10 +316,9 @@ def place_rim(faces: dict[str, Part], tire: Part) -> Part:
         f"{rim_middle_y * 1000:.2f} mm (glTF frame), moved onto the tire's bead seat at y {(lo + hi) / 2 * 1000:.2f} mm"
     )
     turn = np.array([-1.0, -1.0, 1.0])  # Rz(pi)
-    triangles = np.concatenate([(part[0] - shift) * turn for part in faces.values()])
-    normals = np.concatenate([part[1] * turn for part in faces.values()])
-    outer = np.concatenate([(part[0] - shift) * turn for name, part in faces.items() if name.startswith(OUTER_HALF)])
-    if outer[..., 1].mean() <= 0:
+    triangles = np.concatenate([(part[0] - shift) * turn for part in bodies.values()])
+    normals = np.concatenate([part[1] * turn for part in bodies.values()])
+    if ((bodies[OUTER_HALF][0] - shift) * turn)[..., 1].mean() <= 0:
         raise SystemExit("rim: the outer half does not lie on +y after the turn")
     return triangles, normals
 
@@ -381,7 +466,8 @@ def main() -> None:
     parser.add_argument("dae", help="where to write a200_indoor_wheel.dae")
     args = parser.parse_args()
     tire, tire_look = read_tire(args.source)
-    rim = place_rim(read_rim(args.rims), tire)
+    faces = read_rim(args.rims)
+    rim = place_rim(faces, decimate(faces), tire)
     tire = shrink_tire(tire, float(radius(rim[0]).max()))
     check_fit(rim, tire)
     rim_look = dict(zip(("diffuse", "specular", "shininess"), RIM_LOOK), shading="phong")
