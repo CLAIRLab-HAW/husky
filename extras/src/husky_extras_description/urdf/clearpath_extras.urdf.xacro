@@ -123,8 +123,8 @@
        The owner then saw it a little too far right and a little too high (2026-10-10, twice): 15 mm left in all and
        5 mm further down, by eye, as nothing on the slope asks for other numbers. The socket's z is n, its y is u (up
        the slope), its x = y cross z = (0, -1, 0): rpy = (atan2(0.6392, 0.7690), 0, -pi/2). The key (the hood's flat
-       side, the socket's -y) thus faces down the slope and the latches the robot's sides; the owner did not say how
-       it is turned about n, so that is chosen, not measured.
+       side, the socket's -y) thus faces down the slope and the latches the robot's sides, as the owner confirmed
+       (2026-10-10).
 
        CLEARANCES (2026-10-10, against a200_top_chassis.dae, measured at the pose 5 mm higher and 10 mm further right
        and shifted by those): the 80.96 mm flange covers the 29.0 x 32.0 mm lid but for its upper 0.3 mm, a strip of
