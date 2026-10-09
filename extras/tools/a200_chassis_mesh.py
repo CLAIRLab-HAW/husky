@@ -16,10 +16,10 @@ writes one geometry and one material per part: ``chassis``, ``emergency_stop``, 
 The controls are identified by SHAPE, from a render of the components on 2026-10-09, and matched here by their
 bounding box in the mesh frame [mm] (:data:`CONTROLS`), so the order trimesh splits them in does not matter: the
 emergency stop is the big mushroom on a collar, the key lock the domed knob with a ring below it (both on +y, the
-robot's left), the power button the cylinder with a flat ringed face (on -y). The owner named the three. Everything
-else is the chassis -- the small pin beside the power button and the symmetric pair at y +-66..98 mm included. A
-control whose box matches no component, or more than one, stops the script: the source mesh changed, and nothing is
-guessed.
+robot's left), the power button the cylinder with a flat ringed face (on -y), and the two flat panels they sit on,
+one per side, dark gray. The owner named them. Everything else is the chassis -- the small pin beside the power
+button and the symmetric pair at y +-66..98 mm included. A control whose box matches no component, or more than
+one, stops the script: the source mesh changed, and nothing is guessed.
 
 The status LEDs are no component of their own: they are small boxes in the chassis body's sloped rear face (normal
 ~(-0.64, 0, 0.77)), on -y under the power button -- four stacked along the slope and a longer field right under the
@@ -54,19 +54,26 @@ import numpy as np
 import trimesh
 from collada import asset, geometry, material, scene, source
 
-#: The three controls' bounding boxes in the mesh frame [mm] as (min corner, max corner), read off the split on
-#: 2026-10-09 (faces: 2768, 2430, 3808), and the tolerance a box is matched with [mm]. Every other component is
-#: ``chassis``.
+#: The controls' and their panels' bounding boxes in the mesh frame [mm] as (min corner, max corner), read off the
+#: split on 2026-10-09 (faces: 2768, 2430, 3808, 20, 20), and the tolerance a box is matched with [mm]. Every other
+#: component is ``chassis``.
 CONTROLS = {
     "emergency_stop": ((-326, 133, 191), (-299, 162, 218)),
     "key_lock": ((-346, 137, 153), (-318, 158, 181)),
     "power_button": ((-316, -158, 175), (-286, -137, 206)),
+    # The two flat panels the controls sit on, on the sloped rear face: under the emergency stop and the key lock on
+    # +y, under the power button on -y (20 faces each; the owner, 2026-10-09).
+    "panel_left": ((-398, 125, 121), (-283, 176, 217)),
+    "panel_right": ((-398, -176, 121), (-283, -125, 217)),
 }
 BOX_TOLERANCE_MM = 1.5
 #: The box the status LEDs' triangles lie in, in the mesh frame [mm] as (min corner, max corner) (2026-10-09).
 STATUS_LEDS = ((-380.0, -145.6, 134.0), (-329.0, -134.4, 178.0))
 #: Metallic silver, the power button's and the key lock's look.
 SILVER = ((0.75, 0.76, 0.78), (0.6, 0.6, 0.6), 40.0)
+#: Matte dark gray, the panels' look: told apart from the silver controls on them by half the lightness and a dull
+#: finish.
+PANEL_GRAY = ((0.33, 0.34, 0.36), (0.25, 0.25, 0.25), 20.0)
 #: Each part's look [sRGB diffuse, sRGB specular, shininess]. The chassis #E29000 (226/255, 144/255, 0; the owner,
 #: 2026-10-09) with the source's specular strength and shininess; the emergency stop glossy red plastic; the power
 #: button and the key lock metallic silver; the status LEDs black behind a glossy lens. The twin
@@ -76,6 +83,8 @@ LOOK = {
     "emergency_stop": ((0.80, 0.05, 0.05), (0.5, 0.5, 0.5), 60.0),
     "power_button": SILVER,
     "key_lock": SILVER,
+    "panel_left": PANEL_GRAY,
+    "panel_right": PANEL_GRAY,
     "status_leds": ((0.03, 0.03, 0.03), (0.4, 0.4, 0.4), 40.0),
 }
 #: Written into every run's ``<created>``/``<modified>``, so a second run on the same source writes the same file.
