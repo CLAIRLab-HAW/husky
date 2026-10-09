@@ -230,7 +230,7 @@ def test_the_controller_actually_receives_odometry(container):
     topic = _exec(
         "source ros-env; timeout 15 ros2 param get "
         "/a200_0553/controller_server odom_topic 2>/dev/null "
-        "| tail -1 | sed 's/.*: //'"
+        "| grep ' value is: ' | sed 's/.*: //'"
     ).strip()
     assert topic, "odom_topic is not readable on the running controller_server."
 
