@@ -344,6 +344,8 @@ sensors:
       # the mean gap between the views fell from 5.5 to 2.5 mm, and a fit on either half of the views gave the same
       # mount (1.38 deg, 14-15 mm across) and closed the other half's gap as well as the full fit. Near -90 deg of
       # pitch roll and yaw trade against each other: the odd-looking pair is the design's turn plus 1.45 deg.
+      # The 15 mm are the 3D-printed bracket between the RG6 and the camera, 15.5 mm thick (husky_extras_description
+      # tools/rg6.urdf.xacro draws it); the design values sit the camera on the RG6's face.
       xyz: [0.037, 0.003, 0.1306]
       rpy: [2.8928, -1.5456, 0.2491]
       ros_parameters:

@@ -29,4 +29,30 @@
     <origin xyz="0 0 0" rpy="0 0 -1.5708"/>
   </joint>
 
+  <!-- The 3D-printed L bracket between the RG6 and the D435 (the owner, 2026-10-09), silver-gray like the lidar
+       spacer on the arch (sensor_arch_profiles ARCH_LOOK). Its upright leg stands on the RG6 body's +y face over the
+       two front holes (M3, 3.2 mm, x +-10 mm at z 99.1 mm, read off body.stl), the screws running through it; its
+       foot lies under the camera and takes the tripod screw (x -3, z 74.5 mm). The upright spans the gap between the
+       body's face (y 21.5 mm) and the camera's underside where the hand-eye calibration put it (y 37.0 mm), 15.5 mm:
+       the 15 mm robot.yaml's mount lies off the design values. The wall thicknesses are not measured: 10 mm for the
+       upright, centered on the holes, 4 mm for the foot, both 32 mm wide. A visual alone: it would touch the body's
+       and the camera's collision geometry, and a contact the SRDF does not disable makes every MoveIt state invalid
+       (ride_height_patch's lesson, 2026-09-01). -->
+  <link name="camera_0_bracket">
+    <visual>  <!-- upright, on the RG6 over the holes -->
+      <origin xyz="0 0.02925 0.0991" rpy="0 0 0"/>
+      <geometry><box size="0.032 0.0155 0.010"/></geometry>
+      <material name="printed_silver_gray"><color rgba="0.74 0.76 0.79 1"/></material>
+    </visual>
+    <visual>  <!-- foot, under the camera -->
+      <origin xyz="0 0.0350 0.08105" rpy="0 0 0"/>
+      <geometry><box size="0.032 0.004 0.0261"/></geometry>
+      <material name="printed_silver_gray"/>
+    </visual>
+  </link>
+  <joint name="camera_0_bracket_joint" type="fixed">
+    <parent link="rg6_gripper_body"/><child link="camera_0_bracket"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
 </robot>
