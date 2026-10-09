@@ -73,6 +73,12 @@ REMOVED = {
     "bump_left": ((-332, 66, 156), (-284, 98, 209)),
     "bump_right": ((-332, -98, 156), (-284, -66, 209)),
 }
+#: The middle panel of the rear face, between the two bumps (300 faces): a separate plate whose sides stop at
+#: y +-96.8 mm in the rear body's opening, whose walls stand at y +-97.35 mm, both flush with the slope at
+#: n.p 347.64 mm (measured 2026-10-10). The 0.55 mm slits show as seams, and one looks into the body through them;
+#: on the a200-0553 the rear face is one piece (the owner, 2026-10-10). Its sides are moved out to the walls.
+MIDDLE_PANEL = ((-406.0, -96.8, 71.0), (-272.3, 96.8, 224.1))
+MIDDLE_PANEL_SIDE_MM = 97.35
 BOX_TOLERANCE_MM = 1.5
 #: The box the source's status LED boxes lie in, in the mesh frame [mm] as (min corner, max corner) (2026-10-09). They
 #: sit 1.6 mm INTO the sloped rear face, under its own triangles and the right panel, so no color shows them; their
@@ -143,6 +149,27 @@ def read(dae_path: str) -> tuple[np.ndarray, np.ndarray]:
             triangles.append(prim.vertex[prim.vertex_index])
             normals.append(prim.normal[prim.normal_index])
     return np.concatenate(triangles), np.concatenate(normals)
+
+
+def close_middle_panel(triangles: np.ndarray, labels: np.ndarray) -> np.ndarray:
+    """``triangles`` with the middle panel's sides (:data:`MIDDLE_PANEL`) moved out to the opening's walls."""
+    hits = [
+        label
+        for label in np.unique(labels)
+        if np.allclose(
+            [triangles[labels == label].min(axis=(0, 1)) * 1000, triangles[labels == label].max(axis=(0, 1)) * 1000],
+            MIDDLE_PANEL,
+            atol=BOX_TOLERANCE_MM,
+        )
+    ]
+    if len(hits) != 1:
+        raise SystemExit(f"middle panel: {len(hits)} components in the box {MIDDLE_PANEL} mm -- source changed?")
+    closed = triangles.copy()
+    panel = closed[labels == hits[0]]
+    side = np.abs(panel[..., 1]) * 1000.0 > MIDDLE_PANEL[1][1] - 0.1
+    panel[..., 1] = np.where(side, np.sign(panel[..., 1]) * MIDDLE_PANEL_SIDE_MM / 1000.0, panel[..., 1])
+    closed[labels == hits[0]] = panel
+    return closed
 
 
 def components(triangles: np.ndarray) -> np.ndarray:
@@ -318,6 +345,7 @@ def main() -> None:
     args = parser.parse_args()
     triangles, normals = read(args.source)
     labels = components(triangles)
+    triangles = close_middle_panel(triangles, labels)
     print(f"{len(triangles)} triangles in {len(np.unique(labels))} components")
     masks = assign(triangles, labels)
     parts = {key: (triangles[mask], normals[mask]) for key, mask in masks.items()}
