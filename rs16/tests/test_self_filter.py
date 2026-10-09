@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from clair.navigation.self_filter import NEAR_M, robot_points
+from clair.rs16.self_filter import NEAR_M, robot_points
 
 
 def test_a_point_inside_the_robot_near_the_sensor_is_dropped() -> None:

@@ -2,8 +2,8 @@
 
 The URDF extras of the **a200-0553**: everything this particular robot has that
 neither Clearpath's own description nor a component package knows about — the
-sensor arch on the top plate and the end effector on the UR5 flange: the
-OnRobot RG6, or in the offboard mock another tool.
+sensor arch on the top plate, the RS16 on the arch, and the end effector on the
+UR5 flange: the OnRobot RG6, or in the offboard mock another tool.
 
 One file is the entry,
 `src/husky_extras_description/urdf/clearpath_extras.urdf.xacro`, and the
@@ -26,12 +26,15 @@ macro, the gripper package includes nothing from here.
 
 ## Features
 
-- **The sensor arch as a body, not a picture** — a glTF `<visual>` plus six
+- **The sensor arch as a body, not a picture** — a DAE `<visual>` in its own color plus five
   collision boxes along the real structure (2.3 L of material in a 91.3 L hull;
   a single bounding box would have walled up the whole rear) and an `<inertial>`
   of 6.21 kg. Until 2026-08-20 the link had no collision at all and MoveIt
   planned straight through it (R15); until 2026-08-31 no mass, so both
   simulators carried a half-metre portal frame as 0.1 kg (R47).
+- **The RS16 where robot.yaml measured it.** `robot.yaml` places the frame `lidar3d_0_mount_link`; this file hangs
+  [rs16_description](../rs16/src/rs16_description/README.md)'s macro on it, which brings the lidar's mesh,
+  collision cylinder, mass and `lidar3d_0_laser`.
 - **A swappable end effector.** The xacro argument `end_effector` (default
   `rg6`) includes `urdf/tools/<name>.urdf.xacro`; `robot.yaml` passes none, so
   the robot always gets its RG6. The offboard mock takes `end_effector:=<name>`.
@@ -92,7 +95,7 @@ Nothing here is started. The file is read by
 - RViz and the `foxglove_bridge`, which resolve the arch mesh through the
   ament index of their own container,
 - and `tools/derive_link_inertia.py` in `onrobot-rg6`, whose box mode recomputes
-  the arch inertia from the six collision boxes:
+  the arch inertia from its collision boxes:
 
 ```bash
 python3 ../onrobot-rg6/tools/derive_link_inertia.py --box-link \

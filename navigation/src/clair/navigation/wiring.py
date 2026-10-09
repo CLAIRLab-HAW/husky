@@ -1,43 +1,28 @@
 """Topic and frame names of the navigation layer -- the single source.
 
 ROS-free.  The launch files in ../../launch/ import from here; a test holds them to not stating the values a second
-time.
+time.  The RS16's own names -- its points, its frame, the namespace -- are ``clair.rs16.wiring``'s and are only
+re-exported here, so that a launch file needs one import.
 """
 
 from __future__ import annotations
 
-#: Namespace of the a200-0553.  The whole graph hangs off it.
-NAMESPACE = "a200_0553"
+from clair.rs16.wiring import LIDAR_FRAME, NAMESPACE, TF_REMAPS, filtered_points_topic, points_topic
 
-#: The frame robot.yaml generates for the lidar3d entry and that the driver
-#: writes into every PointCloud2.  If the two diverge, tf2 does not find the
-#: cloud and does not report it.
-LIDAR_FRAME = "lidar3d_0_laser"
+__all__ = [
+    "BASE_FRAME",
+    "LIDAR_FRAME",
+    "NAMESPACE",
+    "TF_REMAPS",
+    "cmd_vel_topic",
+    "filtered_points_topic",
+    "pointcloud_to_laserscan_params",
+    "points_topic",
+    "scan_topic",
+]
 
 #: Root link of the URDF (robot-contract profile: frames.base_link).
 BASE_FRAME = "base_link"
-
-#: tf2 broadcasts on the ABSOLUTE names; the node namespace does not take
-#: effect there.  Without these remaps a node publishes globally while the
-#: rest of the graph listens on /a200_0553/tf -- an empty TF chain without an
-#: error.
-TF_REMAPS = [("/tf", "tf"), ("/tf_static", "tf_static")]
-
-
-def points_topic() -> str:
-    """Raw point cloud of the RS16 (sensor_msgs/PointCloud2)."""
-    return f"/{NAMESPACE}/sensors/lidar3d_0/points"
-
-
-def filtered_points_topic() -> str:
-    """The RS16's points without the robot's own body (:mod:`clair.navigation.self_filter`): what the costmaps and the
-    scan read, so neither takes the sensor arch or an arm reaching out for an obstacle."""
-    return f"/{NAMESPACE}/sensors/lidar3d_0/points_filtered"
-
-
-def description_topic() -> str:
-    """The robot's whole description (std_msgs/String, transient local), as robot_state_publisher publishes it."""
-    return f"/{NAMESPACE}/robot_description"
 
 
 def scan_topic() -> str:

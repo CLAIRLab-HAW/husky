@@ -14,13 +14,15 @@ system:
     # EVERYTHING that follows: the generator's own $(find ...), RViz and the foxglove_bridge resolving
     # package:// meshes, and every helper that sources the chain.
     #
-    # TWO of them, both directories of the one onboard clone the installer builds: rg6 describes the COMPONENT
-    # (the RG6 model, its macro and the measured rg6_v2.yaml), extras describes THIS ROBOT's assembly (sensor
-    # arch, and where the hand is bolted onto the UR5 flange).  platform.extras.urdf.path below
-    # names a file from the second, which includes a macro from the first -- so both have to be listed, and a
-    # missing extras build is not a mesh that fails to draw but a generator run that dies on the include.
+    # THREE of them, all directories of the one onboard clone the installer builds: rg6 and rs16 describe a
+    # COMPONENT each (the RG6 model, its macro and the measured rg6_v2.yaml; the RS16's macro and mesh), extras
+    # describes THIS ROBOT's assembly (sensor arch, where the hand is bolted onto the UR5 flange, the RS16 on its
+    # mount).  platform.extras.urdf.path below names a file from extras, which includes a macro from each of the
+    # others -- so all three have to be listed, and a missing build is not a mesh that fails to draw but a generator
+    # run that dies on the include.
     workspaces:
       - /home/robot/onboard/rg6/install/setup.bash    # rg6_description, rg6_control
+      - /home/robot/onboard/rs16/install/setup.bash   # rs16_description
       - /home/robot/onboard/extras/install/setup.bash # husky_extras_description (the file under extras.urdf below)
 platform:
   mcu:
@@ -182,17 +184,24 @@ platform:
       xyz: [0.0, 0.0, 0.0]
       rpy: [0.0, 0.0, 0.0]
       enabled: true
-#links:
-#  box:
-#    - name: user_bay_cover
-#      parent: top_plate_link
-#      xyz: [0.0, 0.0, 0.00735]
-#      rpy: [0.0, 0.0, 0.0]
-#      size: [0.4, 0.4, 0.002]
-#  cylinder: []
-#  frame: []
-#  mesh: []
-#  sphere: []
+# The RoboSense RS-LiDAR-16 on the sensor arch.  clearpath_config has no RoboSense model (2.9.6, the robot's: its
+# lidar3d models are velodyne_lidar, ouster_os1 and seyond_lidar), so this file places only the FRAME the sensor
+# stands on, and husky_extras_description hangs rs16_description's macro there: lidar3d_0_link on the mounting face,
+# lidar3d_0_laser 39 mm above it, the frame rslidar_sdk writes into every PointCloud2.  The driver is onboard/rs16's
+# (launch/lidar.launch.py, with config/rslidar_rs16.yaml, the same file for container and robot).
+links:
+  frame:
+    - name: lidar3d_0_mount            # Clearpath appends _link
+      parent: top_plate_rear_mount
+      # The arch's Onshape model puts the RS16's base at x 0.051, y 0.005, z 0.505 in top_plate_rear_mount (read off
+      # the mesh 2026-09-27; y ~ 0 is the arch's center line, as built).  Measured on the robot 2026-10-07: the RS16
+      # sits on a 10 mm 3D-printed spacer on the arch (owner) and leans forward. Phone inclinometer on the RS16's top
+      # against the top plate: pitch -7.50 vs +0.46 deg along, +1.235 vs +1.60 deg across -> pitch +8.0 deg (towards
+      # the arm), roll -0.37 deg; the lidar's own walls agree (fore/aft walls lean 8.1-9.5 deg, side walls
+      # -1.9..+0.4 deg). The floor plane was no reference: the RS16 sees floor only behind and to the left. Yaw 0 per
+      # R33 (2026-09-29): the RS16's 0 deg, opposite its cable outlet, points forward.
+      xyz: [0.051, 0.005, 0.515]       # the arch model's RS16 + the 10 mm spacer
+      rpy: [-0.0065, 0.140, 0.0]       # roll -0.37 deg, pitch +8.0 deg
 #mounts:
 #  bracket:
 #    - parent: top_plate_mount_d1
@@ -384,43 +393,3 @@ sensors:
 #          ip_port: 10940
 #          angle_min: -2.356
 #          angle_max: 2.356
-  # The device is a RoboSense RS-LiDAR-16 on the sensor arch, mounted since 2026-08.
-  # The pose is the arch's own model, not a guess: in husky_sensor_arch.gltf the
-  # RS16 is the blue cylinder, Ø105 x 95 mm, its base at x 0.051, y 0.005,
-  # z 0.505 in top_plate_rear_mount (read off the mesh 2026-09-27; y ~ 0 puts it
-  # on the arch's center line, as built).  Its yaw -- where the RS16's 0° points
-  # -- is not in the mesh; rpy 0 until R33 measures it on the robot.
-  #
-  # WHY 'velodyne_lidar' for a RoboSense device: clearpath_config knows exactly
-  # three lidar3d models -- velodyne_lidar, ouster_os1, seyond_lidar (checked
-  # 2026-08-22 in clearpath_config/sensors/types/lidars_3d.py, lines
-  # 162/247/359) and no robosense.  The entry serves here ONLY as a carrier for
-  # the link and the mesh, so that the mounting pose stands in THIS file (SSOT)
-  # and the frame is canonically called 'lidar3d_0_laser' -- the same name
-  # rslidar_sdk writes into every PointCloud2.
-  #
-  # launch_enabled: false is therefore MANDATORY, not taste: otherwise Clearpath
-  # starts the velodyne_driver_node against a device that is not a Velodyne --
-  # the packet formats of the RS16 and the VLP16 are not compatible.  The driver
-  # is rslidar_sdk and is started by onboard/navigation (configuration:
-  # config/rslidar_rs16.yaml, the same file for container and robot).  For the
-  # same reason there is no ros_parameters block here.
-  #
-  # The mesh shows a VLP16 (Ø103x72 mm) instead of an RS16 (Ø109x80 mm).
-  # Close enough for collision and visual checking; the model name stays wrong
-  # nonetheless, and that is the price of this route.
-  #
-  # Design and reasoning:
-  # docs/superpowers/specs/2026-08-22-nav2-rs16-design.md
-  lidar3d:
-    - model: velodyne_lidar
-      urdf_enabled: true
-      launch_enabled: false
-      parent: top_plate_rear_mount
-      # Measured on the robot 2026-10-07: the RS16 sits on a 10 mm 3D-printed spacer on the arch (owner) and leans
-      # forward. Phone inclinometer on the RS16's top against the top plate: pitch -7.50 vs +0.46 deg along, +1.235 vs
-      # +1.60 deg across -> pitch +8.0 deg (towards the arm), roll -0.37 deg; the lidar's own walls agree (fore/aft
-      # walls lean 8.1-9.5 deg, side walls -1.9..+0.4 deg). The floor plane was no reference: the RS16 sees floor only
-      # behind and to the left. Yaw 0 per R33 (2026-09-29).
-      xyz: [0.051, 0.005, 0.515]       # the arch model's RS16 + the 10 mm spacer; the laser frame sits 37.7 mm above
-      rpy: [-0.0065, 0.140, 0.0]       # roll -0.37 deg, pitch +8.0 deg

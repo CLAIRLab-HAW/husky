@@ -8,8 +8,9 @@
             path: /home/robot/onboard/extras/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
 
   Hangs ONLY new links/joints onto frames the generator has already produced:
-    - arm_0_tool0         = UR5 tool frame (ROS-Industrial all-zeros)  -> the end effector (tools/, RG6 by default)
+    - arm_0_tool0          = UR5 tool frame (ROS-Industrial all-zeros)  -> the end effector (tools/, RG6 by default)
     - top_plate_rear_mount = frame the sensor arch stands on
+    - lidar3d_0_mount_link = robot.yaml's frame where the RS16 sits on the arch -> the RS16 (rs16_description)
 
   WHY THIS IS ITS OWN PACKAGE.  Everything here is THIS ROBOT's assembly, not a
   component: it names frames that only exist once the Clearpath generator has
@@ -17,15 +18,16 @@
   them; it describes an RG6, which is the same hand on any arm.  The
   dependency therefore runs one way only: this package includes
   rg6_description's macro, and rg6_description includes nothing from here.
+  The same holds for the RS16 and rs16_description.
 
   END EFFECTOR: tools/<end_effector>.urdf.xacro; tools/rg6.urdf.xacro says how the RG6 is modelled.
 
-  PRECONDITION: BOTH packages have to be installed in a workspace listed in
+  PRECONDITION: ALL THREE packages have to be installed in a workspace listed in
   robot.yaml under 'system.ros2.workspaces': 'husky_extras_description' for
   the arch mesh and this file itself, 'rg6_description' for the gripper macro
-  and its meshes.  Without the first, the generator dies on the include; without
-  either, RViz and the foxglove_bridge draw a robot with holes in it where the
-  package:// meshes belong.
+  and 'rs16_description' for the lidar's, each with its meshes.  Without one of
+  them the generator dies on an include, or RViz and the foxglove_bridge draw a
+  robot with holes in it where the package:// meshes belong.
 -->
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
@@ -36,11 +38,20 @@
   <xacro:arg name="end_effector" default="rg6"/>
   <xacro:include filename="tools/$(arg end_effector).urdf.xacro"/>
 
+  <!-- ===== RS16 on the arch, at robot.yaml's lidar3d_0_mount ===== -->
+  <!-- The mounting pose is robot.yaml's (links.frame lidar3d_0_mount, measured on the robot); the sensor, its
+       mesh, collision, mass and the laser frame 39 mm above the mounting face are rs16_description's. -->
+  <xacro:include filename="$(find rs16_description)/urdf/rs16.urdf.xacro"/>
+  <xacro:rs16 name="lidar3d_0" parent_link="lidar3d_0_mount_link">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:rs16>
+
   <!-- ===== custom top assembly (replaces a200.sensor_arch) ===== -->
   <link name="husky_top_assembly">
     <!-- R47: mass is estimated, not weighed: mesh volume 2.3 L (2026-08-20) at an assumed aluminum density
-         of 2700 kg/m^3 gives 6.21 kg. The inertia distributes this mass over the six collision boxes by volume;
-         recompute with onboard/rg6/tools/derive_link_inertia.py. Do not use it to claim tipping stability. -->
+         of 2700 kg/m^3 gives 6.21 kg. The inertia distributes this mass by volume over six collision boxes, one of
+         them a 1.44 L box around the lidar, which carries its own 0.87 kg in rs16_description: the arch's head
+         is counted twice until R47 weighs the arch. Do not use it to claim tipping stability. -->
     <inertial>
       <origin xyz="0.093339 -0.311227 0.284882" rpy="0 0 0"/>
       <mass value="6.21"/>
@@ -48,20 +59,19 @@
                ixy="-0.000330176448" ixz="0.054871270938" iyz="0.002019550633"/>
     </inertial>
 
-    <!-- glTF (self-contained, 2 materials) instead of STL -> materials visible.
-         Do NOT set a <material> here, or the glTF materials get overwritten.
-         Note: glTF is Y-up (Onshape export); if the model appears tilted by 90deg
-         against the STL, adjust rpy (typically +/-1.5708 about X). -->
+    <!-- The arch alone, without the lidar the Onshape model has on it, as DAE: clair.twin.collada carries its color
+         into the MuJoCo twin, which a glTF only reaches through the assimp CLI, colorless. Do NOT set a <material>
+         here, or it paints over the mesh's own. -->
     <visual>
       <origin xyz="0 0 0" rpy="0 0 -1.5708"/>
       <geometry>
-        <mesh filename="package://husky_extras_description/meshes/husky_sensor_arch.gltf"/>
+        <mesh filename="package://husky_extras_description/meshes/husky_sensor_arch.dae"/>
       </geometry>
     </visual>
 
     <!-- R15 (2026-08-20): the arch is reachable (0.772 m from the arm base, UR5 reach 0.85 m).
-         Six boxes enclose all 4560 mesh vertices in 5.87 L; one hull box would obstruct the open portal
-         (2.3 L of structure in a 91.3 L hull). Coordinates remain in the mesh frame, with the visual's rotation.
+         Five boxes enclose the arch's mesh; the RS16 on it is a link of its own (rs16_description). One hull box
+         would obstruct the open portal (2.3 L of structure in a 91.3 L hull). Coordinates remain in the mesh frame, with the visual's rotation.
          The feet start 2 mm above top_plate_link: its upper surface and this link's origin are both at
          world z=0.2307 m, and touching would make every MoveIt state invalid. The plate covers that gap. -->
     <collision>  <!-- portal leg, left -->
@@ -75,10 +85,6 @@
     <collision>  <!-- cross beam, top -->
       <origin xyz="0.0500 -0.3100 0.4900" rpy="0 0 -1.5708"/>
       <geometry><box size="0.560 0.030 0.050"/></geometry>
-    </collision>
-    <collision>  <!-- sensor head -->
-      <origin xyz="0.0500 -0.3150 0.5500" rpy="0 0 -1.5708"/>
-      <geometry><box size="0.120 0.120 0.100"/></geometry>
     </collision>
     <collision>  <!-- foot, left, incl. diagonal strut -->
       <origin xyz="0.1500 -0.0475 0.0810" rpy="0 0 -1.5708"/>

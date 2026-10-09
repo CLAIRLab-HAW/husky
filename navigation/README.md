@@ -3,20 +3,16 @@
 Provides the mobile-base capability; locomotion remains outside the first manipulation milestone.
 See the [physical-intelligence architecture](../../docs/COGNITIVE-ARCHITECTURE.md).
 
-Navigation layer of the Husky **a200-0553**: the sensor path of the RoboSense
-RS-LiDAR-16, and Nav2. Runs in the offboard container against the mock
-platform **and** onboard on the real robot — same configuration, same driver.
+Navigation layer of the Husky **a200-0553**: the 2D scan on the RoboSense RS-LiDAR-16's points, and Nav2. Runs in
+the offboard container against the mock platform **and** onboard on the real robot — same configuration. The sensor
+itself — description, driver, self filter — is [onboard/rs16](../rs16/README.md).
 
 ## Features
 
-- **One driver for the real sensor.** `rslidar_sdk` (apt, `ros-jazzy-rslidar-sdk`) reads the device on the robot and
-  the recording `data/recordings/rs16_labor.pcap` in the container; the difference is `common.msg_source`. A sim
-  plant (ManiSkill, MuJoCo) casts the RS16 in its world instead and publishes on the same topic, so the chain behind
-  the points is the same.
-- **The robot's own body out of the points.** `self_filter` (`python3 -m clair.navigation.self_filter`) drops the
-  RS16's points inside the robot's collision hulls -- the sensor arch beside it, an arm reaching out -- and publishes
-  the rest on `…/lidar3d_0/points_filtered`, which the scan and the costmaps read. It needs `clair-twin[body]`;
-  without it, the points pass through unfiltered.
+- **The scan on the RS16's points.** `launch/scan.launch.py` includes onboard/rs16's `lidar.launch.py` (driver and
+  self filter) and adds `pointcloud_to_laserscan` on `…/lidar3d_0/points_filtered`, the points without the robot's
+  body: AMCL and slam_toolbox read nothing but a LaserScan. The robot's lidar service starts this launch, so the scan
+  is there before Nav2 is.
 - **Nav2** with switchable localization (`localization:=none|slam|amcl`): a static identity `map→odom`,
   `slam_toolbox` while mapping, or AMCL against a stored map.
 - **ROS-free core.** The decisions live in `src/clair/navigation/` and are
@@ -27,7 +23,7 @@ platform **and** onboard on the real robot — same configuration, same driver.
 **Nav2 drives in the container, not yet on the robot.** Evidenced, not claimed: on the plain mock a
 `NavigateToPose` over 1 m ends with `SUCCEEDED`, and the EKF odometry before and after confirms the distance; on the
 ManiSkill stack it reaches goals around the furniture of an ArchitecTHOR scene (see the CHANGELOG). On the robot the
-RS16 chain runs as a service of the installer (`lidar.launch.py`, scans at 10.6 Hz), but `nav` has no start path
+RS16 chain runs as a service of the installer (`scan.launch.py`, scans at 10.6 Hz), but `nav` has no start path
 there and there is no map of the lab yet (R36).
 
 **Localization is wheel odometry everywhere; what corrects it depends on where it runs.** `start_nav` in `clair.stack`
@@ -98,8 +94,8 @@ measured on the robot (R58): the LOADED one (0.134 m) between axle and `base_foo
 
 ## Tech Stack
 
-ROS 2 Jazzy · `rslidar_sdk` · `nav2` · `slam_toolbox` ·
-`pointcloud_to_laserscan` · Python 3.11+
+ROS 2 Jazzy · `nav2` · `slam_toolbox` · `pointcloud_to_laserscan` · [onboard/rs16](../rs16/README.md) ·
+Python 3.12+
 
 ## Installation
 
@@ -119,6 +115,7 @@ uv run pytest -m e2e_container_nav                      # needs a running contai
 
 ## Related
 
+- [rs16](../rs16/README.md) — the sensor the scan is derived from
 - [Design spec](../../docs/superpowers/specs/2026-08-22-nav2-rs16-design.md)
 - [robot-contract profile](../../robot/contract/src/clair/robot/contract/profiles/a200_0553.yaml)
 

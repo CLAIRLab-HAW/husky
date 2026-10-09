@@ -11,31 +11,15 @@ Needs neither ROS nor Docker.
 from clair.navigation import wiring
 
 
-def test_the_points_topic_follows_the_clearpath_convention():
-    assert wiring.points_topic() == "/a200_0553/sensors/lidar3d_0/points"
-
-
 def test_the_scan_topic_sits_beside_the_points_topic():
     assert wiring.scan_topic() == "/a200_0553/sensors/lidar3d_0/scan"
 
 
-def test_the_driver_template_publishes_on_the_wired_points_topic():
-    """Driver template and wiring must not diverge."""
-    import yaml
+def test_the_scan_reads_the_points_without_the_robot():
+    """The re-export is clair.rs16's own function, not a second spelling of the topic."""
+    from clair.rs16 import wiring as rs16_wiring
 
-    from clair.navigation import rslidar_config as rc
-
-    template = yaml.safe_load(rc.TEMPLATE_PATH.read_text(encoding="utf-8"))
-    assert template["lidar"][0]["ros"]["ros_send_point_cloud_topic"] == wiring.points_topic()
-
-
-def test_the_driver_template_uses_the_wired_frame():
-    import yaml
-
-    from clair.navigation import rslidar_config as rc
-
-    template = yaml.safe_load(rc.TEMPLATE_PATH.read_text(encoding="utf-8"))
-    assert template["lidar"][0]["ros"]["ros_frame_id"] == wiring.LIDAR_FRAME
+    assert wiring.filtered_points_topic is rs16_wiring.filtered_points_topic
 
 
 def test_tf_is_remapped_into_the_namespace():

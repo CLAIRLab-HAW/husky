@@ -13,7 +13,7 @@ import copy
 import pytest
 import yaml
 
-from clair.navigation import rslidar_config as rc
+from clair.rs16 import rslidar_config as rc
 
 
 @pytest.fixture

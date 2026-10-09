@@ -126,7 +126,7 @@ def test_the_arch_carries_collision_geometry_and_a_mass(extras_text):
     """R15 and R47 in one link: without the boxes move_group plans through the arch, without the mass it weighs 0.1
     kg."""
     arch = extras_text.split('<link name="husky_top_assembly">', 1)[1].split("</link>", 1)[0]
-    assert arch.count("<collision>") == 6, "the six boxes along the real structure"
+    assert arch.count("<collision>") == 5, "the five boxes along the real structure (the RS16 is rs16_description's)"
     assert "<inertial>" in arch and 'value="6.21"' in arch
 
 

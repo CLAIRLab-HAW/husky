@@ -36,6 +36,9 @@ SIM_AZIMUTH_STEP_DEG = 0.4
 SIM_RANGE_MAX_M = 30.0
 
 TEMPLATE_PATH = Path(__file__).resolve().parents[3] / "config" / "rslidar_rs16.yaml"
+#: The launch that starts the driver with it -- found the same way, beside the source tree, wherever that lies
+#: (``/opt/clair/rs16`` in the container, ``~/onboard/rs16`` on the robot).
+LAUNCH_PATH = Path(__file__).resolve().parents[3] / "launch" / "lidar.launch.py"
 
 
 def render(template: dict, *, pcap_path: str | None = None) -> dict:

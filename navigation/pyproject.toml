@@ -5,13 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "clair-navigation"
 version = "0.1.0"
-description = "Navigation layer of the a200-0553: RoboSense RS16 sensor path and Nav2"
+description = "Navigation layer of the a200-0553: the RS16's 2D scan and Nav2"
 readme = "README.md"
 authors = [
     { name = "Hannes Philip Voss", email = "mail@hannesvoss.de" },
 ]
 requires-python = ">=3.12"
-dependencies = ["pyyaml>=6.0"]
+dependencies = ["clair-rs16", "pyyaml>=6.0"]
 
 # Test-only, hence a group and not `dependencies`: this package runs onboard the robot, where neither the
 # contract nor a lock file is wanted.  `robot-contract[testing]` brings `filelock` along -- the conftest
@@ -21,6 +21,7 @@ dev = ["clair-robot[testing]"]
 
 [tool.uv.sources]
 clair-robot = { workspace = true }
+clair-rs16 = { workspace = true }
 
 # `clair` is a PEP 420 namespace and carries NO __init__.py.
 [tool.setuptools.packages.find]
