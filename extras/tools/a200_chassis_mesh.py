@@ -79,6 +79,11 @@ REMOVED = {
 #: on the a200-0553 the rear face is one piece (the owner, 2026-10-10). Its sides are moved out to the walls.
 MIDDLE_PANEL = ((-406.0, -96.8, 71.0), (-272.3, 96.8, 224.1))
 MIDDLE_PANEL_SIDE_MM = 97.35
+#: The rear face's level along the slope's nominal normal [m], and how far a face may lie off it and still be shaded
+#: as the rear face: the middle panel is tilted 0.26 deg against the face around it (normals (-0.6392, 0, 0.769)
+#: against (-0.6428, 0, 0.766), measured 2026-10-10), so under a highlight it showed its outline though it meets the
+#: face along the seam. Every face of the rear face gets the one area-weighted normal (:func:`one_rear_face`).
+REAR_FACE_LEVEL_M, REAR_FACE_TOLERANCE_M = 0.34764, 0.0015
 BOX_TOLERANCE_MM = 1.5
 #: The box the source's status LED boxes lie in, in the mesh frame [mm] as (min corner, max corner) (2026-10-09). They
 #: sit 1.6 mm INTO the sloped rear face, under its own triangles and the right panel, so no color shows them; their
@@ -170,6 +175,22 @@ def close_middle_panel(triangles: np.ndarray, labels: np.ndarray) -> np.ndarray:
     panel[..., 1] = np.where(side, np.sign(panel[..., 1]) * MIDDLE_PANEL_SIDE_MM / 1000.0, panel[..., 1])
     closed[labels == hits[0]] = panel
     return closed
+
+
+def one_rear_face(triangles: np.ndarray, normals: np.ndarray) -> np.ndarray:
+    """``normals`` with every face of the sloped rear face shaded by one normal, its area-weighted mean."""
+    slope = np.array([-0.64, 0.0, 0.77])
+    slope /= np.linalg.norm(slope)
+    faces = np.cross(triangles[:, 1] - triangles[:, 0], triangles[:, 2] - triangles[:, 0])
+    area = np.linalg.norm(faces, axis=1)
+    unit = faces / (area[:, None] + 1e-12)
+    level = triangles.mean(axis=1) @ slope
+    rear = (unit @ slope > 0.995) & (np.abs(level - REAR_FACE_LEVEL_M) < REAR_FACE_TOLERANCE_M)
+    rear &= triangles[:, :, 0].max(axis=1) < -0.26
+    common = (unit[rear] * area[rear, None]).sum(axis=0)
+    shaded = normals.copy()
+    shaded[rear] = common / np.linalg.norm(common)
+    return shaded
 
 
 def components(triangles: np.ndarray) -> np.ndarray:
@@ -350,7 +371,8 @@ def main() -> None:
     masks = assign(triangles, labels)
     parts = {key: (triangles[mask], normals[mask]) for key, mask in masks.items()}
     lids, lid_normals = hole_caps(triangles, labels, masks["chassis"])
-    parts["chassis"] = (np.concatenate([parts["chassis"][0], lids]), np.concatenate([parts["chassis"][1], lid_normals]))
+    chassis = np.concatenate([parts["chassis"][0], lids])
+    parts["chassis"] = (chassis, one_rear_face(chassis, np.concatenate([parts["chassis"][1], lid_normals])))
     parts["status_leds"] = led_fields(triangles, masks["status_leds"], masks["panel_right"])
     write(parts, args.dae)
 
