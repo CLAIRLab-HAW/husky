@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""a200_look_patch: makes the a200 LOOK like the real one -- right wheels' rim outward, chassis in its real colors.
+"""a200_look_patch: makes the a200 LOOK like the real one -- rims outward and real, chassis in its real colors.
 
-Two upstream defects of ``clearpath_platform_description`` that only a viewer sees.  Both are fixed in the package
+Three upstream mismatches of ``clearpath_platform_description`` that only a viewer sees.  All are fixed in the package
 files the generator and every viewer read, after apt and before the generator, idempotently, with a backup -- the
-same shape as the other patchers here.  Neither changes a joint, a collision, an inertial or anything a planner or
+same shape as the other patchers here.  None changes a joint, a collision, an inertial or anything a planner or
 a physics engine uses.
 
 THE WHEELS: the right wheel visuals are turned by pi about z, so the rim faces outward on both sides.  The package
@@ -40,18 +40,31 @@ installer builds ``onboard/extras`` and robot.yaml lists its workspace, in the o
 ``/opt/husky-extras``.  ``ride_height_patch`` edits the same ``a200.urdf.xacro``; whichever of the two runs first
 takes the one ``.bak``, the pristine apt copy.
 
-NO LEVER IN robot.yaml for either: ``clearpath_config`` picks the wheel variant per axle (``indoor``/``outdoor``)
-and nothing else -- the visual origin is a literal inside the wheel macro, the chassis mesh a literal inside the a200
-macro.
+THE INDOOR WHEELS: the visual mesh of ``urdf/a200/drivetrain/wheels/indoor.urdf.xacro`` is pointed at
+``husky_extras_description``'s ``meshes/a200_indoor_wheel.dae`` instead of the package's
+``meshes/a200/wheels/indoor.dae``.  Clearpath's mesh draws another rim than the a200-0553's, and a tire of r 0.1625 m
+where the real one rolls on 0.1477 m (R58).  ``onboard/extras``' tool ``a200_wheel_mesh.py`` keeps Clearpath's tire,
+shrinks it radially to that tread radius, and seats the real rim in it, taken from Clearpath's own CAD; its outer face
+lies on +y like Clearpath's, so the turn of the right wheels above holds for it unchanged.  Only the indoor macro:
+robot.yaml fits indoor wheels on both axles (``drivetrain.wheels.front/rear: indoor``), and the outdoor wheel is
+another tire this mesh does not show -- that variant keeps Clearpath's mesh.  The collision cylinder (r 0.1651, the
+macro's nominal radius) and the inertia stay: what the wheel touches the ground with is a separate decision, as the
+ground reference comes from ``ride_height_patch``'s LOADED radius and MoveIt and the twin collide with the cylinder.
+
+NO LEVER IN robot.yaml for any of them: ``clearpath_config`` picks the wheel variant per axle (``indoor``/``outdoor``)
+and nothing else -- the visual origin and the wheel mesh are literals inside the wheel macro, the chassis mesh a
+literal inside the a200 macro.
 
 WHY ITS OWN TOOL: ``urdf_physics_patch`` is about physical properties a physics engine needs (joint dynamics,
-inertials), and this changes none; ``ride_height_patch`` carries a measured property of THIS vehicle (its loaded
-tire radius), and neither look is one -- every a200 with the indoor wheel shows the first, every a200 the second.
-That also means both belong upstream: an issue against ``clearpath_common`` for the wheels is drafted (the owner
-files it; no number yet), and the chassis colors could be raised there too -- the owner decides.  Until then: both
-are unchanged in 2.9.15 (installed) and on the ``jazzy`` branch (checked 2026-10-09; its ``top_chassis.dae`` is
-byte-identical to the installed one), so an upgrade will not make this unnecessary by itself -- when upstream changes
-either, its anchor below stops matching and the tool says so instead of patching twice.
+inertials), and this changes none; ``ride_height_patch`` moves the ground reference by a measured property of THIS
+vehicle (its loaded tire radius), and nothing here moves a frame -- the indoor wheel mesh draws this vehicle's rims
+and rolling radius, but only draws them.  The first two looks are defects every a200 with the indoor wheel, and every
+a200, shows.  That also means both belong upstream: an issue against ``clearpath_common`` for the wheels is drafted
+(the owner files it; no number yet), and the chassis colors could be raised there too -- the owner decides.  Until
+then: both are unchanged in 2.9.15 (installed) and on the ``jazzy`` branch (checked 2026-10-09; its
+``top_chassis.dae`` is byte-identical to the installed one), so an upgrade will not make this unnecessary by itself --
+when upstream changes any of the three, its anchor below stops matching and the tool says so instead of patching
+twice.
 
 Invocations:
   Robot:    from clearpath_custom_setup.py (per boot, before clearpath-robot-generate)
@@ -99,6 +112,15 @@ CHASSIS_MESH_NEW = '<mesh filename="package://husky_extras_description/meshes/a2
 CHASSIS_VISUAL_RX = re.compile(
     r'(<link name="top_chassis_link">\s*<visual>(?:(?!</visual>).)*?\n)([ \t]*)' + re.escape(CHASSIS_MESH_OLD), re.S
 )
+
+#: The indoor wheel visual's mesh exactly as ``indoor.urdf.xacro`` ships it (2.9.15), and the a200-0553's wheel in
+#: ``husky_extras_description``: Clearpath's tire at the measured tread radius on the real rims.
+WHEEL_MESH_OLD = '<mesh filename="package://clearpath_platform_description/meshes/a200/wheels/indoor.dae" />'
+WHEEL_MESH_NEW = '<mesh filename="package://husky_extras_description/meshes/a200_indoor_wheel.dae" />'
+
+#: The wheel link's visual from its opening tag to the mesh line; group 2 keeps the mesh line's indentation.  Inside
+#: one ``<visual>``, so the marker and the turned origin :func:`patch_wheel_text` puts there do not stop the match.
+WHEEL_VISUAL_RX = re.compile(r"(<visual>(?:(?!</visual>).)*?\n)([ \t]*)" + re.escape(WHEEL_MESH_OLD), re.S)
 
 #: Where the ROS packages live.  A glob rather than a fixed distro, for the same reason as in
 #: ``urdf_physics_patch``: the same tool runs on the robot (jazzy from apt) and in the container (jazzy from the
@@ -199,8 +221,30 @@ def patch_chassis_text(content):
     return _well_formed(content, patched)
 
 
+def patch_wheel_mesh_text(content):
+    """Point the visual of the indoor wheel macro at the a200-0553's wheel mesh.
+
+    String surgery for the same reason as :func:`patch_wheel_text`, with the same marker above the rewritten line;
+    it matches with the visual origin turned or not, so the order of the two does not matter.
+
+    :returns: ``(content, status)`` as :func:`patch_wheel_text` returns it.
+    """
+    if MARKER in content and WHEEL_MESH_NEW in content:
+        return content, "clean"
+    hits = len(WHEEL_VISUAL_RX.findall(content))
+    if hits != 1:
+        # Zero is an upstream rewrite of the wheel visual or its mesh; nothing is guessed.
+        return (
+            content,
+            f"{hits} wheel visual mesh(es) of the shipped form found, expected exactly 1 -- upstream changed?",
+        )
+    patched = WHEEL_VISUAL_RX.sub(lambda m: f"{m.group(1)}{m.group(2)}{MARKER}\n{m.group(2)}{WHEEL_MESH_NEW}", content)
+    return _well_formed(content, patched)
+
+
 def patch_file(path, patcher, dry_run):
-    """Apply ``patcher`` (:func:`patch_wheel_text` or :func:`patch_chassis_text`) to one file.
+    """Apply ``patcher`` (:func:`patch_wheel_text`, :func:`patch_wheel_mesh_text` or :func:`patch_chassis_text`) to
+    one file.
 
     :returns: ``"changed"``, ``"clean"`` or ``"failed"`` -- the last one when the file cannot be read or written or
         the anchor does not match, each logged on stderr with the reason.
@@ -229,11 +273,14 @@ def patch_file(path, patcher, dry_run):
 
 
 def targets(package):
-    """``(path, patcher, what it fixes)`` for every file this tool patches in one ``package`` directory."""
+    """``(path, patcher, what it fixes)`` for every edit this tool makes in one ``package`` directory -- the indoor
+    wheel macro twice, each edit on its own, so an upstream rewrite of one does not hold back the other."""
     wheels = "the right wheels' visual turned by pi about z"
     macros = [(os.path.join(package, XACRO_REL.format(variant=v)), patch_wheel_text, wheels) for v in VARIANTS]
+    indoor = os.path.join(package, XACRO_REL.format(variant="indoor"))
     return [
         *macros,
+        (indoor, patch_wheel_mesh_text, "the indoor wheel mesh swapped for the a200-0553's rims and tread radius"),
         (os.path.join(package, CHASSIS_REL), patch_chassis_text, "the chassis mesh swapped for the recolored one"),
     ]
 
@@ -275,7 +322,7 @@ def main(argv=None) -> int:
         did = "would patch" if args.dry_run else "patched"
         log(f"{did}: {', '.join(changed)}.")
     elif not failed:
-        log(f"a200 look already patched -- no change ({len(results)} file(s) checked).")
+        log(f"a200 look already patched -- no change ({len(results)} edit(s) checked).")
     if failed:
         log(f"failed to patch: {', '.join(failed)} -- that part of the a200 keeps the upstream look.", err=True)
         return 1

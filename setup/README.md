@@ -36,8 +36,9 @@ in the `--verify` manifest it belongs in `scripts/`; if it is not, somebody star
   it reads and therefore run first: `urdf_physics_patch` (the UR joints' zero `<dynamics>`, the wheel joints' missing
   one, `top_plate_link` without an `<inertial>`), `ride_height_patch` (this vehicle's loaded wheel radius under
   `base_footprint`) and `a200_look_patch` (the right wheels' visual turned by pi about z, so the one-sided indoor
-  wheel mesh shows its rim outward on both sides, and the chassis visual pointed at `husky_extras_description`'s
-  recolored mesh: #E29000, a red emergency stop, a silver power button and key lock).
+  wheel mesh shows its rim outward on both sides; the indoor wheel's visual pointed at `husky_extras_description`'s
+  wheel: Clearpath's tire at the measured 0.1477 m tread radius on the a200-0553's real rims; and the chassis visual
+  pointed at its recolored mesh: #E29000, a red emergency stop, a silver power button and key lock).
   Five of the steps are calls to a root-owned copy under `/usr/local/bin`, so the boot service never runs code out of
   a directory a user can write to.
 - **Four of those patchers are shared with the offboard container.** `sensor_mesh_uri_patch`, `urdf_physics_patch`,

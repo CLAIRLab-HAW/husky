@@ -131,8 +131,9 @@ SENSOR_MESH_URI_PATCH_BIN="${BIN_DIR}/sensor-mesh-uri-patch"
 # copied into the offboard container from this repo, for the same reason as the mesh URI fix.
 RIDE_HEIGHT_PATCH_BIN="${BIN_DIR}/ride-height-patch"
 # a200-look-patch makes the a200 look like the real one: the right wheels' visual turned by pi about z in both wheel
-# macros (the one-sided indoor mesh shows its rim outward on both sides) and the chassis visual pointed at the recolored
-# mesh in husky_extras_description (built below).  Visual only; copied into the offboard container for the same reason.
+# macros (the one-sided indoor mesh shows its rim outward on both sides), the indoor wheel's and the chassis visual
+# pointed at this robot's wheel (real rims, measured tread radius) and recolored chassis in husky_extras_description
+# (built below).  Visual only; copied into the offboard container for the same reason.
 A200_LOOK_PATCH_BIN="${BIN_DIR}/a200-look-patch"
 
 # THREE files live in the rg6 workspace, not in setup/, and each can be taken either from a built workspace or

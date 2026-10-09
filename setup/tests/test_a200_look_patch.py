@@ -1,4 +1,4 @@
-"""The patcher for the a200's look: right wheel visuals turned by pi about z, the chassis on the recolored mesh.
+"""The patcher for the a200's look: right wheel visuals turned, indoor wheels and chassis on this robot's meshes.
 
 The wheel fixture is a COPY of ``urdf/a200/drivetrain/wheels/indoor.urdf.xacro`` as ``clearpath_platform_description``
 2.9.15 ships it, read from the plant-mock container's apt copy on 2026-10-09.  ``outdoor.urdf.xacro`` is the same file
@@ -9,10 +9,10 @@ Both are embedded rather than read from the workspace bundle under ``urdf/``: th
 container in which this very patcher has already run, and a fixture that is already patched tests nothing.
 
 What is worth testing is not that a string replace replaces a string.  It is that the VISUAL origin moves and the
-collision and inertial origins next to it do not, that only the chassis link's mesh changes and the base link's next to
-it does not, that a second run and the ``.bak`` behave, that all three files are covered, and -- the one that matters
-most -- that an upstream that renamed a file or rewrote the line is reported with a nonzero exit instead of crashing
-or passing silently.
+collision and inertial origins next to it do not, that only the indoor wheel's visual mesh changes and the outdoor
+one's does not, that only the chassis link's mesh changes and the base link's next to it does not, that a second run
+and the ``.bak`` behave, that all three files are covered, and -- the one that matters most -- that an upstream that
+renamed a file or rewrote the line is reported with a nonzero exit instead of crashing or passing silently.
 """
 
 from __future__ import annotations
@@ -224,6 +224,55 @@ def test_only_the_chassis_mesh_changes():
     assert "package://clearpath_platform_description/meshes/a200/base_link.dae" in out
 
 
+def test_the_indoor_wheel_takes_the_real_rims(share):
+    """The indoor macro's visual points at husky_extras_description's wheel; the outdoor one keeps Clearpath's."""
+    glob_, package = share
+    assert patch.main([f"--ros-share={glob_}"]) == 0
+    meshes = {
+        variant: ET.fromstring((package / patch.XACRO_REL.format(variant=variant)).read_text())
+        .find(".//link/visual/geometry/mesh")
+        .get("filename")
+        for variant in patch.VARIANTS
+    }
+    assert meshes == {
+        "indoor": "package://husky_extras_description/meshes/a200_indoor_wheel.dae",
+        "outdoor": "package://clearpath_platform_description/meshes/a200/wheels/outdoor.dae",
+    }
+
+
+def test_only_the_wheel_mesh_changes():
+    """The collision cylinder, the inertial and the visual origin stay: the marker and the mesh line in, one out."""
+    out, status = patch.patch_wheel_mesh_text(INDOOR)
+    assert status == "changed"
+    changed = _changed_lines(INDOOR, out)
+    assert [line[1:].strip() for line in changed] == [
+        patch.WHEEL_MESH_OLD,
+        patch.MARKER,
+        patch.WHEEL_MESH_NEW,
+    ], changed
+    assert '<cylinder length="${a200_indoor_wheel_width}" radius="${a200_indoor_wheel_radius}" />' in out
+
+
+def test_the_two_wheel_edits_do_not_depend_on_their_order():
+    """The mesh swap matches with the origin turned or not, and the origin turn with the mesh swapped or not."""
+    origin_first = patch.patch_wheel_mesh_text(patch.patch_wheel_text(INDOOR)[0])
+    mesh_first = patch.patch_wheel_text(patch.patch_wheel_mesh_text(INDOOR)[0])
+    assert origin_first == mesh_first
+    assert origin_first[1] == "changed"
+
+
+def test_a_rewritten_wheel_mesh_is_reported_and_the_origin_still_turns(share, capsys):
+    """Upstream pointing the indoor wheel at another mesh: that edit fails loudly, the other one in the file holds."""
+    glob_, package = share
+    target = package / patch.XACRO_REL.format(variant="indoor")
+    target.write_text(INDOOR.replace("wheels/indoor.dae", "wheels/indoor_v2.dae"))
+    assert patch.main([f"--ros-share={glob_}"]) == 1
+    assert "0 wheel visual mesh(es)" in capsys.readouterr().err
+    text = target.read_text()
+    assert "wheels/indoor_v2.dae" in text
+    assert patch.ORIGIN_NEW in text
+
+
 def test_a_second_run_changes_nothing(share):
     glob_, package = share
     patch.main([f"--ros-share={glob_}"])
@@ -273,9 +322,10 @@ def test_a_renamed_macro_is_reported_not_crashed(share, capsys):
 
 
 def test_a_rewritten_origin_line_is_reported_not_crashed(share, capsys):
-    """Also the shape an upstream fix would take: the anchor no longer matches, and the tool says so."""
+    """Also the shape an upstream fix would take: the anchor no longer matches, and the tool says so.  On the outdoor
+    macro, whose origin is its only edit: the file stays as upstream wrote it, without a ``.bak``."""
     glob_, package = share
-    target = package / patch.XACRO_REL.format(variant="indoor")
+    target = package / patch.XACRO_REL.format(variant="outdoor")
     rewritten = target.read_text().replace(patch.ORIGIN_OLD, '<origin xyz="0 0 0" rpy="0 0 ${reflect}" />', 1)
     target.write_text(rewritten)
     assert patch.main([f"--ros-share={glob_}"]) == 1
