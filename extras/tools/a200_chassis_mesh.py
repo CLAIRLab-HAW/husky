@@ -6,28 +6,28 @@
 """Writes ``a200_top_chassis.dae``: Clearpath's a200 top chassis with the real chassis yellow and its controls colored.
 
 Clearpath's ``clearpath_platform_description/meshes/a200/top_chassis.dae`` (2.9.15) is ONE geometry with ONE
-material, ``Yellow``, diffuse ``0.8 0.8 0 1`` -- a greenish yellow, and the emergency stop, the power button and the
-key lock at the rear in the same yellow, the status LEDs too. The real a200-0553's chassis is #E29000, its emergency
-stop red, its power button and key lock metallic silver, its status LEDs black (the owner, 2026-10-09). One material
-cannot carry five looks, so this script splits the mesh into its connected components (12, measured 2026-10-09) and
-writes one geometry and one material per part: ``chassis``, ``emergency_stop``, ``power_button``, ``key_lock``,
-``status_leds`` (:data:`LOOK`).
+material, ``Yellow``, diffuse ``0.8 0.8 0 1`` -- a greenish yellow, and the emergency stop, the power button, the key
+lock, the panels they sit on and the status LEDs at the rear in the same yellow. The real a200-0553's chassis is
+#E29000, its emergency stop red, its power button and key lock metallic silver, the panels dark gray, the status LEDs
+a lighter gray (the owner, 2026-10-09). One material cannot carry that, so this script splits the mesh into its
+connected components (12, measured 2026-10-09) and writes one geometry and one material per part (:data:`LOOK`).
 
 The controls are identified by SHAPE, from a render of the components on 2026-10-09, and matched here by their
 bounding box in the mesh frame [mm] (:data:`CONTROLS`), so the order trimesh splits them in does not matter: the
 emergency stop is the big mushroom on a collar, the key lock the domed knob with a ring below it (both on +y, the
 robot's left), the power button the cylinder with a flat ringed face (on -y), and the two flat panels they sit on,
-one per side, dark gray. The owner named them. Everything else is the chassis -- the small pin beside the power
-button and the symmetric pair at y +-66..98 mm included. A control whose box matches no component, or more than
-one, stops the script: the source mesh changed, and nothing is guessed.
+one per side. The owner named them. The two bumps between the panels (:data:`REMOVED`) the a200-0553 does not have:
+they are left out, and as each stands in a closed tube through the rear face, a flat lid in the chassis' color covers
+where it stood (:func:`hole_caps`). Everything else is the chassis, the small pin beside the power button included.
+A box that matches no component, or more than one, stops the script: the source mesh changed, and nothing is guessed.
 
 The status LEDs are no component of their own: they are small boxes in the chassis body's sloped rear face (normal
 ~(-0.64, 0, 0.77)), on -y under the power button -- four stacked along the slope and a longer field right under the
-button, all 11 mm wide at y -145.5..-134.5 mm. They are the chassis triangles whose three corners lie in
-:data:`STATUS_LEDS`: the boxes' sides and the slivers of their ends, while the slope faces around them reach out to
-y -151.3 or -97.4 mm and stay chassis (measured 2026-10-09). Measured the same day along the slope's normal, the boxes
-reach from the slope's surface 1.6 mm INTO the body, and the slope's own large triangles run over them: in a render
-they do not show, black or not. None found stops the script as a missing control does.
+button, all 11 mm wide at y -145.5..-134.5 mm, found as the chassis triangles whose three corners lie in
+:data:`STATUS_LEDS`. Measured along the slope's normal on 2026-10-09, those boxes reach from the slope's surface
+1.6 mm INTO the body, under its own triangles and the right panel, so no color shows them. Their footprints are drawn
+anew instead, as fields :data:`LED_HEIGHT_M` proud of the right panel's face (:func:`led_fields`), and the sunken
+boxes are not written.
 
 The normals are the source's own, per corner: the chassis' edges stay as sharp as Clearpath shaded them.
 
@@ -53,6 +53,7 @@ import collada
 import numpy as np
 import trimesh
 from collada import asset, geometry, material, scene, source
+from scipy.spatial import ConvexHull
 
 #: The controls' and their panels' bounding boxes in the mesh frame [mm] as (min corner, max corner), read off the
 #: split on 2026-10-09 (faces: 2768, 2430, 3808, 20, 20), and the tolerance a box is matched with [mm]. Every other
@@ -66,9 +67,18 @@ CONTROLS = {
     "panel_left": ((-398, 125, 121), (-283, 176, 217)),
     "panel_right": ((-398, -176, 121), (-283, -125, 217)),
 }
+#: The two bumps between the panels, at y +-66..98 mm (1870 faces each): the a200-0553 has none (the owner,
+#: 2026-10-09), so they are left out.
+REMOVED = {
+    "bump_left": ((-332, 66, 156), (-284, 98, 209)),
+    "bump_right": ((-332, -98, 156), (-284, -66, 209)),
+}
 BOX_TOLERANCE_MM = 1.5
-#: The box the status LEDs' triangles lie in, in the mesh frame [mm] as (min corner, max corner) (2026-10-09).
+#: The box the source's status LED boxes lie in, in the mesh frame [mm] as (min corner, max corner) (2026-10-09). They
+#: sit 1.6 mm INTO the sloped rear face, under its own triangles and the right panel, so no color shows them; their
+#: footprints are taken from them and drawn anew as :data:`LED_HEIGHT_M` high fields on the right panel's face.
 STATUS_LEDS = ((-380.0, -145.6, 134.0), (-329.0, -134.4, 178.0))
+LED_HEIGHT_M = 0.0005
 #: Metallic silver, the power button's and the key lock's look.
 SILVER = ((0.75, 0.76, 0.78), (0.6, 0.6, 0.6), 40.0)
 #: Matte dark gray, the panels' look: told apart from the silver controls on them by half the lightness and a dull
@@ -85,7 +95,8 @@ LOOK = {
     "key_lock": SILVER,
     "panel_left": PANEL_GRAY,
     "panel_right": PANEL_GRAY,
-    "status_leds": ((0.03, 0.03, 0.03), (0.4, 0.4, 0.4), 40.0),
+    # A lighter gray than the panel they sit on (the owner, 2026-10-09), still well below the silver.
+    "status_leds": ((0.50, 0.51, 0.53), (0.4, 0.4, 0.4), 40.0),
 }
 #: Written into every run's ``<created>``/``<modified>``, so a second run on the same source writes the same file.
 STAMP = datetime.datetime(2026, 10, 9)
@@ -150,20 +161,104 @@ def assign(triangles: np.ndarray, labels: np.ndarray) -> dict[str, np.ndarray]:
         label: np.array([triangles[labels == label].min(axis=(0, 1)), triangles[labels == label].max(axis=(0, 1))])
         for label in np.unique(labels)
     }
-    for control, box in CONTROLS.items():
+    for control, box in {**CONTROLS, **REMOVED}.items():
         hits = [label for label, b in bounds.items() if np.allclose(b * 1000.0, box, atol=BOX_TOLERANCE_MM)]
         if len(hits) != 1:
             raise SystemExit(f"{control}: {len(hits)} components in the box {box} mm, expected 1 -- source changed?")
         part = labels == hits[0]
-        masks[control] = part
+        if control in masks:
+            masks[control] = part
         claimed |= part
     low, high = (np.array(corner) / 1000.0 for corner in STATUS_LEDS)
     leds = ~claimed & np.all((triangles >= low) & (triangles <= high), axis=(1, 2))
     if not leds.any():
         raise SystemExit(f"status_leds: no chassis triangle in the box {STATUS_LEDS} mm -- source changed?")
-    masks["status_leds"] = leds
+    masks["status_leds"] = leds  # the sunken source boxes: replaced by :func:`led_fields`, never written
     masks["chassis"] = ~claimed & ~leds
     return masks
+
+
+def hole_caps(triangles: np.ndarray, labels: np.ndarray, chassis: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Flat lids where the left-out bumps (:data:`REMOVED`) were: each bump stands in a closed tube through the rear
+    face, and without it one looks through. The lid is the bump's outline seen along the slope's normal, laid
+    0.1 mm proud of the face around it, in the chassis' color."""
+    normal = np.array([-0.64, 0.0, 0.77])
+    normal /= np.linalg.norm(normal)
+    along = np.cross([0.0, 1.0, 0.0], normal)
+    faces = triangles[chassis]
+    face_normals = np.cross(faces[:, 1] - faces[:, 0], faces[:, 2] - faces[:, 0])
+    face_normals /= np.linalg.norm(face_normals, axis=1, keepdims=True) + 1e-12
+    on_slope = faces[face_normals @ normal > 0.99].reshape(-1, 3)
+    lids, lid_normals = [], []
+    for low, high in REMOVED.values():
+        bump = [
+            label
+            for label in np.unique(labels)
+            if np.allclose(
+                [
+                    triangles[labels == label].min(axis=(0, 1)) * 1000,
+                    triangles[labels == label].max(axis=(0, 1)) * 1000,
+                ],
+                [low, high],
+                atol=BOX_TOLERANCE_MM,
+            )
+        ]
+        corners = triangles[labels == bump[0]].reshape(-1, 3)
+        near = on_slope[np.abs(on_slope[:, 1] - corners[:, 1].mean()) < 0.03]
+        offset = float((near @ normal).max()) + 0.0001
+        flat = np.c_[corners @ along, corners[:, 1]]
+        ring = flat[ConvexHull(flat).vertices]  # the outline's corners alone, counterclockwise
+        points = np.outer(ring[:, 0], along) + np.outer(ring[:, 1], [0.0, 1.0, 0.0]) + normal * offset
+        middle = points.mean(axis=0)
+        fan = np.array([[middle, a, b] for a, b in zip(points, np.roll(points, -1, axis=0))])
+        if (np.cross(fan[:, 1] - fan[:, 0], fan[:, 2] - fan[:, 0]) @ normal).sum() < 0:
+            fan = fan[:, ::-1]
+        lids.append(fan)
+        lid_normals.append(np.broadcast_to(normal, fan.shape))
+    return np.concatenate(lids), np.concatenate(lid_normals)
+
+
+def led_fields(triangles: np.ndarray, sunken: np.ndarray, panel: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """The status LEDs as fields on the right panel's face: each sunken source box's footprint in the face's plane,
+    :data:`LED_HEIGHT_M` proud of it. Triangles and their corner normals, as :func:`read` gives them."""
+    faces = triangles[panel]
+    normals = np.cross(faces[:, 1] - faces[:, 0], faces[:, 2] - faces[:, 0])
+    normals /= np.linalg.norm(normals, axis=1, keepdims=True)
+    # The panel's outer face: its triangles facing up the slope, back and up (the source's slope normal is
+    # (-0.64, 0, 0.77)); the plane through them.
+    outer = normals @ np.array([-0.64, 0.0, 0.77]) > 0.99
+    if not outer.any():
+        raise SystemExit("status_leds: the right panel has no face along the rear slope -- source changed?")
+    normal = normals[outer].mean(axis=0)
+    normal /= np.linalg.norm(normal)
+    offset = float((faces[outer].reshape(-1, 3) @ normal).max())
+    along = np.cross([0.0, 1.0, 0.0], normal)  # up the slope, in the x-z plane
+    # One field per source box. The boxes are joined by 1.5 mm steps between them, so they are told apart by the
+    # boxes' own sides alone -- the triangles that span more than 4 mm up the slope -- and those overlapping merged
+    # (five boxes, 6 to 21 mm long, measured 2026-10-09).
+    sunken_faces = triangles[sunken]
+    low_u, high_u = (sunken_faces @ along).min(axis=1), (sunken_faces @ along).max(axis=1)
+    sides = np.flatnonzero(high_u - low_u > 0.004)
+    groups: list[list[int]] = []
+    reach = -np.inf
+    for index in sides[np.argsort(low_u[sides])]:
+        if low_u[index] > reach + 1e-5:
+            groups.append([])
+        groups[-1].append(index)
+        reach = max(reach, high_u[index])
+    fields, corner_normals = [], []
+    for group in groups:
+        corners = sunken_faces[group].reshape(-1, 3)
+        u, v = corners @ along, corners[:, 1]
+        size = (u.max() - u.min(), v.max() - v.min(), LED_HEIGHT_M)
+        frame = np.eye(4)
+        frame[:3, 0], frame[:3, 1], frame[:3, 2] = along, (0.0, 1.0, 0.0), normal
+        frame[:3, 3] = along * (u.max() + u.min()) / 2 + np.array([0, 1.0, 0]) * (v.max() + v.min()) / 2
+        frame[:3, 3] += normal * (offset + LED_HEIGHT_M / 2 - frame[:3, 3] @ normal)
+        field = trimesh.creation.box(extents=size, transform=frame)
+        fields.append(field.triangles)
+        corner_normals.append(np.repeat(field.face_normals[:, None, :], 3, axis=1))
+    return np.concatenate(fields), np.concatenate(corner_normals)
 
 
 def write(parts: dict[str, tuple[np.ndarray, np.ndarray]], dae_path: str) -> None:
@@ -225,7 +320,11 @@ def main() -> None:
     labels = components(triangles)
     print(f"{len(triangles)} triangles in {len(np.unique(labels))} components")
     masks = assign(triangles, labels)
-    write({key: (triangles[mask], normals[mask]) for key, mask in masks.items()}, args.dae)
+    parts = {key: (triangles[mask], normals[mask]) for key, mask in masks.items()}
+    lids, lid_normals = hole_caps(triangles, labels, masks["chassis"])
+    parts["chassis"] = (np.concatenate([parts["chassis"][0], lids]), np.concatenate([parts["chassis"][1], lid_normals]))
+    parts["status_leds"] = led_fields(triangles, masks["status_leds"], masks["panel_right"])
+    write(parts, args.dae)
 
 
 if __name__ == "__main__":
