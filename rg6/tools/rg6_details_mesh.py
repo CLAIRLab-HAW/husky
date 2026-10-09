@@ -1,0 +1,477 @@
+#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["numpy", "pycollada", "pyyaml", "rtree", "scipy", "trimesh"]
+# ///
+"""Writes the RG6's blue ring and its black pivot caps as DAEs, one per link frame they ride in.
+
+Our RG6 model (``rg6_description``, meshes from the upstream ``onrobot_rg_description``) draws every part in one color
+and lacks two details the real hand has (the owner, 2026-10-10): the narrow blue ring at the hand's mounting end, and
+the black caps between the finger linkage's links, sleeves over the pivot pins where the moment and the truss arm meet
+the finger tip. The pads on the finger tips are not caps and are left out. This script
+takes both from the owner's detailed model of the RG6 and writes them in the frames of OUR links, so the macro hangs
+them on as extra visuals and keeps every existing mesh, link and joint.
+
+The source is an Onshape glTF export (generator "ONSHAPE BY PTC INC, 1.222", 174 bodies, 7234 primitives, 20.2 M
+triangles, meters), the owner's detailed model of the RG6. It is not committed (OnRobot's CAD, 797 MB, no license
+to redistribute); the owner keeps it untracked at ``onboard/gripper_rg6.gltf`` in the workspace. Each body is one node
+without a transform, each CAD face one primitive with its own material. The parts are found by their material
+(:data:`RING_SRGB`, :data:`CAP_SRGB`), and a count other than :data:`RING_COUNT` / :data:`CAP_COUNT` stops the script.
+
+How the parts reach our frames, measured 2026-10-10. Every fit is an ICP of one of OUR link meshes onto the glTF
+bodies it lies on, never an alignment by the mounting face: the vendor's model ends at its flange, ours carries more
+below it.
+
+1. **body**: our ``body.stl`` is laid onto the glTF by its bounding box (the hand's axis is our z and the glTF's x,
+   the fingers open along our x and the glTF's y), slid along the axis to the best fit, and refined by ICP. The
+   half-turn about the axis is ambiguous for a symmetric housing; both are fitted and the lower residual wins
+   (0.044 mm RMS against 0.404 mm). Scale is 1: the glTF is in meters, and the housing is 137.1 mm long in both.
+2. **bracket**: our ``single_bracket.stl`` by its own ICP, on the 77 % of its surface that lies within
+   :data:`OVERLAP_M` of the glTF (0.63 mm RMS). It lands 2.73 mm along the axis from where the body's fit and our
+   bracket joint put it, so the ring is placed by the bracket's fit: by the body's it would sit inside the bracket's
+   flare, by the bracket's it covers the band our bracket mesh models for it.
+3. **the fingers**: the glTF's opening in our joint coordinate is searched over ``q`` with our kinematics
+   (``config/rg6_v2.yaml``) on the finger tips: q = 0.615 rad from our open stop, 93.1 mm between the pads. Each
+   moving link's STL is then placed there and refined by its own ICP: finger tip 0.04 / 0.08 mm RMS, moment arm
+   1.6 mm, truss arm 1.3 mm. The arms' residual is shape, not pose: our arm meshes are coarse (1880 triangles against
+   the glTF's 394 000 for one moment arm), the median distance is 0.5 / 0.4 mm, and the fitted poses lie within
+   0.5 mm and 0.15 deg (moment arm) and 1.3 mm and 1.3 deg (truss arm) of the kinematics'.
+
+Every cap goes to the link whose placed mesh it lies closest to. The four over the finger-tip pivots of each finger
+ride on the moment and the truss arm, two each, one either side of the finger tip; finger 1's are written, the macro
+instantiates the finger twice, and finger 2's land within :data:`MIRROR_TOLERANCE_M` of them, which is checked. Their
+centers lie 0.2 mm (truss arm) and 0.4 mm (moment arm) from our finger-tip joint. The caps are round, so whether one
+turns with its pin or with the link around it shows no difference. The four over the truss arms' body pivots go to the
+body and are not written: they lie inside our body's housing, and over 60 views at three openings one pixel of them
+showed (:data:`HIDDEN`).
+
+The DAE is written with pycollada directly, ``Z_UP``, in meters, and with a fixed :data:`STAMP`, so a second run on
+the same source writes the same bytes.
+
+    uv run onboard/rg6/tools/rg6_details_mesh.py onboard/gripper_rg6.gltf \\
+        onboard/rg6/src/rg6_description/meshes/rg6_v2/visual
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import datetime
+import json
+from pathlib import Path
+
+import collada
+import numpy as np
+import trimesh
+import yaml
+from collada import asset, geometry, material, scene, source
+from scipy.spatial import ConvexHull, cKDTree
+from scipy.spatial.transform import Rotation
+
+#: The package this script writes into; the STLs registered against and the kinematics are read from it.
+PACKAGE = Path(__file__).resolve().parents[1] / "src" / "rg6_description"
+VISUAL = PACKAGE / "meshes" / "rg6_v2" / "visual"
+#: The glTF's baseColor of the ring and of the caps, sRGB 0..255, and how many bodies carry each (2026-10-10).
+RING_SRGB = (73, 157, 218)
+CAP_SRGB = (80, 63, 52)
+RING_COUNT = 1
+CAP_COUNT = 12
+#: How many caps each link frame takes, over both fingers (2026-10-10: two per pivot, one each side of the link).
+CAPS_PER_LINK = {"body": 4, "moment_arm": 4, "truss_arm": 4}
+#: Link frames whose caps are found and checked but not written: the body's lie inside its housing (2026-10-10).
+HIDDEN = ("body",)
+#: Bodies above this many triangles are left out of every registration target: they are the ten coil springs inside
+#: the mounting end, 1.33 M triangles each and nowhere near the links (2026-10-10).
+MAX_TARGET_TRIANGLES = 500_000
+#: The glTF's axes in our body frame before any fit: its x is our z (the hand's axis), its y our x (the opening).
+AXES = np.array([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+#: A glTF body belongs to one of our placed meshes when the median distance of its surface to it is below this.
+NEAR_M = 0.002
+#: Our bracket is fitted on its points this close to the glTF only: below the vendor's flange it carries geometry the
+#: vendor's model has none of (14 mm of it, 2026-10-10).
+OVERLAP_M = 0.003
+#: Finger 2's caps, brought into finger 1's link frames, must land this close to finger 1's.
+MIRROR_TOLERANCE_M = 0.0005
+#: Only the ring's rim is kept: it is a 2.1 mm thick disc with bosses and screw holes, and everything inside this
+#: radius lies inside our bracket, whose cylinder is 35.5 mm in radius there (2026-10-10: 13 558 -> 914 triangles).
+RING_MIN_RADIUS_M = 0.034
+#: The rim's radius is 35.42..35.57 mm, our bracket's cylinder 35.5 mm: coplanar, so the rim is laid this far proud
+#: of it, or the renderers flicker between the two.
+RING_PROUD_M = 0.0002
+#: A cap is a sleeve whose profile is eight points (bore, outer wall, a 0.6 mm chamfer at each of the four corners),
+#: tessellated in the source with 144 sections in 2304 triangles. It is written as that profile revolved in this many
+#: sections: 768 triangles, 0.009 mm off the source at most (2026-10-10). Decimating does worse on these long thin
+#: triangles: fast-simplification left 0.28 mm at a third fewer.
+CAP_SECTIONS = 48
+#: A profile point may lie this far inside the profile's convex hull; the revolve takes the hull.
+PROFILE_TOLERANCE_M = 1e-6
+#: How far the written part may lie from the source's, both ways.
+DEVIATION_M = 0.00002
+#: Normals are split where neighboring faces meet at more than this angle, so the cylinders shade round and the
+#: rims stay sharp.
+SMOOTH_ANGLE_RAD = np.radians(30.0)
+#: Each part's look [sRGB diffuse, specular, shininess]: the ring the glTF's blue with a little gloss, the caps black
+#: plastic (the owner, 2026-10-10). The twin (``clair.twin.collada``) takes the diffuse alone; Foxglove and RViz shade
+#: with all three.
+LOOK = {
+    "ring": (tuple(c / 255.0 for c in RING_SRGB), 0.3, 30.0),
+    "cap": ((0.04, 0.04, 0.04), 0.25, 20.0),
+}
+#: The files written, by the link frame they are in.
+FILES = {
+    "single_bracket": "single_bracket_ring.dae",
+    "moment_arm": "moment_arm_caps.dae",
+    "truss_arm": "truss_arm_caps.dae",
+}
+#: Written into every run's ``<created>``/``<modified>``, so a second run on the same source writes the same file.
+STAMP = datetime.datetime(2026, 10, 10)
+
+
+class Source:
+    """The glTF's bodies: triangles per node in the glTF's frame [m], and each body's baseColor."""
+
+    def __init__(self, path: str) -> None:
+        with open(path) as handle:
+            gltf = json.load(handle)
+        buffer = base64.b64decode(gltf["buffers"][0]["uri"].split(",", 1)[1])
+        accessors, views = gltf["accessors"], gltf["bufferViews"]
+
+        def read(index: int) -> np.ndarray:
+            acc = accessors[index]
+            view = views[acc["bufferView"]]
+            dtype = {5126: np.float32, 5125: np.uint32, 5123: np.uint16}[acc["componentType"]]
+            width = {"VEC3": 3, "SCALAR": 1}[acc["type"]]
+            offset = view.get("byteOffset", 0) + acc.get("byteOffset", 0)
+            return np.frombuffer(buffer, dtype=dtype, count=acc["count"] * width, offset=offset).reshape(-1, width)
+
+        colors = [
+            tuple(round(c * 255) for c in m["pbrMetallicRoughness"].get("baseColorFactor", (1, 1, 1))[:3])
+            for m in gltf["materials"]
+        ]
+        self.meshes: list[trimesh.Trimesh] = []
+        self.colors: list[set[tuple[int, int, int]]] = []
+        for node in gltf["nodes"]:
+            if any(key in node for key in ("matrix", "translation", "rotation", "scale", "children")):
+                raise SystemExit(f"{node['name']}: the script reads flat, untransformed nodes -- source changed?")
+            vertices, faces, offset = [], [], 0
+            used = set()
+            for prim in gltf["meshes"][node["mesh"]]["primitives"]:
+                v = read(prim["attributes"]["POSITION"]).astype(float)
+                faces.append(read(prim["indices"]).reshape(-1, 3).astype(np.int64) + offset)
+                vertices.append(v)
+                offset += len(v)
+                used.add(colors[prim["material"]])
+            self.meshes.append(trimesh.Trimesh(np.concatenate(vertices), np.concatenate(faces), process=False))
+            self.colors.append(used)
+
+    def bodies_of(self, srgb: tuple[int, int, int], count: int, what: str) -> list[int]:
+        """The bodies wholly in ``srgb``; exactly ``count`` of them, or the script stops."""
+        hits = [index for index, used in enumerate(self.colors) if used == {srgb}]
+        if len(hits) != count:
+            raise SystemExit(f"{what}: {len(hits)} bodies in sRGB {srgb}, expected {count} -- source changed?")
+        return hits
+
+
+def kinematics() -> tuple[dict, float]:
+    """The joint origins [m] and the linkage offset [rad] the macro reads from ``config/rg6_v2.yaml``."""
+    config = yaml.safe_load((PACKAGE / "config" / "rg6_v2.yaml").read_text())
+    return config["origin"], config["kinematics"]["offset"]
+
+
+def frame(xyz, rpy=(0.0, 0.0, 0.0)) -> np.ndarray:
+    matrix = np.eye(4)
+    matrix[:3, :3] = Rotation.from_euler("xyz", rpy).as_matrix()
+    matrix[:3, 3] = xyz
+    return matrix
+
+
+def finger_links(q_rad: float, finger: int) -> dict[str, np.ndarray]:
+    """Each finger link's pose in the body frame at ``q_rad``, as the macro builds it (every joint mimics the driver
+    with multiplier 1; finger 2 is finger 1 turned by pi about the body's z)."""
+    origin, offset = kinematics()
+
+    def at(name: str) -> tuple[float, float, float]:
+        return origin[name]["x"], origin[name]["y"], origin[name]["z"]
+
+    base = frame((0, 0, 0), (0, 0, 0 if finger == 1 else np.pi))
+    moment = base @ frame(at("moment_arm"), (0, offset, 0)) @ frame((0, 0, 0), (0, q_rad, 0))
+    truss = base @ frame(at("truss_arm"), (0, offset, 0)) @ frame((0, 0, 0), (0, q_rad, 0))
+    tip = truss @ frame(at("finger_tip"), (0, -offset, 0)) @ frame((0, 0, 0), (0, -q_rad, 0))
+    return {"moment_arm": moment, "truss_arm": truss, "finger_tip": tip}
+
+
+def surface(mesh: trimesh.Trimesh, count: int, seed: int) -> np.ndarray:
+    return trimesh.sample.sample_surface(mesh, count, seed=seed)[0]
+
+
+def distances_m(target: trimesh.Trimesh, points: np.ndarray) -> np.ndarray:
+    """Each point's distance to the surface of ``target`` [m], exact (closest point on the triangles). Computed in
+    millimeters: in meters ``trimesh.proximity.closest_point`` (trimesh 5.0) misses the nearest triangle of a small
+    part, and a cap's own surface samples came out up to 0.16 mm off it (2026-10-10)."""
+    scaled = target.copy()
+    scaled.apply_scale(1000.0)
+    return trimesh.proximity.closest_point(scaled, points * 1000.0)[1] / 1000.0
+
+
+def rms_m(points: np.ndarray, target: trimesh.Trimesh) -> float:
+    """RMS distance of ``points`` to the surface of ``target`` [m]."""
+    return float(np.sqrt(np.mean(distances_m(target, points) ** 2)))
+
+
+def near_bodies(source: Source, candidates: list[int], placed: np.ndarray) -> list[int]:
+    """The candidate bodies whose surface lies within :data:`NEAR_M` of the placed points (median)."""
+    tree = cKDTree(placed)
+    return [b for b in candidates if np.median(tree.query(surface(source.meshes[b], 500, seed=b))[0]) < NEAR_M]
+
+
+def fit(ours: np.ndarray, target: trimesh.Trimesh, initial: np.ndarray) -> tuple[np.ndarray, float]:
+    """ICP of our points onto ``target`` from ``initial``: the rigid transform ours -> glTF and its RMS [m]."""
+    matrix, _, _ = trimesh.registration.icp(
+        ours, surface(target, 200_000, seed=0), initial=initial, threshold=1e-9, max_iterations=80, scale=False
+    )
+    return matrix, rms_m(trimesh.transform_points(ours[:5000], matrix), target)
+
+
+def register(source: Source, caps: list[int], ring: list[int]) -> tuple[dict[str, np.ndarray], float]:
+    """Each of our links' pose in the glTF (ours -> glTF), finger links keyed ``<link>_<finger>``, and the glTF's
+    opening in our joint coordinate [rad]."""
+    candidates = [
+        b
+        for b, mesh in enumerate(source.meshes)
+        if len(mesh.faces) <= MAX_TARGET_TRIANGLES and b not in caps and b not in ring
+    ]
+    everything = trimesh.util.concatenate([source.meshes[b] for b in candidates])
+    tree = cKDTree(surface(everything, 300_000, seed=0))
+
+    body = surface(trimesh.load(VISUAL / "body.stl"), 20_000, seed=1)
+    fits = []
+    for roll in (0.0, np.pi):
+        axes = AXES @ Rotation.from_euler("z", roll).as_matrix()
+        initial = np.eye(4)
+        initial[:3, :3] = axes
+        slide = [float(np.mean(tree.query(body @ axes.T + [x, 0.0, 0.0])[0])) for x in np.arange(-0.05, 0.15, 0.001)]
+        initial[0, 3] = -0.05 + 0.001 * int(np.argmin(slide))
+        target = near_bodies(source, candidates, trimesh.transform_points(body, initial))
+        matrix, rms = fit(body, trimesh.util.concatenate([source.meshes[b] for b in target]), initial)
+        print(f"body, roll {np.degrees(roll):5.1f} deg: ICP RMS {rms * 1000:.3f} mm on {len(target)} bodies")
+        fits.append((rms, matrix))
+    poses = {"body": min(fits, key=lambda item: item[0])[1]}
+
+    origin, _ = kinematics()
+    on_body = poses["body"] @ frame((0.0, 0.0, -origin["single_bracket"]["z"]))
+    bracket = surface(trimesh.load(VISUAL / "single_bracket.stl"), 20_000, seed=1)
+    shared = bracket[tree.query(trimesh.transform_points(bracket, on_body))[0] < OVERLAP_M]
+    target = near_bodies(source, candidates, trimesh.transform_points(shared, on_body))
+    poses["single_bracket"], rms = fit(shared, trimesh.util.concatenate([source.meshes[b] for b in target]), on_body)
+    print(f"single_bracket: ICP RMS {rms * 1000:.3f} mm on {len(target)} bodies ({len(shared)} of 20000 points shared)")
+    report("single_bracket", on_body, poses["single_bracket"], "the body's fit and our bracket joint")
+
+    tip = surface(trimesh.load(VISUAL / "finger_tip.stl"), 4000, seed=2)
+    grid = np.arange(-0.3, 1.4, 0.005)
+    errors = [
+        np.mean(tree.query(trimesh.transform_points(tip, poses["body"] @ finger_links(q, 1)["finger_tip"]))[0])
+        for q in grid
+    ]
+    q_rad = float(grid[int(np.argmin(errors))])
+    print(f"glTF opening: q = {q_rad:.3f} rad from our open stop")
+
+    meshes = {name: trimesh.load(VISUAL / f"{name}.stl") for name in ("moment_arm", "truss_arm", "finger_tip")}
+    for finger in (1, 2):
+        placed = finger_links(q_rad, finger)
+        points = {name: surface(mesh, 20_000, seed=3) for name, mesh in meshes.items()}
+        initial = {name: poses["body"] @ placed[name] for name in meshes}
+        trees = {name: cKDTree(trimesh.transform_points(points[name], initial[name])) for name in meshes}
+        owner = {}
+        for b in candidates:
+            sample = surface(source.meshes[b], 500, seed=b)
+            distance = {name: float(np.median(t.query(sample)[0])) for name, t in trees.items()}
+            name = min(distance, key=distance.get)
+            if distance[name] < NEAR_M:
+                owner.setdefault(name, []).append(b)
+        for name in meshes:
+            if name not in owner:
+                raise SystemExit(f"{name}_{finger}: no glTF body near our placed link -- source changed?")
+            target = trimesh.util.concatenate([source.meshes[b] for b in owner[name]])
+            matrix, rms = fit(points[name], target, initial[name])
+            poses[f"{name}_{finger}"] = matrix
+            print(f"{name}_{finger:d}: ICP RMS {rms * 1000:.3f} mm on {len(owner[name])} bodies")
+            report(f"{name}_{finger:d}", initial[name], matrix, "the body's fit and our kinematics")
+    return poses, q_rad
+
+
+def report(key: str, expected: np.ndarray, fitted: np.ndarray, by: str) -> None:
+    """How far a link's own fit lies from where ``by`` puts it, in the link's frame."""
+    offset = np.linalg.inv(expected) @ fitted
+    angle_deg = np.degrees(Rotation.from_matrix(offset[:3, :3]).magnitude())
+    shift_mm = np.round(offset[:3, 3] * 1000, 2).tolist()
+    print(f"{'':15s} fit vs {by}: {shift_mm} mm, {angle_deg:.2f} deg")
+
+
+def assign(source: Source, caps: list[int], poses: dict[str, np.ndarray]) -> dict[str, list[trimesh.Trimesh]]:
+    """Each cap in the frame of the link it lies closest to; the moment and truss arms take finger 1's, checked
+    against finger 2's."""
+    placed = {"body": trimesh.load(VISUAL / "body.stl")}
+    for finger in (1, 2):
+        for name in ("moment_arm", "truss_arm", "finger_tip"):
+            placed[f"{name}_{finger}"] = trimesh.load(VISUAL / f"{name}.stl")
+    trees = {
+        key: cKDTree(trimesh.transform_points(surface(mesh, 40_000, seed=4), poses[key]))
+        for key, mesh in placed.items()
+    }
+    found: dict[str, list[trimesh.Trimesh]] = {}
+    for b in caps:
+        sample = surface(source.meshes[b], 500, seed=b)
+        distance = {key: float(np.median(t.query(sample)[0])) for key, t in trees.items()}
+        key = min(distance, key=distance.get)
+        cap = source.meshes[b].copy()
+        cap.apply_transform(np.linalg.inv(poses[key]))
+        found.setdefault(key, []).append(cap)
+        center_mm = np.round(cap.bounds.mean(0) * 1000, 1).tolist()
+        print(f"cap {b:3d} -> {key:12s} {distance[key] * 1000:.2f} mm off it, center {center_mm} mm in its frame")
+    counts = {
+        link: sum(len(v) for k, v in found.items() if k.removesuffix("_1").removesuffix("_2") == link)
+        for link in CAPS_PER_LINK
+    }
+    if counts != CAPS_PER_LINK:
+        raise SystemExit(f"caps per link {counts}, expected {CAPS_PER_LINK} -- source changed?")
+    for link in HIDDEN:
+        print(f"{link}: {len(found[link])} caps found, not written (they lie inside it)")
+    out = {}
+    for link in ("moment_arm", "truss_arm"):
+        first, second = found[f"{link}_1"], found[f"{link}_2"]
+        centers = np.array([c.bounds.mean(0) for c in second])
+        for cap in first:
+            gap = np.linalg.norm(centers - cap.bounds.mean(0), axis=1).min()
+            print(f"{link}: finger 2's cap {gap * 1000:.3f} mm off finger 1's")
+            if gap > MIRROR_TOLERANCE_M:
+                raise SystemExit(f"{link}: finger 2's cap lies {gap * 1000:.2f} mm off finger 1's -- fit failed?")
+        out[link] = first
+    return out
+
+
+def rim(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
+    """The ring's rim in our bracket's frame: the triangles outside :data:`RING_MIN_RADIUS_M`, laid
+    :data:`RING_PROUD_M` proud radially."""
+    radius = np.linalg.norm(mesh.vertices[:, :2], axis=1)
+    keep = np.flatnonzero((radius[mesh.faces] >= RING_MIN_RADIUS_M).all(axis=1))
+    if not len(keep):
+        raise SystemExit("ring: no triangle outside the bracket's cylinder -- fit failed?")
+    band = mesh.submesh([keep], append=True)
+    radius = np.linalg.norm(band.vertices[:, :2], axis=1, keepdims=True)
+    vertices = band.vertices.copy()
+    vertices[:, :2] *= (radius + RING_PROUD_M) / radius
+    return trimesh.Trimesh(vertices, band.faces, process=False)
+
+
+def deviation_m(a: trimesh.Trimesh, b: trimesh.Trimesh) -> float:
+    """The largest distance between the two surfaces, both ways: sampled points of each onto the other [m]."""
+    return float(max(distances_m(a, surface(b, 4000, seed=5)).max(), distances_m(b, surface(a, 4000, seed=6)).max()))
+
+
+def revolved(cap: trimesh.Trimesh) -> trimesh.Trimesh:
+    """The cap as its profile revolved about its own axis in :data:`CAP_SECTIONS` sections."""
+    cap = cap.copy()
+    cap.merge_vertices()
+    if cap.symmetry != "radial":
+        raise SystemExit(f"cap: symmetry {cap.symmetry}, expected radial -- source changed?")
+    axis = cap.symmetry_axis / np.linalg.norm(cap.symmetry_axis)
+    side = np.cross(axis, [1.0, 0.0, 0.0] if abs(axis[0]) < 0.9 else [0.0, 1.0, 0.0])
+    side /= np.linalg.norm(side)
+    placed = np.eye(4)
+    placed[:3, :3] = np.column_stack([side, np.cross(axis, side), axis])
+    placed[:3, 3] = cap.center_mass  # on the axis for a body of revolution
+    local = (cap.vertices - placed[:3, 3]) @ placed[:3, :3]
+    profile = np.column_stack([np.hypot(local[:, 0], local[:, 1]), local[:, 2]])
+    hull = ConvexHull(profile)
+    inside_m = np.abs(hull.equations[:, :2] @ profile.T + hull.equations[:, 2:]).min(axis=0).max()
+    if inside_m > PROFILE_TOLERANCE_M:
+        raise SystemExit(f"cap: profile point {inside_m * 1000:.3f} mm inside its hull, not convex -- source changed?")
+    outline = profile[hull.vertices]
+    solid = trimesh.creation.revolve(np.vstack([outline, outline[:1]]), sections=CAP_SECTIONS)
+    if solid.volume < 0:
+        solid.invert()
+    solid.apply_transform(placed)
+    return solid
+
+
+def write(parts: list[tuple[str, trimesh.Trimesh]], dae_path: Path) -> None:
+    """One geometry per part and one material per look, meters, ``Z_UP``."""
+    dae = collada.Collada()
+    dae.assetInfo.upaxis = asset.UP_AXIS.Z_UP
+    dae.assetInfo.created = dae.assetInfo.modified = STAMP
+    dae.assetInfo.contributors.append(
+        asset.Contributor(
+            authoring_tool="onboard/rg6/tools/rg6_details_mesh.py",
+            source_data="gripper_rg6.gltf (Onshape export of the OnRobot RG6, the owner's, not committed)",
+        )
+    )
+    materials = {}
+    for look in sorted({look for look, _ in parts}):
+        color, specular, shininess = LOOK[look]
+        effect = material.Effect(
+            f"{look}-effect",
+            [],
+            "phong",
+            diffuse=(*color, 1.0),
+            specular=(specular, specular, specular, 1.0),
+            shininess=shininess,
+            transparent=None,
+            transparency=None,
+        )
+        materials[look] = material.Material(f"{look}-material", look, effect)
+        dae.effects.append(effect)
+        dae.materials.append(materials[look])
+    nodes = []
+    for index, (look, mesh) in enumerate(parts):
+        key = f"{look}{index}"
+        shaded = trimesh.graph.smooth_shade(mesh, angle=SMOOTH_ANGLE_RAD)
+        # Rounded to a micrometer and a ten-thousandth: the text is a third of what float32 digits make of it.
+        points = np.round(shaded.vertices, 6).ravel()
+        directions = np.round(shaded.vertex_normals, 4).ravel()
+        positions = source.FloatSource(f"{key}-positions", points, ("X", "Y", "Z"))
+        normals = source.FloatSource(f"{key}-normals", directions, ("X", "Y", "Z"))
+        geom = geometry.Geometry(dae, f"{key}-mesh", key, [positions, normals])
+        inputs = source.InputList()
+        inputs.addInput(0, "VERTEX", f"#{key}-positions")
+        inputs.addInput(0, "NORMAL", f"#{key}-normals")
+        geom.primitives.append(geom.createTriangleSet(shaded.faces.astype(np.int32).ravel(), inputs, look))
+        dae.geometries.append(geom)
+        bound = scene.MaterialNode(look, materials[look], inputs=[])
+        nodes.append(scene.Node(key, children=[scene.GeometryNode(geom, [bound])]))
+    dae.scenes.append(scene.Scene(dae_path.stem, nodes))
+    dae.scene = dae.scenes[0]
+    dae.write(str(dae_path))
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("gltf", help="the owner's gripper_rg6.gltf")
+    parser.add_argument("out", nargs="?", default=str(VISUAL), help="where to write the DAEs (the visual meshes)")
+    args = parser.parse_args(argv)
+    gltf = Source(args.gltf)
+    ring = gltf.bodies_of(RING_SRGB, RING_COUNT, "ring")
+    caps = gltf.bodies_of(CAP_SRGB, CAP_COUNT, "caps")
+    poses, _ = register(gltf, caps, ring)
+    ring_mesh = gltf.meshes[ring[0]].copy()
+    ring_mesh.apply_transform(np.linalg.inv(poses["single_bracket"]))
+    contents = {"single_bracket": [("ring", rim(ring_mesh))]}
+    contents.update({link: [("cap", cap) for cap in found] for link, found in assign(gltf, caps, poses).items()})
+    for link, parts in contents.items():
+        written = []
+        for look, mesh in parts:
+            out = revolved(mesh) if look == "cap" else mesh
+            deviation = deviation_m(mesh, out)
+            if deviation > DEVIATION_M:
+                raise SystemExit(f"{FILES[link]}: {look} {deviation * 1000:.3f} mm off the source -- source changed?")
+            written.append((look, out))
+            print(
+                f"{FILES[link]:24s} {look:4s} {len(mesh.faces):5d} -> {len(out.faces):5d} triangles, max deviation "
+                f"{deviation * 1000:.4f} mm, bounds {np.round(out.bounds * 1000, 2).tolist()} mm"
+            )
+        path = Path(args.out) / FILES[link]
+        write(written, path)
+        print(f"{path}: {path.stat().st_size} bytes")
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
