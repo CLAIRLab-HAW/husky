@@ -105,11 +105,13 @@
   <!-- ===== charging connector on the top chassis' sloped rear face ===== -->
   <!-- The a200-0553's charging socket with its plug permanently in it, both black (the owner, 2026-10-10), next to
        where Clearpath's top chassis has its right bump: a200_chassis_mesh.py leaves that bump out (REMOVED
-       bump_right) and hole_caps() lids where it stood. The DAE's frame is the socket's, origin on the center of the
-       flange's panel-facing face, +z out of the panel; tools/charging_connector_mesh.py says how the plug was mated.
+       bump_right) and draws the middle panel it stood in anew, in one piece. The DAE's frame is the socket's, origin
+       on the center of the flange's panel-facing face, +z out of the panel; tools/charging_connector_mesh.py says how
+       the plug was mated.
 
        ORIGIN, from Clearpath's top_chassis.dae on 2026-10-10 (charging_connector_mesh.py with chassis option), in
-       top_chassis_link, whose visual has no offset: hole_caps() lays the lid along the slope's normal
+       top_chassis_link, whose visual has no offset, from the lid an earlier a200_top_chassis.dae laid over the bump's
+       tube along the slope's normal
        n = (-0.64, 0, 0.77) normalized = (-0.6392, 0, 0.7690). Seen along n, the right lid spans 29.0 mm up the slope
        (u = y cross n = (0.7690, 0, 0.6392), u -135.18 to -106.19 mm) and 32.0 mm across (y -97.85 to -65.86 mm);
        its middle is u -120.69, y -81.85 mm. The lid lies at n.p = 347.74 mm, 0.1 mm proud of the slope, and the
@@ -127,15 +129,12 @@
        (2026-10-10).
 
        CLEARANCES (2026-10-10, against a200_top_chassis.dae, measured at the pose 5 mm higher and 10 mm further right
-       and shifted by those): the 80.96 mm flange covers the 29.0 x 32.0 mm lid but for its upper 0.3 mm, a strip of
-       the lid in the chassis' own color with the tube's hole still under the lid; 52.3 mm to spare down the slope,
-       29.5 mm on the right, 19.5 mm on the left. Its edge (y -107.33 mm) stays 18.2 mm off the right panel's
-       (y -125.5 mm), whose face lies level with the lid within 0.05 mm; the power button and the status LEDs lie
-       further off than the 19.2 and 17.2 mm measured, every chassis edge at least 12 mm (17.0 mm before, less the
-       5 mm), the top plate more than the 2.0 mm. The flange stands wholly on the slope, which lies 0.1 to 0.7 mm
-       under its face, as its own normal is 0.28 deg off the nominal n. No vertex of the chassis or its controls
-       lies within the connector's 81 x 81 mm footprint above the flange's face, up to the plug's end 112.8 mm out
-       along n.
+       and shifted by those): the flange's edge (y -107.33 mm) stays 18.2 mm off the right panel's (y -125.5 mm); the
+       power button and the status LEDs lie further off than the 19.2 and 17.2 mm measured, every chassis edge at
+       least 12 mm (17.0 mm before, less the 5 mm), the top plate more than the 2.0 mm. Against the rear face drawn in
+       one piece, by rays along -n over the flange's 81 x 81 mm: the face lies 0.36 to 0.74 mm under the flange's
+       face, nowhere above it. No vertex of the chassis or its controls lies within that footprint above the flange's
+       face, up to the plug's end 112.8 mm out along n.
 
        NO COLLISION: a box around it would touch the chassis' collision geometry, and a contact the SRDF does not
        disable makes every MoveIt state invalid (the D435 bracket in tools/rg6.urdf.xacro, for the same reason).
