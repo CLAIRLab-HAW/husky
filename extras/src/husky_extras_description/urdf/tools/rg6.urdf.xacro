@@ -32,23 +32,24 @@
   <!-- The 3D-printed L bracket between the RG6 and the D435 (the owner, 2026-10-10), silver-gray like the lidar
        spacer on the arch (sensor_arch_profiles ARCH_LOOK). Its long leg lies flat on the RG6 body's +y face (y 21.5 mm),
        screwed into the body's two front holes (M3, 3.2 mm, x +-10 mm at z 99.1 mm, read off body.stl), and runs back
-       to behind the camera (whose back is at z 71.7 mm). There its short leg rises at right angles and takes the
-       D435's two rear M3 screws: the camera hangs on it with its underside at y 37.0 mm, where the hand-eye
-       calibration put it, 11.5 mm clear of the long leg. The short leg's height sets the 15 mm robot.yaml's mount
-       lies off the design values; the camera's pose is robot.yaml's and nothing here moves it. Not measured: both
-       legs 4 mm thick and 56 mm wide, centered on the camera (x -3 mm) so its rear screws, 45 mm apart, fit; the long
-       leg from the short one to 5 mm past the holes; the short leg up to y 55 mm, past the rear screws at the
-       camera's half height (y ~49.5 mm). A visual alone: it would touch the body's and the camera's collision
-       geometry, and a contact the SRDF does not disable makes every MoveIt state invalid (ride_height_patch's
-       lesson, 2026-09-01). -->
+       to behind the camera; there its short leg rises at right angles and takes the D435's two rear M3 screws, so the
+       camera hangs on it with its underside at y 36.8 mm, where the hand-eye calibration put it. The short leg's
+       height sets the 15 mm robot.yaml's mount lies off the design values; the camera's pose is robot.yaml's and
+       nothing here moves it. The camera's extent is its VISUAL mesh's (d435.dae through camera_0_link, in this frame
+       x -47.9 to 42.0, y 36.8 to 61.9, z 63.7 to 89.5 mm, 2026-10-10), not the collision box Clearpath draws, which
+       sits 8 mm further toward the fingers (z 71.7 to 97.9). Not measured: both legs 4 mm thick and 56 mm wide,
+       centered on the camera (x -3 mm) so its rear screws, 45 mm apart, fit; the long leg from the short one to 5 mm
+       past the holes; the short leg up to y 55 mm, past the rear screws at the camera's half height (y ~49 mm). A
+       visual alone: it would touch the body's and the camera's collision geometry, and a contact the SRDF does not
+       disable makes every MoveIt state invalid (ride_height_patch's lesson, 2026-09-01). -->
   <link name="camera_0_bracket">
     <visual>  <!-- long leg, flat on the RG6 -->
-      <origin xyz="-0.003 0.0235 0.0859" rpy="0 0 0"/>
-      <geometry><box size="0.056 0.004 0.0364"/></geometry>
+      <origin xyz="-0.003 0.0235 0.0819" rpy="0 0 0"/>
+      <geometry><box size="0.056 0.004 0.0444"/></geometry>
       <material name="printed_silver_gray"><color rgba="0.74 0.76 0.79 1"/></material>
     </visual>
     <visual>  <!-- short leg, up behind the camera to its rear screws -->
-      <origin xyz="-0.003 0.04025 0.0697" rpy="0 0 0"/>
+      <origin xyz="-0.003 0.04025 0.0617" rpy="0 0 0"/>
       <geometry><box size="0.056 0.0295 0.004"/></geometry>
       <material name="printed_silver_gray"/>
     </visual>
