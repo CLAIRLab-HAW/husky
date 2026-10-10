@@ -104,7 +104,7 @@ UR tool interface.
 |---|---|---|
 | `rg6_description` | `ament_cmake` | the measured **RG6 v2** model: URDF/Xacro, visual + collision meshes, `config/rg6_v2.yaml` |
 | `rg6_control` | `ament_cmake` (C++) | `rg6_control_sim` (container mock), `joint_state_relay`, `joint_state_aggregator`, `joint_states.launch.py`, `scripts/rg6_moveit_patch`, `include/rg6_control/finger_kinematics.hpp` |
-| `tools/` | — | `derive_finger_kinematics.py`: regenerates the gear table from the URDF; `derive_link_inertia.py`: the `inertial:` block from the collision meshes; `rg6_details_mesh.py`: the blue ring, the black pivot caps and the black arm covers (`*_ring.dae`, `*_details.dae`) from the owner's detailed RG6 model |
+| `tools/` | — | `derive_finger_kinematics.py`: regenerates the gear table from the URDF; `derive_link_inertia.py`: the `inertial:` block from the collision meshes; `rg6_details_mesh.py`: the blue ring, the pivot caps and the arm covers in the pads' gray (`*_ring.dae`, `*_details.dae`) from the owner's detailed RG6 model |
 
 ## Installation
 

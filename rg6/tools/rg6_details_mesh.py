@@ -3,12 +3,12 @@
 # requires-python = ">=3.12"
 # dependencies = ["fast-simplification", "numpy", "pycollada", "pyyaml", "rtree", "scikit-image", "scipy", "trimesh"]
 # ///
-"""Writes the RG6's blue ring, its black pivot caps and its black arm covers as DAEs, one per link frame.
+"""Writes the RG6's blue ring, its pivot caps and its arm covers as DAEs, one per link frame.
 
 Our RG6 model (``rg6_description``, meshes from the upstream ``onrobot_rg_description``) draws every part in one color
 and lacks three details the real hand has (the owner, 2026-10-10): the narrow blue ring at the hand's mounting end, the
-black covers on the finger arms (a rounded plate on either face of each finger's arms and a rounded inlay on the truss
-arm's inner face), and the black sleeves over the pivot pins where the moment and the truss arm meet the finger tip.
+covers on the finger arms (a rounded plate on either face of each finger's arms and a rounded inlay on the truss
+arm's inner face), and the sleeves over the pivot pins where the moment and the truss arm meet the finger tip.
 The pads on the finger tips are none of these and are left out. This script takes them from the owner's detailed
 model of the RG6 and writes them in the frames of OUR links, so the macro hangs them on as extra visuals and keeps
 every existing mesh, link and joint.
@@ -123,15 +123,15 @@ DEVIATION_M = 0.00002
 #: Normals are split where neighboring faces meet at more than this angle, so the cylinders shade round and the
 #: rims stay sharp.
 SMOOTH_ANGLE_RAD = np.radians(30.0)
-#: Each part's look [sRGB diffuse, specular, shininess]: the ring the glTF's blue with a little gloss, the caps black
-#: plastic (the owner, 2026-10-10). The twin (``clair.twin.collada``) takes the diffuse alone; Foxglove and RViz shade
-#: with all three.
+#: Each part's look [sRGB diffuse, specular, shininess]: the ring the glTF's blue with a little gloss; the caps and the
+#: covers the grip pads' gray, ``onrobot/dark_grey`` in materials_upstream.urdf.xacro (the owner, 2026-10-10). The
+#: twin (``clair.twin.collada``) takes the diffuse alone; Foxglove and RViz shade with all three.
 LOOK = {
     "ring": (tuple(c / 255.0 for c in RING_SRGB), 0.3, 30.0),
-    "black": ((0.04, 0.04, 0.04), 0.25, 20.0),
+    "pad": ((0.25, 0.25, 0.25), 0.25, 20.0),
 }
 #: The glTF's materials of the covers: the rounded plates on both faces of each finger's arms in a mid gray, the
-#: rounded inlay on the truss arm's inner face in a near white (2026-10-10). The owner's RG6 has them black.
+#: rounded inlay on the truss arm's inner face in a near white (2026-10-10). The owner's RG6 has them in its pads' gray.
 COVER_SRGB = ((128, 128, 128), (244, 242, 245))
 #: What those materials color, counted 2026-10-10: six covers (two plates and one inlay a finger), two blocks between
 #: each finger's plates that the plates hide, and one part inside the mounting end. Another count stops the script.
@@ -592,7 +592,7 @@ def main(argv: list[str] | None = None) -> None:
             deviation = deviation_m(mesh, out)
             if deviation > (COVER_DEVIATION_M if kind == "cover" else DEVIATION_M):
                 raise SystemExit(f"{FILES[link]}: {kind} {deviation * 1000:.3f} mm off the source -- source changed?")
-            written.append(("ring" if kind == "ring" else "black", out))
+            written.append(("ring" if kind == "ring" else "pad", out))
             print(
                 f"{FILES[link]:24s} {kind:5s} {len(mesh.faces):6d} -> {len(out.faces):5d} triangles, max deviation "
                 f"{deviation * 1000:.4f} mm, bounds {np.round(out.bounds * 1000, 2).tolist()} mm"
