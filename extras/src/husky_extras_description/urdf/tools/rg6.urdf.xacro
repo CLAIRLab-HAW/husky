@@ -45,15 +45,11 @@
        camera's collision geometry, and a contact the SRDF does not disable makes every MoveIt state invalid
        (ride_height_patch's lesson, 2026-09-01). -->
   <link name="camera_0_bracket">
-    <visual>  <!-- long leg, flat on the RG6 -->
-      <origin xyz="0 0.0235 0.0819" rpy="0 0 0"/>
-      <geometry><box size="0.028 0.004 0.0444"/></geometry>
-      <material name="printed_silver_gray"><color rgba="0.74 0.76 0.79 1"/></material>
-    </visual>
-    <visual>  <!-- short leg, up behind the camera to its rear screws -->
-      <origin xyz="-0.003 0.04025 0.0617" rpy="0 0 0"/>
-      <geometry><box size="0.056 0.0295 0.004"/></geometry>
-      <material name="printed_silver_gray"/>
+    <!-- Both legs with their corners rounded by 3 mm, in this link's frame (tools/d435_bracket_mesh.py, which holds
+         the numbers above). No <material>: the DAE carries the silver-gray. -->
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="package://husky_extras_description/meshes/d435_bracket.dae"/></geometry>
     </visual>
   </link>
   <joint name="camera_0_bracket_joint" type="fixed">
