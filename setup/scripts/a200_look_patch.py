@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""a200_look_patch: makes the a200 LOOK like the real one -- rims outward and real, chassis in its real colors.
+"""a200_look_patch: makes the a200 LOOK like the real one -- rims outward and real, chassis and camera in real colors.
 
-Three upstream mismatches of ``clearpath_platform_description`` that only a viewer sees.  All are fixed in the package
-files the generator and every viewer read, after apt and before the generator, idempotently, with a backup -- the
-same shape as the other patchers here.  None changes a joint, a collision, an inertial or anything a planner or
-a physics engine uses.
+Three upstream mismatches of ``clearpath_platform_description`` and one of ``clearpath_sensors_description`` that only
+a viewer sees.  All are fixed in the package files the generator and every viewer read, after apt and before the
+generator, idempotently, with a backup -- the same shape as the other patchers here.  None changes a joint, a
+collision, an inertial or anything a planner or a physics engine uses.
 
 THE WHEELS: the right wheel visuals are turned by pi about z, so the rim faces outward on both sides.  The package
 places all four wheels with ``rpy="0 0 0"`` (``urdf/a200/drivetrain/wheels.urdf.xacro``), and both wheel macros
@@ -51,9 +51,22 @@ another tire this mesh does not show -- that variant keeps Clearpath's mesh.  Th
 macro's nominal radius) and the inertia stay: what the wheel touches the ground with is a separate decision, as the
 ground reference comes from ``ride_height_patch``'s LOADED radius and MoveIt and the twin collide with the cylinder.
 
+THE WRIST CAMERA: the visual of ``clearpath_sensors_description``'s D435 macro (``urdf/intel/d435.urdf.xacro``, which
+``d435i.urdf.xacro`` includes as well) is pointed at ``husky_extras_description``'s ``meshes/d435.dae`` instead of
+``realsense2_description``'s ``meshes/d435.dae``.  realsense's mesh is one gray (diffuse 0.749) for the whole camera;
+the a200-0553's D435 has a black front, dark lenses in polished rims and an aluminum casing (the owner, 2026-10-10).
+``onboard/extras``' tool ``d435_mesh.py`` writes MuJoCo Menagerie's colored D435 in exactly the frame of realsense's
+mesh, so the macro's visual origin stays as it is and only the URI changes.  ``sensor_mesh_uri_patch`` rewrites the
+same line's ``file://$(find realsense2_description)`` to ``package://realsense2_description``: the anchor here takes
+the line in either form, so the two compose in any order.  After this one, the line names no
+``realsense2_description`` and the other finds nothing to do in it; before it, this one finds the ``package://``
+form.  The robot runs ``sensor_mesh_uri_patch`` first (step 2 of the boot service, this tool step 7), the offboard
+image at build time and this tool at container start, and whichever runs first takes the shared ``.bak``, the
+pristine apt copy.
+
 NO LEVER IN robot.yaml for any of them: ``clearpath_config`` picks the wheel variant per axle (``indoor``/``outdoor``)
 and nothing else -- the visual origin and the wheel mesh are literals inside the wheel macro, the chassis mesh a
-literal inside the a200 macro.
+literal inside the a200 macro, the camera mesh a literal inside the D435 macro.
 
 WHY ITS OWN TOOL: ``urdf_physics_patch`` is about physical properties a physics engine needs (joint dynamics,
 inertials), and this changes none; ``ride_height_patch`` moves the ground reference by a measured property of THIS
@@ -63,7 +76,7 @@ a200, shows.  That also means both belong upstream: an issue against ``clearpath
 (the owner files it; no number yet), and the chassis colors could be raised there too -- the owner decides.  Until
 then: both are unchanged in 2.9.15 (installed) and on the ``jazzy`` branch (checked 2026-10-09; its
 ``top_chassis.dae`` is byte-identical to the installed one), so an upgrade will not make this unnecessary by itself --
-when upstream changes any of the three, its anchor below stops matching and the tool says so instead of patching
+when upstream changes any of the four, its anchor below stops matching and the tool says so instead of patching
 twice.
 
 Invocations:
@@ -122,18 +135,36 @@ WHEEL_MESH_NEW = '<mesh filename="package://husky_extras_description/meshes/a200
 #: one ``<visual>``, so the marker and the turned origin :func:`patch_wheel_text` puts there do not stop the match.
 WHEEL_VISUAL_RX = re.compile(r"(<visual>(?:(?!</visual>).)*?\n)([ \t]*)" + re.escape(WHEEL_MESH_OLD), re.S)
 
+#: The D435 visual's mesh as ``clearpath_sensors_description`` 2.9.15 ships it -- ``file://$(find ...)`` from apt,
+#: ``package://`` once ``sensor_mesh_uri_patch`` has run -- and the a200-0553's colored D435 in
+#: ``husky_extras_description``, in the same frame.
+D435_MESH_OLD = re.compile(
+    r'<mesh filename="(?:file://\$\(find realsense2_description\)|package://realsense2_description)'
+    r'/meshes/d435\.dae" />'
+)
+D435_MESH_NEW = '<mesh filename="package://husky_extras_description/meshes/d435.dae" />'
+
+#: The camera link's visual from its opening tag to the mesh line; group 2 keeps the mesh line's indentation.  The
+#: link name is part of the anchor, as for the chassis: the mesh inside the ``use_mesh`` branch of
+#: ``${name}_link``'s visual and no other.
+D435_VISUAL_RX = re.compile(
+    r'(<link name="\$\{name\}_link">\s*<visual>(?:(?!</visual>).)*?\n)([ \t]*)' + D435_MESH_OLD.pattern, re.S
+)
+
 #: Where the ROS packages live.  A glob rather than a fixed distro, for the same reason as in
 #: ``urdf_physics_patch``: the same tool runs on the robot (jazzy from apt) and in the container (jazzy from the
 #: image), and a hard-coded ``jazzy`` would fail silently on the day one of them moves.
 ROS_SHARE_GLOB = "/opt/ros/*/share"
 
 PACKAGE = "clearpath_platform_description"
+SENSORS_PACKAGE = "clearpath_sensors_description"
 
 #: The two wheel macros.  Named, not globbed: ``.urdf.xacro`` keeps a ``.bak`` from an earlier run out of the
 #: targets, and a variant upstream renames has to be REPORTED, which a glob would simply stop finding.
 VARIANTS = ("indoor", "outdoor")
 XACRO_REL = "urdf/a200/drivetrain/wheels/{variant}.urdf.xacro"
 CHASSIS_REL = "urdf/a200/a200.urdf.xacro"
+D435_REL = "urdf/intel/d435.urdf.xacro"
 
 
 def log(msg, err=False):
@@ -242,9 +273,30 @@ def patch_wheel_mesh_text(content):
     return _well_formed(content, patched)
 
 
+def patch_d435_text(content):
+    """Point the camera link's visual of the D435 macro at the a200-0553's colored D435 mesh.
+
+    String surgery for the same reason as :func:`patch_wheel_text`, with the same marker above the rewritten line; it
+    matches the mesh line with ``sensor_mesh_uri_patch`` applied or not, so the order of the two does not matter.
+
+    :returns: ``(content, status)`` as :func:`patch_wheel_text` returns it.
+    """
+    if MARKER in content and D435_MESH_NEW in content:
+        return content, "clean"
+    hits = len(D435_VISUAL_RX.findall(content))
+    if hits != 1:
+        # Zero is an upstream rewrite of the camera visual or its mesh; nothing is guessed.
+        return (
+            content,
+            f"{hits} D435 visual mesh(es) of the shipped form found, expected exactly 1 -- upstream changed?",
+        )
+    patched = D435_VISUAL_RX.sub(lambda m: f"{m.group(1)}{m.group(2)}{MARKER}\n{m.group(2)}{D435_MESH_NEW}", content)
+    return _well_formed(content, patched)
+
+
 def patch_file(path, patcher, dry_run):
-    """Apply ``patcher`` (:func:`patch_wheel_text`, :func:`patch_wheel_mesh_text` or :func:`patch_chassis_text`) to
-    one file.
+    """Apply ``patcher`` (:func:`patch_wheel_text`, :func:`patch_wheel_mesh_text`, :func:`patch_chassis_text` or
+    :func:`patch_d435_text`) to one file.
 
     :returns: ``"changed"``, ``"clean"`` or ``"failed"`` -- the last one when the file cannot be read or written or
         the anchor does not match, each logged on stderr with the reason.
@@ -272,9 +324,10 @@ def patch_file(path, patcher, dry_run):
     return "changed"
 
 
-def targets(package):
-    """``(path, patcher, what it fixes)`` for every edit this tool makes in one ``package`` directory -- the indoor
-    wheel macro twice, each edit on its own, so an upstream rewrite of one does not hold back the other."""
+def targets(share):
+    """``(path, patcher, what it fixes)`` for every edit this tool makes in one share directory -- the indoor wheel
+    macro twice, each edit on its own, so an upstream rewrite of one does not hold back the other."""
+    package = os.path.join(share, PACKAGE)
     wheels = "the right wheels' visual turned by pi about z"
     macros = [(os.path.join(package, XACRO_REL.format(variant=v)), patch_wheel_text, wheels) for v in VARIANTS]
     indoor = os.path.join(package, XACRO_REL.format(variant="indoor"))
@@ -282,6 +335,7 @@ def targets(package):
         *macros,
         (indoor, patch_wheel_mesh_text, "the indoor wheel mesh swapped for the a200-0553's rims and tread radius"),
         (os.path.join(package, CHASSIS_REL), patch_chassis_text, "the chassis mesh swapped for the recolored one"),
+        (os.path.join(share, SENSORS_PACKAGE, D435_REL), patch_d435_text, "the D435 mesh swapped for the colored one"),
     ]
 
 
@@ -295,21 +349,18 @@ def main(argv=None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="report what would change, write nothing")
     args = parser.parse_args(argv)
 
-    packages = sorted(
-        os.path.join(share, PACKAGE)
-        for share in glob.glob(args.ros_share)
-        if os.path.isdir(os.path.join(share, PACKAGE))
-    )
+    shares = sorted(share for share in glob.glob(args.ros_share) if os.path.isdir(os.path.join(share, PACKAGE)))
     # Finding nothing is an error, not a steady state: with the package gone or moved the right wheels silently show
     # the rim to the chassis again and the chassis its greenish yellow.  The nonzero exit is what the offboard
-    # entrypoint and the boot service (run_root_tool) log; neither stops over it.
-    if not packages:
+    # entrypoint and the boot service (run_root_tool) log; neither stops over it.  A share with the platform but
+    # without the sensors package reports the D435 macro missing below, the same way.
+    if not shares:
         log(f"WARN: no {PACKAGE} under {args.ros_share} -- package missing or moved?", err=True)
         return 1
 
     results = []
-    for package in packages:
-        for path, patcher, look in targets(package):
+    for share in shares:
+        for path, patcher, look in targets(share):
             if not os.path.isfile(path):
                 log(f"WARN: no {os.path.basename(path)} at {path} -- upstream renamed or moved it?", err=True)
                 results.append((path, look, "failed"))
