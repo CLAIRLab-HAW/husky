@@ -57,4 +57,22 @@
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
+  <!-- The RG6's M8 tool cable, from the outlet on its bracket to the UR5's tool connector on the wrist 3, black, with a
+       straight plug on the UR end (tools/rg6_cable_mesh.py, which holds the connectors' positions, the route and its
+       clearances, 2026-10-10). Both connectors ride on links joined rigidly to arm_0_tool0, so the cable is one static
+       mesh in that frame. Here and not in rg6.macro.xacro: it ends on the UR5's wrist, which MARWIN 5's tool changer
+       does not have. A visual alone: it runs a few millimeters off the wrist 3 and leaves the bracket's outlet face, so
+       a collision body would touch the arm's own and the bracket's, and every such contact the SRDF does not disable
+       makes every MoveIt state invalid (ride_height_patch's lesson, 2026-09-01). -->
+  <link name="rg6_cable">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="package://husky_extras_description/meshes/rg6_cable.dae"/></geometry>
+    </visual>
+  </link>
+  <joint name="rg6_cable_joint" type="fixed">
+    <parent link="arm_0_tool0"/><child link="rg6_cable"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
 </robot>

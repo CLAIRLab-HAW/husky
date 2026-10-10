@@ -56,6 +56,10 @@ macro, the gripper package includes nothing from here.
   `d435.dae` (one gray for the whole camera), so its frame and `clearpath_sensors_description`'s visual origin hold
   unchanged; decimated to 23326 triangles, 1.5 MB. `a200_look_patch` in [husky-custom-setup](../setup/README.md)
   points the D435 macro's visual here.
+- **The RG6's tool cable**, `meshes/rg6_cable.dae`, written by `tools/rg6_cable_mesh.py`: a black M8 cable, 5.5 mm,
+  from the outlet on the RG6's bracket round the wrist 3's -x side to the UR5's tool connector, with a straight plug
+  on that end. The link `rg6_cable` hangs on `arm_0_tool0` in `tools/rg6.urdf.xacro`, as a visual alone; its route
+  is drawn, not traced on the robot.
 - **A swappable end effector.** The xacro argument `end_effector` (default
   `rg6`) includes `urdf/tools/<name>.urdf.xacro`; `robot.yaml` passes none, so
   the robot always gets its RG6. The offboard mock takes `end_effector:=<name>`.

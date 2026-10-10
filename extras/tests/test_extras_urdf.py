@@ -138,6 +138,17 @@ def test_the_charging_connector_hangs_on_the_top_chassis_as_a_visual_alone(extra
     assert '<parent link="top_chassis_link"/>' in joint
 
 
+def test_the_rg6_cable_hangs_on_the_flange_as_a_visual_alone():
+    """Its mesh is written in arm_0_tool0; a collision body along the wrist would need SRDF disables for every pair."""
+    tool = _tool("rg6")
+    link = tool.split('<link name="rg6_cable">', 1)[1].split("</link>", 1)[0]
+    assert "<visual>" in link and "<collision>" not in link
+    assert "package://husky_extras_description/meshes/rg6_cable.dae" in link
+    joint = tool.split('<joint name="rg6_cable_joint" type="fixed">', 1)[1].split("</joint>", 1)[0]
+    assert '<parent link="arm_0_tool0"/>' in joint
+    assert '<origin xyz="0 0 0" rpy="0 0 0"/>' in joint
+
+
 def test_the_package_installs_the_two_directories_the_uris_resolve_through():
     cmake = (REPO / "src" / PACKAGE / "CMakeLists.txt").read_text(encoding="utf-8")
     assert "DIRECTORY urdf meshes" in cmake
