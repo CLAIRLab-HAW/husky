@@ -50,6 +50,12 @@ macro, the gripper package includes nothing from here.
   it, both black, mated from the geometry (keyed turn, plug lowered until its insulator sits on the socket's contact
   floor). The link `charging_connector` hangs on `top_chassis_link` over the lid where Clearpath's right bump stood,
   moved down the slope clear of the top plate, along the slope's normal, as a visual alone. The STEP files are not in the repo (see License).
+- **The wrist D435 in its real materials**, `meshes/d435.dae`, written by `tools/d435_mesh.py`: MuJoCo Menagerie's
+  colored RealSense D435i (black acrylic front, gray camera modules, dark IR lenses in polished rims, the green IR
+  emitter, the red-tinted RGB lens, the aluminum casing a light gray), registered onto `realsense2_description`'s
+  `d435.dae` (one gray for the whole camera), so its frame and `clearpath_sensors_description`'s visual origin hold
+  unchanged; decimated to 23326 triangles, 1.5 MB. `a200_look_patch` in [husky-custom-setup](../setup/README.md)
+  points the D435 macro's visual here.
 - **A swappable end effector.** The xacro argument `end_effector` (default
   `rg6`) includes `urdf/tools/<name>.urdf.xacro`; `robot.yaml` passes none, so
   the robot always gets its RG6. The offboard mock takes `end_effector:=<name>`.
@@ -165,4 +171,7 @@ Skid Steer", which comes without a BSD license: the owner's glTF export of it (`
 not redistributed, only the derived mesh, as with RoboSense's STEP behind `rs16.dae`. The same holds for
 `meshes/charging_connector.dae`: the vendor's STEP files of the socket and the plug come without a license for
 redistributing them, so the owner keeps them untracked at `onboard/SK2-076C04_mount.STEP` and
-`onboard/SK6-076C04_plug.STEP`.
+`onboard/SK6-076C04_plug.STEP`. `meshes/d435.dae` is derived from MuJoCo Menagerie's `realsense_d435i`, itself
+derived from `realsense2_description`'s `d435.dae`, both under the Apache License 2.0 (the Menagerie model's notice:
+Copyright 2023 Intel Corporation). The notice and the changes are carried in the file's
+`<asset><contributor><copyright>`, the license text beside it as `meshes/d435.LICENSE`.
