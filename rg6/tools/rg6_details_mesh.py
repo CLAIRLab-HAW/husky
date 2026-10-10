@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["numpy", "pycollada", "pyyaml", "rtree", "scipy", "trimesh"]
+# dependencies = ["fast-simplification", "numpy", "pycollada", "pyyaml", "rtree", "scikit-image", "scipy", "trimesh"]
 # ///
-"""Writes the RG6's blue ring and its black pivot caps as DAEs, one per link frame they ride in.
+"""Writes the RG6's blue ring, its black pivot caps and its black arm covers as DAEs, one per link frame.
 
 Our RG6 model (``rg6_description``, meshes from the upstream ``onrobot_rg_description``) draws every part in one color
-and lacks two details the real hand has (the owner, 2026-10-10): the narrow blue ring at the hand's mounting end, and
-the black caps between the finger linkage's links, sleeves over the pivot pins where the moment and the truss arm meet
-the finger tip. The pads on the finger tips are not caps and are left out. This script
-takes both from the owner's detailed model of the RG6 and writes them in the frames of OUR links, so the macro hangs
-them on as extra visuals and keeps every existing mesh, link and joint.
+and lacks three details the real hand has (the owner, 2026-10-10): the narrow blue ring at the hand's mounting end, the
+black covers on the finger arms (a rounded plate on either face of each finger's arms and a rounded inlay on the truss
+arm's inner face), and the black sleeves over the pivot pins where the moment and the truss arm meet the finger tip.
+The pads on the finger tips are none of these and are left out. This script takes them from the owner's detailed
+model of the RG6 and writes them in the frames of OUR links, so the macro hangs them on as extra visuals and keeps
+every existing mesh, link and joint.
 
 The source is an Onshape glTF export (generator "ONSHAPE BY PTC INC, 1.222", 174 bodies, 7234 primitives, 20.2 M
 triangles, meters), the owner's detailed model of the RG6. It is not committed (OnRobot's CAD, 797 MB, no license
 to redistribute); the owner keeps it untracked at ``onboard/gripper_rg6.gltf`` in the workspace. Each body is one node
 without a transform, each CAD face one primitive with its own material. The parts are found by their material
-(:data:`RING_SRGB`, :data:`CAP_SRGB`), and a count other than :data:`RING_COUNT` / :data:`CAP_COUNT` stops the script.
+(:data:`RING_SRGB`, :data:`CAP_SRGB`, :data:`COVER_SRGB` -- the covers' glTF colors are grays), and a count other
+than the expected one stops the script.
 
 How the parts reach our frames, measured 2026-10-10. Every fit is an ICP of one of OUR link meshes onto the glTF
 bodies it lies on, never an alignment by the mounting face: the vendor's model ends at its flange, ours carries more
@@ -43,7 +45,8 @@ instantiates the finger twice, and finger 2's land within :data:`MIRROR_TOLERANC
 centers lie 0.2 mm (truss arm) and 0.4 mm (moment arm) from our finger-tip joint. The caps are round, so whether one
 turns with its pin or with the link around it shows no difference. The four over the truss arms' body pivots go to the
 body and are not written: they lie inside our body's housing, and over 60 views at three openings one pixel of them
-showed (:data:`HIDDEN`).
+showed (:data:`HIDDEN`). The covers ride on the truss arm (:func:`find_covers` says why); the two levers between each
+finger's plates carry the same gray and are not written, the plates hide them.
 
 The DAE is written with pycollada directly, ``Z_UP``, in meters, and with a fixed :data:`STAMP`, so a second run on
 the same source writes the same bytes.
@@ -61,12 +64,15 @@ import json
 from pathlib import Path
 
 import collada
+import fast_simplification
 import numpy as np
 import trimesh
 import yaml
 from collada import asset, geometry, material, scene, source
+from scipy import ndimage
 from scipy.spatial import ConvexHull, cKDTree
 from scipy.spatial.transform import Rotation
+from skimage import measure
 
 #: The package this script writes into; the STLs registered against and the kinematics are read from it.
 PACKAGE = Path(__file__).resolve().parents[1] / "src" / "rg6_description"
@@ -98,6 +104,13 @@ RING_MIN_RADIUS_M = 0.034
 #: The rim's radius is 35.42..35.57 mm, our bracket's cylinder 35.5 mm: coplanar, so the rim is laid this far proud
 #: of it, or the renderers flicker between the two.
 RING_PROUD_M = 0.0002
+#: Our arm meshes close each pivot eye with a flat face at |y| = 12.5 mm, where the vendor's arm leaves the cap's end
+#: open: the caps end at |y| 12.36 to 12.57 mm, so the moment arm's face covered its caps whole and the truss arm's
+#: one side of them (2026-10-10, 0 to 60 of 160 000 pixels a view). Each cap is moved along its axis until its outer
+#: end lies this far beyond the face of its link around it.
+CAP_PROUD_M = 0.0002
+#: A cap's axis must lie this close to its link's y, the pivot axis; a wider angle means the fit went wrong.
+CAP_AXIS_TOLERANCE_RAD = np.radians(2.0)
 #: A cap is a sleeve whose profile is eight points (bore, outer wall, a 0.6 mm chamfer at each of the four corners),
 #: tessellated in the source with 144 sections in 2304 triangles. It is written as that profile revolved in this many
 #: sections: 768 triangles, 0.009 mm off the source at most (2026-10-10). Decimating does worse on these long thin
@@ -115,13 +128,29 @@ SMOOTH_ANGLE_RAD = np.radians(30.0)
 #: with all three.
 LOOK = {
     "ring": (tuple(c / 255.0 for c in RING_SRGB), 0.3, 30.0),
-    "cap": ((0.04, 0.04, 0.04), 0.25, 20.0),
+    "black": ((0.04, 0.04, 0.04), 0.25, 20.0),
 }
+#: The glTF's materials of the covers: the rounded plates on both faces of each finger's arms in a mid gray, the
+#: rounded inlay on the truss arm's inner face in a near white (2026-10-10). The owner's RG6 has them black.
+COVER_SRGB = ((128, 128, 128), (244, 242, 245))
+#: What those materials color, counted 2026-10-10: six covers (two plates and one inlay a finger), two blocks between
+#: each finger's plates that the plates hide, and one part inside the mounting end. Another count stops the script.
+COVER_COUNTS = {"cover": 6, "between": 2, "elsewhere": 1}
+#: A cover's tessellation is a CAD export's: slivers, zero-length edges, fans over the flat faces, and no decimator
+#: got below 14 000 triangles of a plate's 157 000 (fast-simplification, Open3D, pyfqmr, 2026-10-10). So each is
+#: rebuilt: its surface sampled into a grid of this pitch, the shell closed and filled, the surface drawn by marching
+#: cubes and only then decimated.
+COVER_PITCH_M = 0.0001
+#: The decimated cover may lie this far from the source at most: half a millimeter on parts 60 mm long; the grid's
+#: shell puts the rebuilt surface about 0.1 mm outside the source's (2026-10-10: 0.3 mm at 1200 triangles a plate).
+COVER_DEVIATION_M = 0.0004
+#: The count the marching cubes' surface is first decimated to, before the bisection for the fewest triangles.
+COVER_INTERMEDIATE_TRIANGLES = 20_000
 #: The files written, by the link frame they are in.
 FILES = {
     "single_bracket": "single_bracket_ring.dae",
-    "moment_arm": "moment_arm_caps.dae",
-    "truss_arm": "truss_arm_caps.dae",
+    "moment_arm": "moment_arm_details.dae",
+    "truss_arm": "truss_arm_details.dae",
 }
 #: Written into every run's ``<created>``/``<modified>``, so a second run on the same source writes the same file.
 STAMP = datetime.datetime(2026, 10, 10)
@@ -349,6 +378,103 @@ def assign(source: Source, caps: list[int], poses: dict[str, np.ndarray]) -> dic
     return out
 
 
+def proud(cap: trimesh.Trimesh, link: trimesh.Trimesh) -> trimesh.Trimesh:
+    """``cap`` moved along its axis, the link's y, until its outer end lies :data:`CAP_PROUD_M` beyond the face of
+    ``link`` around it."""
+    cap = cap.copy()
+    cap.merge_vertices()
+    axis = cap.symmetry_axis / np.linalg.norm(cap.symmetry_axis)
+    if np.arccos(min(1.0, abs(axis[1]))) > CAP_AXIS_TOLERANCE_RAD:
+        raise SystemExit(f"cap: axis {np.round(axis, 3)} is not its link's y -- fit failed?")
+    center = cap.center_mass
+    outward = np.sign(center[1])
+    radius_m = np.linalg.norm((cap.vertices - center)[:, [0, 2]], axis=1).max()
+    around = np.linalg.norm(link.vertices[:, [0, 2]] - center[[0, 2]], axis=1) < radius_m
+    face_m = (outward * link.vertices[around, 1]).max()
+    shift_m = face_m + CAP_PROUD_M - (outward * cap.vertices[:, 1]).max()
+    cap.apply_translation([0.0, outward * shift_m, 0.0])
+    print(f"cap at y {center[1] * 1000:+6.2f} mm: link face at {face_m * 1000:.2f} mm, moved {shift_m * 1000:+.2f} mm")
+    return cap
+
+
+def find_covers(source: Source, poses: dict[str, np.ndarray]) -> list[trimesh.Trimesh]:
+    """Finger 1's covers in its truss arm's frame, checked against finger 2's.
+
+    The plates lie over the gap between the moment and the truss arm and touch neither (0.1 to 0.3 mm off both,
+    2026-10-10); a rigid part can ride on only one of them, and the two slide 15 mm against each other over the
+    stroke. They go on the truss arm with the inlay, which lies 90 % on it: the plates sit 0.5 mm nearer the truss
+    arm's mesh, overlap its outline more (20 to 27 % against 13 to 20 %) and cut into the other arm less when closed
+    (4.5 % against 13 % of a plate's surface at q = 1.2).
+    """
+    found: dict[str, list] = {"cover": [], "between": [], "elsewhere": []}
+    body_from_gltf = np.linalg.inv(poses["body"])
+    for srgb in COVER_SRGB:
+        for b in (i for i, used in enumerate(source.colors) if used == {srgb}):
+            center = trimesh.transform_points([source.meshes[b].centroid], body_from_gltf)[0]
+            if center[2] < 0.09:  # not on a finger: inside the housing or the mounting end
+                found["elsewhere"].append(b)
+                continue
+            finger = 1 if center[0] < 0 else 2
+            link = np.linalg.inv(poses[f"truss_arm_{finger}"]) @ np.append(source.meshes[b].centroid, 1.0)
+            kind = "between" if srgb == COVER_SRGB[0] and abs(link[1]) < 0.005 else "cover"
+            found[kind].append((finger, b))
+    counts = {kind: len(items) for kind, items in found.items()}
+    if counts != COVER_COUNTS:
+        raise SystemExit(f"covers: {counts}, expected {COVER_COUNTS} -- source changed?")
+    print(f"covers: {sorted(b for _, b in found['cover'])}, hidden between the plates: {found['between']}")
+    placed = {1: [], 2: []}
+    for finger, b in found["cover"]:
+        cover = source.meshes[b].copy()
+        cover.apply_transform(np.linalg.inv(poses[f"truss_arm_{finger}"]))
+        placed[finger].append(cover)
+    centers = np.array([c.centroid for c in placed[2]])
+    for cover in placed[1]:
+        gap = np.linalg.norm(centers - cover.centroid, axis=1).min()
+        print(f"truss_arm: finger 2's cover {gap * 1000:.3f} mm off finger 1's")
+        if gap > MIRROR_TOLERANCE_M:
+            raise SystemExit(f"truss_arm: finger 2's cover lies {gap * 1000:.2f} mm off finger 1's -- fit failed?")
+    return placed[1]
+
+
+def rebuilt(cover: trimesh.Trimesh) -> trimesh.Trimesh:
+    """``cover`` rebuilt on a :data:`COVER_PITCH_M` grid and decimated to the fewest triangles within
+    :data:`COVER_DEVIATION_M` of it."""
+    points = surface(cover, int(cover.area / COVER_PITCH_M**2 * 6), seed=7)
+    low = points.min(axis=0) - 3 * COVER_PITCH_M
+    index = np.floor((points - low) / COVER_PITCH_M).astype(int)
+    grid = np.zeros(index.max(axis=0) + 4, dtype=bool)
+    grid[tuple(index.T)] = True
+    # Two cells of dilation close the sampled shell, so the fill finds an inside; the erosion takes them back.
+    grid = ndimage.binary_erosion(ndimage.binary_fill_holes(ndimage.binary_dilation(grid, iterations=2)), iterations=2)
+    vertices, faces, _, _ = measure.marching_cubes(ndimage.gaussian_filter(grid.astype(np.float32), 1.0), 0.5)
+    dense = trimesh.Trimesh(vertices * COVER_PITCH_M + low + COVER_PITCH_M / 2, faces[:, ::-1])
+    origin = dense.centroid
+
+    def simplified(mesh: trimesh.Trimesh, triangles: int) -> trimesh.Trimesh:
+        points_mm, kept = fast_simplification.simplify(
+            ((mesh.vertices - origin) * 1000.0).astype(np.float32),
+            mesh.faces.astype(np.int32),
+            1.0 - triangles / len(mesh.faces),
+        )
+        return trimesh.Trimesh(points_mm / 1000.0 + origin, kept, process=False)
+
+    # One pass down to an intermediate count first: a pass over the marching cubes' 0.8 to 1 M triangles takes
+    # seconds, one over the intermediate a fraction of that, and the bisection below runs ten of them.
+    intermediate = simplified(dense, COVER_INTERMEDIATE_TRIANGLES)
+    best = None
+    low_count, high_count = 200, COVER_INTERMEDIATE_TRIANGLES
+    while high_count - low_count > 50:
+        count = (low_count + high_count) // 2
+        small = simplified(intermediate, count)
+        if deviation_m(cover, small) <= COVER_DEVIATION_M:
+            best, high_count = small, count
+        else:
+            low_count = count
+    if best is None:
+        raise SystemExit(f"cover: no decimation within {COVER_DEVIATION_M * 1000:.2f} mm -- source changed?")
+    return best
+
+
 def rim(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
     """The ring's rim in our bracket's frame: the triangles outside :data:`RING_MIN_RADIUS_M`, laid
     :data:`RING_PROUD_M` proud radially."""
@@ -455,17 +581,20 @@ def main(argv: list[str] | None = None) -> None:
     ring_mesh = gltf.meshes[ring[0]].copy()
     ring_mesh.apply_transform(np.linalg.inv(poses["single_bracket"]))
     contents = {"single_bracket": [("ring", rim(ring_mesh))]}
-    contents.update({link: [("cap", cap) for cap in found] for link, found in assign(gltf, caps, poses).items()})
+    for link, found in assign(gltf, caps, poses).items():
+        mesh = trimesh.load(VISUAL / f"{link}.stl")
+        contents[link] = [("cap", proud(cap, mesh)) for cap in found]
+    contents["truss_arm"] += [("cover", cover) for cover in find_covers(gltf, poses)]
     for link, parts in contents.items():
         written = []
-        for look, mesh in parts:
-            out = revolved(mesh) if look == "cap" else mesh
+        for kind, mesh in parts:
+            out = {"ring": lambda m: m, "cap": revolved, "cover": rebuilt}[kind](mesh)
             deviation = deviation_m(mesh, out)
-            if deviation > DEVIATION_M:
-                raise SystemExit(f"{FILES[link]}: {look} {deviation * 1000:.3f} mm off the source -- source changed?")
-            written.append((look, out))
+            if deviation > (COVER_DEVIATION_M if kind == "cover" else DEVIATION_M):
+                raise SystemExit(f"{FILES[link]}: {kind} {deviation * 1000:.3f} mm off the source -- source changed?")
+            written.append(("ring" if kind == "ring" else "black", out))
             print(
-                f"{FILES[link]:24s} {look:4s} {len(mesh.faces):5d} -> {len(out.faces):5d} triangles, max deviation "
+                f"{FILES[link]:24s} {kind:5s} {len(mesh.faces):6d} -> {len(out.faces):5d} triangles, max deviation "
                 f"{deviation * 1000:.4f} mm, bounds {np.round(out.bounds * 1000, 2).tolist()} mm"
             )
         path = Path(args.out) / FILES[link]
