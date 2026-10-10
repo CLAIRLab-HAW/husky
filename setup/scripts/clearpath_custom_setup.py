@@ -32,8 +32,10 @@ Patches:
      on both sides; the indoor wheel's visual on husky_extras_description's
      wheel (the real rims, the tire at the measured 0.1477 m tread radius);
      the chassis visual on its recolored mesh (#E29000, red emergency
-     stop, silver power button and key lock); and the wrist D435's visual on
-     its colored mesh. Visual only; same window as step 5.
+     stop, silver power button and key lock); the wrist D435's visual on
+     its colored mesh; and the D435's collision box moved 8.2 mm back onto
+     the camera's visual body (its only collision edit). Same window as
+     step 5.
 
 Every edit is surgical, idempotent, with a .bak backup and an atomic write.
 If a file or a key is missing, that change is skipped (with a warning).
@@ -239,10 +241,10 @@ def run_a200_look_patch(label):
 
     The tool is a script of this repo (``scripts/a200_look_patch.py``) and carries the mesh measurement and the
     wheel, chassis and D435 mesh URIs.  Same window as ``ride_height_patch`` -- it edits the a200 xacros the generator
-    CONSUMES -- but a separate tool: it only changes what is drawn and touches no frame, joint, collision or
-    inertial.  Without it the right wheels show their rim to the chassis, every wheel
-    Clearpath's rim on a too large tire, the chassis a greenish yellow and the D435 one gray in RViz, Foxglove and the
-    MuJoCo twin."""
+    CONSUMES -- but a separate tool: it changes what is drawn and touches no frame, joint or inertial; its one
+    collision edit moves the D435's box back onto the camera it stands for.  Without it the right wheels show their
+    rim to the chassis, every wheel Clearpath's rim on a too large tire, the chassis a greenish yellow and the D435 one
+    gray in RViz, Foxglove and the MuJoCo twin, and MoveIt sees the camera 8.2 mm closer to the fingers than it is."""
     return run_root_tool(
         label,
         "/usr/local/bin/a200-look-patch",
@@ -328,7 +330,8 @@ def main() -> int:
     run_ride_height_patch("ride height")
     # 7) The a200's look: the right wheels' visual turned by pi about z, so the one-sided indoor wheel mesh shows its
     #    rim outward on both sides the way the real Husky mounts the same wheel, and the chassis on the recolored mesh
-    #    husky_extras_description ships, and the D435 on its colored mesh.  Same window as steps 5 and 6.
+    #    husky_extras_description ships, and the D435 on its colored mesh with its collision box moved onto it.  Same
+    #    window as steps 5 and 6.
     run_a200_look_patch("a200 look")
     # 4) RG6 into MoveIt: patch robot.srdf (group 'gripper' + EE)
     #    (onrobot-rg6 tool).  For the SRDF there is no lever in robot.yaml --

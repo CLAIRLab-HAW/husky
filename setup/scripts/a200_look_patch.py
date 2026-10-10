@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """a200_look_patch: makes the a200 LOOK like the real one -- rims outward and real, chassis and camera in real colors.
 
-Three upstream mismatches of ``clearpath_platform_description`` and one of ``clearpath_sensors_description`` that only
-a viewer sees.  All are fixed in the package files the generator and every viewer read, after apt and before the
-generator, idempotently, with a backup -- the same shape as the other patchers here.  None changes a joint, a
-collision, an inertial or anything a planner or a physics engine uses.
+Three upstream mismatches of ``clearpath_platform_description`` and two of ``clearpath_sensors_description``: four
+that only a viewer sees, and the wrist D435's collision box, which sits off the camera it stands for.  All are fixed in
+the package files the generator and every viewer read, after apt and before the generator, idempotently, with a
+backup -- the same shape as the other patchers here.  None changes a joint or an inertial; the D435 box is the one
+collision this tool edits, and it only moves that box back onto the camera's own visual body (THE WRIST CAMERA'S BOX
+below).
 
 THE WHEELS: the right wheel visuals are turned by pi about z, so the rim faces outward on both sides.  The package
 places all four wheels with ``rpy="0 0 0"`` (``urdf/a200/drivetrain/wheels.urdf.xacro``), and both wheel macros
@@ -64,20 +66,40 @@ form.  The robot runs ``sensor_mesh_uri_patch`` first (step 2 of the boot servic
 image at build time and this tool at container start, and whichever runs first takes the shared ``.bak``, the
 pristine apt copy.
 
+THE WRIST CAMERA'S BOX: the D435 macro's collision box (``<box size="${d435_cam_depth} ${d435_cam_width}
+${d435_cam_height}"/>``, 25.05 x 90 x 25 mm) is centered on ``${name}_link`` along x, its origin ``0`` -- but the
+camera's visual body is not.  MEASURED 2026-10-10 on both meshes the visual takes (realsense's ``d435.dae`` and
+``husky_extras_description``'s, through the visual origin ``xyz 0.0043 -0.0175 0``, ``rpy pi/2 0 pi/2``), in
+``camera_0_link``: x -20.75..+4.30 mm, y -62.42..+27.52, z -12.51..+12.50.  The front glass lies 4.3 mm AHEAD of the
+link (``d435_zero_depth_to_glass + d435_glass_to_front``, the very offset the visual origin carries) and the body
+reaches 25.05 mm back from it, so the box stood 8.2 mm too far forward: on the a200-0553's wrist, in the RG6 body's
+frame, the box spanned z 71.7..97.9 mm and the visual 63.7..89.5 -- 8 mm toward the fingers, into the space a grasped
+object or the fingers' approach takes.  The fix moves the box's x origin to ``${d435_zero_depth_to_glass +
+d435_glass_to_front - d435_cam_depth/2}`` (-8.225 mm): its front face on the glass, its back 25.05 mm behind.  The
+size stays, as the measured extent matches it to 0.06 mm (y 89.94 against 90, z 25.01 against 25), and so do y and z
+(the visual's center lies at y -17.45, z 0.00 against the box's -17.5 and 0).  The expression rather than a literal:
+it is upstream's own offset, so the box stays on the glass if upstream ever changes the depth or the glass offset
+and the anchor still matches.  Only the ``<collision>``: the ``use_mesh:=false`` branch of the visual draws the same
+box with the same origin line, and is left as upstream ships it -- this robot draws the mesh.  It is the only
+collision this tool edits; MoveIt checks it against the arm, the RG6 and the world, and the SRDF the container
+generates is what decides which of those pairs it ignores.
+
 NO LEVER IN robot.yaml for any of them: ``clearpath_config`` picks the wheel variant per axle (``indoor``/``outdoor``)
 and nothing else -- the visual origin and the wheel mesh are literals inside the wheel macro, the chassis mesh a
-literal inside the a200 macro, the camera mesh a literal inside the D435 macro.
+literal inside the a200 macro, the camera mesh and its collision origin literals inside the D435 macro.
 
 WHY ITS OWN TOOL: ``urdf_physics_patch`` is about physical properties a physics engine needs (joint dynamics,
 inertials), and this changes none; ``ride_height_patch`` moves the ground reference by a measured property of THIS
 vehicle (its loaded tire radius), and nothing here moves a frame -- the indoor wheel mesh draws this vehicle's rims
-and rolling radius, but only draws them.  The first two looks are defects every a200 with the indoor wheel, and every
-a200, shows.  That also means both belong upstream: an issue against ``clearpath_common`` for the wheels is drafted
-(the owner files it; no number yet), and the chassis colors could be raised there too -- the owner decides.  Until
-then: both are unchanged in 2.9.15 (installed) and on the ``jazzy`` branch (checked 2026-10-09; its
-``top_chassis.dae`` is byte-identical to the installed one), so an upgrade will not make this unnecessary by itself --
-when upstream changes any of the four, its anchor below stops matching and the tool says so instead of patching
-twice.
+and rolling radius, but only draws them.  The D435 box is the exception that stays here: it is the same macro and
+the same camera as the mesh swap, the correction is the visual body's own extent, and a tool of its own for one
+origin would be a second patcher with the same anchor, marker and ``.bak`` on the same file.  The first two looks
+are defects every a200 with the indoor wheel, and every a200, shows.  That also means both belong upstream: an issue
+against ``clearpath_common`` for the wheels is drafted (the owner files it; no number yet), and the chassis colors
+could be raised there too -- the owner decides.  Until then: both are unchanged in 2.9.15 (installed) and on the
+``jazzy`` branch (checked 2026-10-09; its ``top_chassis.dae`` is byte-identical to the installed one), so an upgrade
+will not make this unnecessary by itself -- when upstream changes any of them, its anchor below stops matching and
+the tool says so instead of patching twice.
 
 Invocations:
   Robot:    from clearpath_custom_setup.py (per boot, before clearpath-robot-generate)
@@ -149,6 +171,24 @@ D435_MESH_NEW = '<mesh filename="package://husky_extras_description/meshes/d435.
 #: ``${name}_link``'s visual and no other.
 D435_VISUAL_RX = re.compile(
     r'(<link name="\$\{name\}_link">\s*<visual>(?:(?!</visual>).)*?\n)([ \t]*)' + D435_MESH_OLD.pattern, re.S
+)
+
+#: The D435 collision box's origin as ``clearpath_sensors_description`` 2.9.15 ships it -- centered on the link along
+#: x -- and the one that puts its front face on the camera's front glass, where the visual body starts (measured
+#: 2026-10-10, see the docstring): -8.225 mm along x, y and z unchanged.
+D435_COLLISION_ORIGIN_OLD = '<origin xyz="0 ${-d435_cam_depth_py} 0" rpy="0 0 0"/>'
+D435_COLLISION_ORIGIN_NEW = (
+    '<origin xyz="${d435_zero_depth_to_glass + d435_glass_to_front - d435_cam_depth/2} ${-d435_cam_depth_py} 0" '
+    'rpy="0 0 0"/>'
+)
+
+#: The camera link up to its ``<collision>`` and the origin on the line directly below it; group 2 keeps that line's
+#: indentation.  The same origin line stands in the visual's ``use_mesh:=false`` branch, so the anchor is the
+#: collision element's opening tag plus this line, inside ``${name}_link``.
+D435_COLLISION_RX = re.compile(
+    r'(<link name="\$\{name\}_link">(?:(?!</link>).)*?<collision>[ \t]*\n)([ \t]*)'
+    + re.escape(D435_COLLISION_ORIGIN_OLD),
+    re.S,
 )
 
 #: Where the ROS packages live.  A glob rather than a fixed distro, for the same reason as in
@@ -294,9 +334,32 @@ def patch_d435_text(content):
     return _well_formed(content, patched)
 
 
+def patch_d435_collision_text(content):
+    """Move the D435 macro's collision box back by 8.225 mm along x, onto the camera's visual body.
+
+    String surgery for the same reason as :func:`patch_wheel_text`, with the same marker above the rewritten line; it
+    matches with the visual's mesh swapped by :func:`patch_d435_text` or not, so the order of the two does not matter.
+
+    :returns: ``(content, status)`` as :func:`patch_wheel_text` returns it.
+    """
+    if MARKER in content and D435_COLLISION_ORIGIN_NEW in content:
+        return content, "clean"
+    hits = len(D435_COLLISION_RX.findall(content))
+    if hits != 1:
+        # Zero is an upstream rewrite of the collision origin (or upstream moved the box itself); nothing is guessed.
+        return (
+            content,
+            f"{hits} D435 collision origin(s) of the shipped form found, expected exactly 1 -- upstream changed?",
+        )
+    patched = D435_COLLISION_RX.sub(
+        lambda m: f"{m.group(1)}{m.group(2)}{MARKER}\n{m.group(2)}{D435_COLLISION_ORIGIN_NEW}", content
+    )
+    return _well_formed(content, patched)
+
+
 def patch_file(path, patcher, dry_run):
-    """Apply ``patcher`` (:func:`patch_wheel_text`, :func:`patch_wheel_mesh_text`, :func:`patch_chassis_text` or
-    :func:`patch_d435_text`) to one file.
+    """Apply ``patcher`` (:func:`patch_wheel_text`, :func:`patch_wheel_mesh_text`, :func:`patch_chassis_text`,
+    :func:`patch_d435_text` or :func:`patch_d435_collision_text`) to one file.
 
     :returns: ``"changed"``, ``"clean"`` or ``"failed"`` -- the last one when the file cannot be read or written or
         the anchor does not match, each logged on stderr with the reason.
@@ -326,16 +389,19 @@ def patch_file(path, patcher, dry_run):
 
 def targets(share):
     """``(path, patcher, what it fixes)`` for every edit this tool makes in one share directory -- the indoor wheel
-    macro twice, each edit on its own, so an upstream rewrite of one does not hold back the other."""
+    macro and the D435 macro twice each, each edit on its own, so an upstream rewrite of one does not hold back the
+    other."""
     package = os.path.join(share, PACKAGE)
     wheels = "the right wheels' visual turned by pi about z"
     macros = [(os.path.join(package, XACRO_REL.format(variant=v)), patch_wheel_text, wheels) for v in VARIANTS]
     indoor = os.path.join(package, XACRO_REL.format(variant="indoor"))
+    camera = os.path.join(share, SENSORS_PACKAGE, D435_REL)
     return [
         *macros,
         (indoor, patch_wheel_mesh_text, "the indoor wheel mesh swapped for the a200-0553's rims and tread radius"),
         (os.path.join(package, CHASSIS_REL), patch_chassis_text, "the chassis mesh swapped for the recolored one"),
-        (os.path.join(share, SENSORS_PACKAGE, D435_REL), patch_d435_text, "the D435 mesh swapped for the colored one"),
+        (camera, patch_d435_text, "the D435 mesh swapped for the colored one"),
+        (camera, patch_d435_collision_text, "the D435 collision box moved back onto its visual body"),
     ]
 
 

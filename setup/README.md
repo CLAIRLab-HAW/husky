@@ -38,8 +38,9 @@ in the `--verify` manifest it belongs in `scripts/`; if it is not, somebody star
   `base_footprint`) and `a200_look_patch` (the right wheels' visual turned by pi about z, so the one-sided indoor
   wheel mesh shows its rim outward on both sides; the indoor wheel's visual pointed at `husky_extras_description`'s
   wheel: Clearpath's tire at the measured 0.1477 m tread radius on the a200-0553's real rims; the chassis visual
-  pointed at its recolored mesh: #E29000, a red emergency stop, a silver power button and key lock; and the wrist
-  D435's visual pointed at its colored mesh, in either URI form `sensor_mesh_uri_patch` leaves it).
+  pointed at its recolored mesh: #E29000, a red emergency stop, a silver power button and key lock; the wrist
+  D435's visual pointed at its colored mesh, in either URI form `sensor_mesh_uri_patch` leaves it; and the D435's
+  collision box moved 8.2 mm back onto the camera's visual body, the tool's only collision edit).
   Five of the steps are calls to a root-owned copy under `/usr/local/bin`, so the boot service never runs code out of
   a directory a user can write to.
 - **Four of those patchers are shared with the offboard container.** `sensor_mesh_uri_patch`, `urdf_physics_patch`,
