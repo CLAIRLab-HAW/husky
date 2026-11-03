@@ -1,3 +1,5 @@
+"""Package setup of the ``ur_state_manager`` ROS 2 package (ament_python)."""
+
 from glob import glob
 
 from setuptools import find_packages, setup
