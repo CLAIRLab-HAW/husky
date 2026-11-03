@@ -28,53 +28,6 @@ clair-rs16 = { workspace = true }
 where = ["src"]
 namespaces = true
 
-[tool.ruff]
-# ruff format is compatible enough with the black it replaced that the switch cost one reflow commit per
-# repo, not a rewrite. Mirrors the workspace root ([tool.ruff] there),
-# so formatting this repo on its own gives the same result as from the workspace.
-line-length = 120
-# Spelled out rather than inferred from `project.requires-python`: the virtual workspace root carries no
-# [project] table, so a run through the ROOT config resolved to 3.10 while a run inside a package resolved
-# to 3.11 (measured 2026-08-30, `ruff check --show-settings`). The pre-commit hook passes
-# --config <workspace-root>, so 3.10 was what every commit got checked against. Same class of trap as the
-# known-first-party split below: one stock, two verdicts, depending on where the run started.
-target-version = "py312"
-extend-exclude = [".venv", ".superpowers", ".idea", "urdf", "data", "node_modules", "build", "dist", "*.egg-info"]
-respect-gitignore = false
-
-[tool.ruff.format]
-# Ruff formats Python inside Markdown fences and notebook cells too, not only .py (measured 2026-08-30,
-# ruff@0.16.5: six repos went red on their README samples alone). Both are prose here -- the README blocks
-# align their trailing comments into a column that carries meaning, and the walkthrough notebook keeps the
-# semicolon-joined plot lines the lint side already exempts. Lint still reads both, only the formatter stays out.
-exclude = ["*.md", "**/*.ipynb"]
-
-[tool.ruff.lint]
-# The lint scope of this workspace, mirrored from the root; each rule's reason and measurement stand at
-# [tool.ruff] in the workspace root's pyproject.toml. Deliberately out: T20, N, G010, ERA001, FLY.
-select = [
-    "E4", "E7", "E9", "E501", "F", "I", "UP", "B", "D100",
-    "TID251", "FIX", "LOG", "RUF012", "RUF013", "RUF100", "ASYNC", "S506",
-]
-ignore = ["B905", "ASYNC109"]
-external = ["A002", "BLE001", "C901", "N801", "N802", "S307", "S310"]
-
-[tool.ruff.lint.flake8-tidy-imports.banned-api]
-"enum.Enum".msg = "a closed vocabulary is an UPPER_CASE tuple in clair.robot.contract (code-style.md)"
-"enum.StrEnum".msg = "a closed vocabulary is an UPPER_CASE tuple in clair.robot.contract (code-style.md)"
-"enum.IntEnum".msg = "a closed vocabulary is an UPPER_CASE tuple in clair.robot.contract (code-style.md)"
-"typing.Literal".msg = "only for a local argument that is never serialized; noqa with that reason (code-style.md)"
-"logging.basicConfig".msg = "the handler comes from clair.log.console.setup() (code-style.md)"
-
-[tool.ruff.lint.isort]
-# The workspace decides first-party by name, not by CWD: without this, ruff classifies a run from the
-# workspace root and one from this repo differently -- and each direction I001-fails against the other.
-known-first-party = ["clair"]
-
-[tool.ruff.lint.per-file-ignores]
-"**/*.ipynb" = ["E402", "E702"]
-"!**/src/**" = ["TID251"]
-
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
