@@ -12,6 +12,7 @@ Invocation inside the container:
 Every name comes from clair.navigation.wiring (tests/test_launch_files_do_not_restate_the_wiring.py).
 """
 
+from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -19,7 +20,6 @@ from launch_ros.actions import Node
 
 from clair.navigation import wiring
 from clair.rs16 import rslidar_config
-from launch import LaunchDescription
 
 
 def generate_launch_description():

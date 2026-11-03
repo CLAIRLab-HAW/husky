@@ -14,12 +14,12 @@ Every name comes from clair.rs16.wiring -- none of them is stated a second time 
 (tests/test_lidar_launch_restates_no_wiring.py).
 """
 
+from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 from clair.rs16 import rslidar_config, wiring
-from launch import LaunchDescription
 
 
 def _setup(context, *args, **kwargs):

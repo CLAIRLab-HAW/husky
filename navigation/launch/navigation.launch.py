@@ -13,12 +13,12 @@ All topic and frame names come from clair.navigation.wiring.
 
 import os
 
+from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, TimerAction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, SetParameter
 
 from clair.navigation import wiring
-from launch import LaunchDescription
 
 _HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PARAMS = os.path.join(_HERE, "config", "nav2_params.yaml")
