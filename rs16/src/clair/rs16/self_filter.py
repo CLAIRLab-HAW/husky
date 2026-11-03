@@ -86,7 +86,7 @@ def main() -> None:
 
         console.setup()
     except ImportError:  # the robot: clair-log is a private repository and is not cloned there (2026-09-29)
-        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")  # noqa: TID251
     try:
         from clair.twin.body import RobotBody
     except ImportError as exc:  # a robot without clair-twin[body]: the chain must not lose its scan over it

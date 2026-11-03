@@ -42,11 +42,21 @@ respect-gitignore = false
 exclude = ["*.md", "**/*.ipynb"]
 
 [tool.ruff.lint]
-# The durable lint scope of this workspace, measured against the 2026-08-30 stock (ruff@0.16.5): deliberately out
-# are T20 (168 print hits in legitimate CLIs/scripts), N (197 hits, all existing convention rather than bugs) as
-# well as TD/FIX (demands TODO author and link -- R-numbers take that role here) and FLY (0 hits).
-select = ["E4", "E7", "E9", "E501", "F", "I", "UP", "B", "D100"]
-ignore = ["B905"]
+# The lint scope of this workspace, mirrored from the root; each rule's reason and measurement stand at
+# [tool.ruff] in the workspace root's pyproject.toml. Deliberately out: T20, N, G010, ERA001, FLY.
+select = [
+    "E4", "E7", "E9", "E501", "F", "I", "UP", "B", "D100",
+    "TID251", "FIX", "LOG", "RUF012", "RUF013", "RUF100", "ASYNC", "S506",
+]
+ignore = ["B905", "ASYNC109"]
+external = ["A002", "BLE001", "C901", "N801", "N802", "S307", "S310"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"enum.Enum".msg = "a closed vocabulary is an UPPER_CASE tuple in clair.robot.contract (code-style.md)"
+"enum.StrEnum".msg = "a closed vocabulary is an UPPER_CASE tuple in clair.robot.contract (code-style.md)"
+"enum.IntEnum".msg = "a closed vocabulary is an UPPER_CASE tuple in clair.robot.contract (code-style.md)"
+"typing.Literal".msg = "only for a local argument that is never serialized; noqa with that reason (code-style.md)"
+"logging.basicConfig".msg = "the handler comes from clair.log.console.setup() (code-style.md)"
 
 [tool.ruff.lint.isort]
 # The workspace decides first-party by name, not by CWD: without this, ruff classifies a run from the
@@ -55,6 +65,7 @@ known-first-party = ["clair"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/*.ipynb" = ["E402", "E702"]
+"!**/src/**" = ["TID251"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
