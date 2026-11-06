@@ -20,7 +20,7 @@ window's middle at 38.9 mm (optical center 39 mm, section 8.1 note 2), 80.8 mm h
 The DAE is written with pycollada directly, not through ``trimesh.exchange.dae``: trimesh 5.0 gave every geometry the
 same source ids (``verts-array`` four times) and wrote ``Y_UP`` (2026-10-09).
 
-    uv run onboard/rs16/tools/rs16_mesh.py RS16.stp onboard/rs16/src/rs16_description/meshes/rs16.dae
+    uv run onboard/lidar/tools/rs16_mesh.py RS16.stp onboard/lidar/src/rs16_description/meshes/rs16.dae
 """
 
 from __future__ import annotations

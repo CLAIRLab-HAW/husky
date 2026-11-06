@@ -104,8 +104,8 @@ the Clearpath stack restarts. `--verify` reports both files as `MISSING` when th
 All units the installer creates carry the prefix `clearpath-custom-*`
 (`clearpath-custom-rg6-grip-bridge`, `clearpath-custom-joint-states`,
 `clearpath-custom-ur-dashboard`, `clearpath-custom-ur-state-manager`,
-`clearpath-custom-manipulator-diagnostics`, `clearpath-custom-octomap-feed`, `clearpath-custom-lidar`,
-`clearpath-custom-bt-joy`, `clearpath-custom-manipulators-watchdog.service`/`.timer` and
+`clearpath-custom-manipulator-diagnostics`, `clearpath-custom-octomap-feed`, `clearpath-custom-bt-joy`,
+`clearpath-custom-manipulators-watchdog.service`/`.timer` and
 `clearpath-custom-setup`). The arm controllers are not a service of their own but part of `ur_state_manager.launch.py`
 (argument `load_arm_controllers`). Drop-ins on Clearpath's own units (`clearpath-manipulators.service.d/override.conf`)
 keep the name of their target unit, by systemd convention.
@@ -328,6 +328,22 @@ list and hashes the deployed directory file by file:
 That comparison exists because the failure it catches has happened: the deployed page carried an `index.js` three
 commits behind the checkout and nothing said so. A `--verify` run needs no root.
 
+### The lidar (no unit of its own)
+
+`robot.yaml` starts it under `platform.extras.launch`: Clearpath's own `clearpath-platform-extras` service runs
+`husky_extras_bringup`'s `lidar.launch.py` ([onboard/extras](../extras/README.md)) with `lidar_model: rs16`, which
+includes [onboard/navigation](../navigation/README.md)'s scan and, through it, [onboard/lidar](../lidar/README.md)'s
+driver and self filter — `…/lidar3d_0/points`, `points_filtered` and `scan`, read-only. The installer brings what that
+service cannot: the apt packages `ros-jazzy-rslidar-sdk` and `ros-jazzy-pointcloud-to-laserscan`, and
+`clair-onboard.pth` in the system site-packages, which puts `~/onboard/lidar/src` and `~/onboard/navigation/src` on
+the Python path (the service sources `/etc/clearpath/setup.bash` and nothing else). A `clearpath-custom-lidar`
+service found installed is taken out: next to the extras launch it would start a second driver on the same ports.
+
+```bash
+journalctl -u clearpath-platform-extras -b
+ros2 topic hz /a200_0553/sensors/lidar3d_0/points
+```
+
 ### `clearpath-custom-octomap-feed.service` (MoveIt octomap: dense obstacle layer)
 
 Step 2 of the HRL obstacle architecture (step 1 = object-based boxes from the offboard client via `/motion/scene_update`):
@@ -469,7 +485,8 @@ compile.
   this installer deploys
 - [onboard/extras](../extras/README.md) — the a200-0553's URDF extras (sensor arch, RG6 mounting), the
   other one; `robot.yaml`
-  addresses its file under `platform.extras.urdf`
+  addresses its file under `platform.extras.urdf` and its bringup under `platform.extras.launch`
+- [onboard/lidar](../lidar/README.md) — the lidar's models, driver and self filter, which that bringup starts
 - [ur-state-manager](../ur-state/README.md) — arm state and controller modes
 - [cockpit-ros2-diagnostics](../cockpit-diagnostics/README.md) — the panel that displays these diagnostics
 - [cockpit-robot-tools](../cockpit-tools/README.md) — the Cockpit page *Roboter-Werkzeuge*, deployed by the same

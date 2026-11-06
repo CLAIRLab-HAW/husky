@@ -5,14 +5,15 @@ See the [physical-intelligence architecture](../../docs/COGNITIVE-ARCHITECTURE.m
 
 Navigation layer of the Husky **a200-0553**: the 2D scan on the RoboSense RS-LiDAR-16's points, and Nav2. Runs in
 the offboard container against the mock platform **and** onboard on the real robot — same configuration. The sensor
-itself — description, driver, self filter — is [onboard/rs16](../rs16/README.md).
+itself — models, driver, self filter — is [onboard/lidar](../lidar/README.md).
 
 ## Features
 
-- **The scan on the RS16's points.** `launch/scan.launch.py` includes onboard/rs16's `lidar.launch.py` (driver and
-  self filter) and adds `pointcloud_to_laserscan` on `…/lidar3d_0/points_filtered`, the points without the robot's
-  body: AMCL and slam_toolbox read nothing but a LaserScan. The robot's lidar service starts this launch, so the scan
-  is there before Nav2 is.
+- **The scan on the lidar's points.** `launch/scan.launch.py` includes onboard/lidar's `lidar.launch.py` (driver
+  and self filter, for `lidar_model:=`) and adds `pointcloud_to_laserscan` on `…/lidar3d_0/points_filtered`, the
+  points without the robot's body: AMCL and slam_toolbox read nothing but a LaserScan. On the robot Clearpath's
+  `clearpath-platform-extras` service starts this launch (robot.yaml, `platform.extras.launch`), so the scan is there
+  before Nav2 is.
 - **Nav2** with switchable localization (`localization:=none|slam|amcl`): a static identity `map→odom`,
   `slam_toolbox` while mapping, or AMCL against a stored map.
 - **ROS-free core.** The decisions live in `src/clair/navigation/` and are
@@ -94,7 +95,7 @@ measured on the robot (R58): the LOADED one (0.134 m) between axle and `base_foo
 
 ## Tech Stack
 
-ROS 2 Jazzy · `nav2` · `slam_toolbox` · `pointcloud_to_laserscan` · [onboard/rs16](../rs16/README.md) ·
+ROS 2 Jazzy · `nav2` · `slam_toolbox` · `pointcloud_to_laserscan` · [onboard/lidar](../lidar/README.md) ·
 Python 3.12+
 
 ## Installation
@@ -115,7 +116,7 @@ uv run pytest -m e2e_container_nav                      # needs a running contai
 
 ## Related
 
-- [rs16](../rs16/README.md) — the sensor the scan is derived from
+- [lidar](../lidar/README.md) — the sensor the scan is derived from
 - [Design spec](../../docs/superpowers/specs/2026-08-22-nav2-rs16-design.md)
 - [robot-contract profile](../../robot/contract/src/clair/robot/contract/profiles/a200_0553.yaml)
 

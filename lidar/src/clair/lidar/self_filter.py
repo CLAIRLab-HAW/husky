@@ -1,11 +1,11 @@
-"""self_filter: the RS16's points without the robot's own body.
+"""self_filter: the lidar's points without the robot's own body.
 
 The RS16 on the a200's sensor arch sees the arch beside it and an arm reaching out in front. The arch stands inside the
 footprint, which the costmaps clear; the arm does not, and in the costmaps it stood as an obstacle right ahead of the
 robot -- "RegulatedPurePursuitController detected collision ahead!" on every drive with the arm out, and a trail of
 marks along its way (2026-09-27, ManiSkill stack).  This node drops every point inside one of the robot's collision
 hulls (:class:`clair.twin.body.RobotBody`: the live description, the links where TF has them at the cloud's stamp)
-and publishes the rest on :func:`~clair.rs16.wiring.filtered_points_topic` -- what the costmaps and
+and publishes the rest on :func:`~clair.lidar.wiring.filtered_points_topic` -- what the costmaps and
 pointcloud_to_laserscan read.  Until the description has come, and without ``clair-twin[body]`` installed, it passes
 every point through: an unfiltered scan beats none.
 
@@ -15,7 +15,7 @@ already leaves the robot out with.
 
 Invocation (mock.py and lidar.launch.py start it)::
 
-    python3 -m clair.rs16.self_filter --ros-args -p use_sim_time:=true
+    python3 -m clair.lidar.self_filter --ros-args -p use_sim_time:=true
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from pathlib import Path
 
 import numpy as np
 
-log = logging.getLogger("clair.rs16.self_filter")
+log = logging.getLogger("clair.lidar.self_filter")
 
 #: How far from the sensor a point can still be the robot's [m]: the RS16 sits on the rear of the arch, and the arm
 #: reaches some 1.6 m ahead of it.  Only the points nearer than this go through the hulls.
@@ -79,7 +79,7 @@ def main() -> None:
     from std_msgs.msg import String
     from tf2_ros import Buffer, TransformException, TransformListener
 
-    from clair.rs16 import wiring
+    from clair.lidar import wiring
 
     try:
         from clair.log import console

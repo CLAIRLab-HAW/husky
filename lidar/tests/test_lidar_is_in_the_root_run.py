@@ -12,4 +12,4 @@ PYPROJECT = Path(__file__).resolve().parents[3] / "pyproject.toml"
 
 def test_this_package_is_a_workspace_member():
     members = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["tool"]["uv"]["workspace"]["members"]
-    assert "onboard/rs16" in members, "Without a member entry `uv sync` does not resolve clair-rs16."
+    assert "onboard/lidar" in members, "Without a member entry `uv sync` does not resolve clair-lidar."

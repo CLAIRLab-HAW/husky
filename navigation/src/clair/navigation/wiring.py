@@ -1,13 +1,13 @@
 """Topic and frame names of the navigation layer -- the single source.
 
 ROS-free.  The launch files in ../../launch/ import from here; a test holds them to not stating the values a second
-time.  The RS16's own names -- its points, its frame, the namespace -- are ``clair.rs16.wiring``'s and are only
+time.  The lidar's own names -- its points, its frame, the namespace -- are ``clair.lidar.wiring``'s and are only
 re-exported here, so that a launch file needs one import.
 """
 
 from __future__ import annotations
 
-from clair.rs16.wiring import LIDAR_FRAME, NAMESPACE, TF_REMAPS, filtered_points_topic, points_topic
+from clair.lidar.wiring import LIDAR_FRAME, NAMESPACE, TF_REMAPS, filtered_points_topic, points_topic
 
 __all__ = [
     "BASE_FRAME",

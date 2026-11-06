@@ -1,8 +1,9 @@
-"""The one place where mock and robot are allowed to differ.
+"""rslidar_sdk, RoboSense's driver: the one place where mock and robot are allowed to differ.
 
 rslidar_sdk takes ONE yaml file via the ROS parameter ``config_path`` and knows no way to override individual keys.
 Whoever wants to drive mock and live from a single source anyway therefore has to render the file instead of
-duplicating it -- two maintained yaml files would be exactly the drift source this undertaking sets out to avoid.
+duplicating it -- two maintained yaml files would be exactly the drift source this undertaking sets out to avoid.  The
+same template serves every RoboSense model; the model's ``device_type`` goes into ``lidar_type`` as it is rendered.
 
 ROS-free and therefore testable on the Mac.
 """
@@ -12,6 +13,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
+
+from clair.lidar.models import LidarModel
 
 #: Values of common.msg_source.  The order of the log lines in the binary is
 #: "Online LiDAR", "ROS", "Pcap" -- so 1, 2, 3.  That is verified against the
@@ -25,31 +28,17 @@ MSG_SOURCE_PCAP = 3
 #: seconds, not in frames.
 PCAP_RATE = 1
 
-#: The RS16's sweep, for a simulator that casts one: 16 rings from -15° to +15°, 2° apart, 10 revolutions a second,
-#: a 0.2 m blind zone (RS-LiDAR-16 datasheet).  The rings are this unit's own: the vertical calibration its DIFOP
-#: packets carry (``pitch_cali``, read 2026-10-09 out of data/recordings/rs16_labor.pcap) lies within 0.003° of the
-#: nominal angles.  Elevations fitted to the points disagree by up to 0.27° near the sensor, and that is not the
-#: beams: rs_driver casts each return from the lens center, 38 mm ahead of the axis and 11 mm beside it.
-RS16_RINGS_DEG = tuple(float(e) for e in range(-15, 16, 2))
-RS16_RATE_HZ = 10.0
-RS16_RANGE_MIN_M = 0.2
-#: What the simulator makes of it: 0.4° a shot rather than the device's 0.2° (14 400 raycasts, 21 ms a sweep in
-#: ManiSkill, 2026-09-27), and 30 m rather than 150 -- no room in a simulated house is larger.
-SIM_AZIMUTH_STEP_DEG = 0.4
-SIM_RANGE_MAX_M = 30.0
-
-TEMPLATE_PATH = Path(__file__).resolve().parents[3] / "config" / "rslidar_rs16.yaml"
-#: The launch that starts the driver with it -- found the same way, beside the source tree, wherever that lies
-#: (``/opt/clair/rs16`` in the container, ``~/onboard/rs16`` on the robot).
-LAUNCH_PATH = Path(__file__).resolve().parents[3] / "launch" / "lidar.launch.py"
+TEMPLATE_PATH = Path(__file__).resolve().parents[3] / "config" / "rslidar.yaml"
 
 
-def render(template: dict, *, pcap_path: str | None = None) -> dict:
-    """Sets the packet source in a loaded template.
+def render(template: dict, model: LidarModel, *, pcap_path: str | None = None) -> dict:
+    """Sets the device type and the packet source in a loaded template.
 
     ``pcap_path=None`` ─▶ the device.  Otherwise ─▶ the recording.  The template is modified and returned (the caller
     hands over a freshly loaded dict anyway).
     """
+    if model.driver != "rslidar":
+        raise ValueError(f"{model.name} is driven by {model.driver}, not by rslidar_sdk")
     if "common" not in template:
         raise ValueError(
             "Template without a 'common' section -- rslidar_sdk finds msg_source "
@@ -57,10 +46,11 @@ def render(template: dict, *, pcap_path: str | None = None) -> dict:
         )
     if not template.get("lidar"):
         raise ValueError(
-            "Template without a 'lidar' section -- without it the driver knows neither device type nor target frame."
+            "Template without a 'lidar' section -- without it the driver knows neither its ports nor its target frame."
         )
 
     driver = template["lidar"][0].setdefault("driver", {})
+    driver["lidar_type"] = model.device_type
 
     if pcap_path is None:
         template["common"]["msg_source"] = MSG_SOURCE_ONLINE
@@ -75,10 +65,10 @@ def render(template: dict, *, pcap_path: str | None = None) -> dict:
     return template
 
 
-def write_resolved(out_path: str | Path, *, pcap_path: str | None = None) -> Path:
-    """Renders the template and writes it -- the path goes to ``config_path``."""
+def write_resolved(out_path: str | Path, model: LidarModel, *, pcap_path: str | None = None) -> Path:
+    """Renders the template for ``model`` and writes it -- the path goes to ``config_path``."""
     template = yaml.safe_load(TEMPLATE_PATH.read_text(encoding="utf-8"))
-    resolved = render(template, pcap_path=pcap_path)
+    resolved = render(template, model, pcap_path=pcap_path)
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(yaml.safe_dump(resolved, sort_keys=False), encoding="utf-8")

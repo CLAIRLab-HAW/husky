@@ -1,4 +1,4 @@
-"""The scan on the sensor path: onboard/rs16's driver on real packets, and the 2D scan derived from its points.
+"""The scan on the sensor path: onboard/lidar's driver on real packets, and the 2D scan derived from its points.
 
 Skips itself with a named cause as long as the RS16 recording is missing (R-point c).  A test that went green without
 a recording would be worse than none: it would report a chain as driven that has never seen a packet.
@@ -26,9 +26,9 @@ def _exec(script: str, timeout: int = 120) -> str:
 
 #: The replay runs in a process group of its own, whose leader's pid stands here: one SIGINT to the group stops launch,
 #: driver and filters alike.  A SIGTERM to the launch alone does not -- three rslidar_sdk_node outlived the suites that
-#: way and published side by side (2026-10-09).  The rs16 and navigation suites share the file, so each stops what
+#: way and published side by side (2026-10-09).  The lidar and navigation suites share the file, so each stops what
 #: the other left before it starts.
-REPLAY_PID = "/tmp/rs16_replay.pid"
+REPLAY_PID = "/tmp/lidar_replay.pid"
 
 
 def _stop_group(pid_file: str) -> None:

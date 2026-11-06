@@ -7,7 +7,7 @@ whole description, is the container's to show (the generator dies on a broken in
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from clair.rs16 import wiring
+from clair.lidar import wiring
 
 PACKAGE = Path(__file__).resolve().parents[1] / "src" / "rs16_description"
 MACRO = ET.parse(PACKAGE / "urdf" / "rs16.urdf.xacro").getroot()[0]

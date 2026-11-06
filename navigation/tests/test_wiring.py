@@ -16,10 +16,10 @@ def test_the_scan_topic_sits_beside_the_points_topic():
 
 
 def test_the_scan_reads_the_points_without_the_robot():
-    """The re-export is clair.rs16's own function, not a second spelling of the topic."""
-    from clair.rs16 import wiring as rs16_wiring
+    """The re-export is clair.lidar's own function, not a second spelling of the topic."""
+    from clair.lidar import wiring as lidar_wiring
 
-    assert wiring.filtered_points_topic is rs16_wiring.filtered_points_topic
+    assert wiring.filtered_points_topic is lidar_wiring.filtered_points_topic
 
 
 def test_tf_is_remapped_into_the_namespace():

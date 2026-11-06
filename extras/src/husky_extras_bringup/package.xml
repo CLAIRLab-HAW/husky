@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>husky_extras_bringup</name>
+  <version>0.1.0</version>
+  <description>
+    What the a200-0553 starts beyond Clearpath's own services: the lidar's sensor path and its scan. Started by
+    Clearpath's clearpath-platform-extras service through robot.yaml (platform.extras.launch), which names the lidar
+    model; husky_extras_description is the matching description half.
+  </description>
+  <maintainer email="hannes.voss@haw-hamburg.de">Hannes Voss</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Run-time only: the launch includes onboard/navigation's scan.launch.py, which starts the lidar's driver
+       (rslidar_sdk for a RoboSense model), clair.lidar's self filter and pointcloud_to_laserscan.  clair.lidar and
+       clair.navigation are no ament packages; the installer puts their source trees on the system Python's path. -->
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>rslidar_sdk</exec_depend>
+  <exec_depend>pointcloud_to_laserscan</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

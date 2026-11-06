@@ -11,18 +11,18 @@ import pytest
 
 LAUNCH_DIR = Path(__file__).resolve().parents[1] / "launch"
 
-#: Values that may stand in exactly one place: in clair.rs16.wiring.
+#: Values that may stand in exactly one place: in clair.lidar.wiring.
 WIRED_LITERALS = ("/a200_0553/sensors/lidar3d_0/points", "lidar3d_0_laser")
 
 
 @pytest.mark.parametrize("launch_file", sorted(LAUNCH_DIR.glob("*.launch.py")), ids=lambda p: p.name)
 def test_the_launch_file_imports_the_wiring(launch_file):
-    assert "from clair.rs16 import" in launch_file.read_text(encoding="utf-8"), (
-        f"{launch_file.name} does not import clair.rs16 -- the wiring then stands there a second time."
+    assert "from clair.lidar import" in launch_file.read_text(encoding="utf-8"), (
+        f"{launch_file.name} does not import clair.lidar -- the wiring then stands there a second time."
     )
 
 
 @pytest.mark.parametrize("launch_file", sorted(LAUNCH_DIR.glob("*.launch.py")), ids=lambda p: p.name)
 def test_the_launch_file_restates_no_wired_literal(launch_file):
     restated = [lit for lit in WIRED_LITERALS if lit in launch_file.read_text(encoding="utf-8")]
-    assert not restated, f"{launch_file.name} states {restated} itself; they belong in clair.rs16.wiring."
+    assert not restated, f"{launch_file.name} states {restated} itself; they belong in clair.lidar.wiring."

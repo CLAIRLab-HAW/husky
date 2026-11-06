@@ -1,4 +1,4 @@
-"""The RS16's topic and frame names are contracts, not spellings.
+"""The lidar's topic and frame names are contracts, not spellings.
 
 The graph of this robot is namespaced throughout; tf2 however broadcasts on the ABSOLUTE names /tf and /tf_static,
 where the node namespace does not take effect.  If the remap is missing, a node publishes globally while all the others
@@ -9,11 +9,11 @@ Needs neither ROS nor Docker.
 
 import yaml
 
-from clair.rs16 import rslidar_config, wiring
+from clair.lidar import LAUNCH_PATH, rslidar, wiring
 
 
 def _template() -> dict:
-    return yaml.safe_load(rslidar_config.TEMPLATE_PATH.read_text(encoding="utf-8"))
+    return yaml.safe_load(rslidar.TEMPLATE_PATH.read_text(encoding="utf-8"))
 
 
 def test_the_points_topic_follows_the_clearpath_convention():
@@ -39,4 +39,4 @@ def test_tf_is_remapped_into_the_namespace():
 
 
 def test_the_launch_path_points_at_the_launch_file():
-    assert rslidar_config.LAUNCH_PATH.is_file()
+    assert LAUNCH_PATH.is_file()

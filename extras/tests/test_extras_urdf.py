@@ -168,6 +168,31 @@ def test_robot_yaml_addresses_this_file_and_sources_this_workspace():
     )
 
 
+BRINGUP = REPO / "src" / "husky_extras_bringup"
+
+
+def test_the_bringup_installs_its_launch_directory():
+    """The generated extras launch finds the file through ``FindPackageShare``, so it has to be in the share."""
+    cmake = (BRINGUP / "CMakeLists.txt").read_text(encoding="utf-8")
+    assert "DIRECTORY launch" in cmake
+    assert "DESTINATION share/${PROJECT_NAME}" in cmake
+
+
+def test_robot_yaml_starts_a_launch_file_the_bringup_ships():
+    """Every ``platform.extras.launch`` entry names a package -- clearpath_generator_robot 2.9.3 dies on
+    ``'pkg_' + None`` without one -- and the bringup's entry a file it installs: a wrong path fails at the robot's boot,
+    in clearpath-platform-extras, and nowhere before."""
+    import yaml
+
+    robot_yaml = yaml.safe_load(_sibling("onboard/setup/config/robot.yaml").read_text(encoding="utf-8"))
+    launches = robot_yaml["platform"]["extras"]["launch"]
+    assert all(launch.get("package") for launch in launches), launches
+    ours = [launch for launch in launches if launch["package"] == BRINGUP.name]
+    assert ours, f"robot.yaml starts nothing of {BRINGUP.name}"
+    for launch in ours:
+        assert (BRINGUP / launch["path"]).is_file(), launch["path"]
+
+
 MARWIN_TOOLED = REPO / "src" / "marwin_extras_description" / "urdf" / "marwin5_tooled.urdf.xacro"
 
 

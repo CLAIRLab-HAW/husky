@@ -57,7 +57,7 @@ per corner by :func:`corner_normals`.
 SOURCES AND LICENSES. Clearpath's ``indoor.dae`` is BSD-3-Clause (``LICENSE`` of ``clearpath_common``, "Copyright (c)
 2023, clearpathrobotics"); the DAE's first ``<asset><contributor>`` carries the notice in full (:data:`NOTICE`). The
 rim's CAD comes from Clearpath's download without a BSD license, so the glTF is NOT in the repo -- the same practice as
-``onboard/rs16/tools/rs16_mesh.py`` with RoboSense's STEP: the owner keeps it at ``onboard/a200_rims.gltf`` (untracked,
+``onboard/lidar/tools/rs16_mesh.py`` with RoboSense's STEP: the owner keeps it at ``onboard/a200_rims.gltf`` (untracked,
 4.8 MB, 2026-10-10), and the derived, decimated DAE is committed, like ``rs16.dae``. The second
 contributor names the CAD.
 

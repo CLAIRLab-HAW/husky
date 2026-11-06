@@ -3,7 +3,8 @@
 The URDF extras of the **a200-0553**: everything this particular robot has that
 neither Clearpath's own description nor a component package knows about — the
 sensor arch on the top plate, the RS16 on the arch, and the end effector on the
-UR5 flange: the OnRobot RG6, or in the offboard mock another tool.
+UR5 flange: the OnRobot RG6, or in the offboard mock another tool. And what it
+starts beyond Clearpath's services: `husky_extras_bringup`, the lidar.
 
 One file is the entry,
 `src/husky_extras_description/urdf/clearpath_extras.urdf.xacro`, and the
@@ -33,7 +34,7 @@ macro, the gripper package includes nothing from here.
   planned straight through it (R15); until 2026-08-31 no mass, so both
   simulators carried a half-metre portal frame as 0.1 kg (R47).
 - **The RS16 where robot.yaml measured it.** `robot.yaml` places the frame `lidar3d_0_mount_link`; this file hangs
-  [rs16_description](../rs16/src/rs16_description/README.md)'s macro on it, which brings the lidar's mesh,
+  [rs16_description](../lidar/src/rs16_description/README.md)'s macro on it, which brings the lidar's mesh,
   collision cylinder, mass and `lidar3d_0_laser`.
 - **The a200's top chassis in its real colors**, `meshes/a200_top_chassis.dae`: Clearpath's mesh split into its
   parts by `tools/a200_chassis_mesh.py`: the chassis #E29000, the emergency stop red, the power button and the key
@@ -78,7 +79,14 @@ macro, the gripper package includes nothing from here.
 - **The tools as macros**, `urdf/rg6.macro.xacro` and
   `urdf/key_holder.macro.xacro`: each hangs on a given `parent`. The a200's tool
   files call them on `arm_0_tool0`; MARWIN 5 calls them behind its tool changer.
-- **MARWIN 5's tooled arm**, a second package, `marwin_extras_description`:
+- **The lidar, started by `robot.yaml`**, a package of its own, `husky_extras_bringup`: its `launch/lidar.launch.py`
+  is what `platform.extras.launch` names, with `lidar_model`, and Clearpath's `clearpath-platform-extras` service runs
+  it. It includes [onboard/navigation](../navigation/README.md)'s scan, which includes
+  [onboard/lidar](../lidar/README.md)'s driver and self filter. `lidar_model` has no default, so `robot.yaml` is the
+  one place the model is named. A package and not a path, because Clearpath's generator (2.9.3) dies on an
+  `extras.launch` entry without one; it is the bringup half of the description/bringup pair Clearpath's
+  customization docs describe.
+- **MARWIN 5's tooled arm**, a third package, `marwin_extras_description`:
   `urdf/marwin5_tooled.urdf.xacro` is marwin_control's controlled description
   plus the SmartShift changer on `ur5e_tool0` (`urdf/smartshift.macro.xacro`,
   vendor figures: 65 mm coupled stack, Ø 63 mm, 180 g + 310 g electric; the
@@ -90,9 +98,10 @@ macro, the gripper package includes nothing from here.
 
 ## Tech Stack
 
-- **ROS 2 Jazzy**, `ament_cmake`, xacro — the package builds nothing, it
-  installs `urdf/` and `meshes/` so `package://husky_extras_description/…`
-  resolves through the ament index.
+- **ROS 2 Jazzy**, `ament_cmake`, xacro — the packages build nothing:
+  `husky_extras_description` installs `urdf/` and `meshes/` so
+  `package://husky_extras_description/…` resolves through the ament index,
+  `husky_extras_bringup` installs `launch/` so the generated extras launch finds it there.
 - **pytest** for the seam checks, ROS-free and robot-free.
 
 ## Installation
@@ -102,8 +111,11 @@ The robot builds it in its onboard clone like the gripper workspace; the
 under `system.ros2.workspaces`.
 
 ```bash
-cd ~/onboard/extras && colcon build --packages-select husky_extras_description
+cd ~/onboard/extras && colcon build --packages-select husky_extras_description husky_extras_bringup
 ```
+
+`husky_extras_bringup`'s launch imports `clair.navigation` and through it `clair.lidar`, no ament packages: the
+installer puts their source trees on the system Python's path (`clair-onboard.pth`).
 
 In the offboard container the package comes out of the build context and is
 built into `/opt/onboard/extras` (the `extras-build` stage), so the image tag is
@@ -113,7 +125,14 @@ resolve there as well.
 
 ## Usage
 
-Nothing here is started. The file is read by
+`husky_extras_bringup`'s `lidar.launch.py` is started by Clearpath's `clearpath-platform-extras` service, from
+`robot.yaml` (`platform.extras.launch`); by hand:
+
+```bash
+ros2 launch husky_extras_bringup lidar.launch.py lidar_model:=rs16
+```
+
+Nothing else here is started. The description file is read by
 
 - `clearpath_generator_common generate_description` (per boot, on the robot and
   in the `plant-mock` container),

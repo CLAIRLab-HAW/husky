@@ -14,15 +14,15 @@ system:
     # EVERYTHING that follows: the generator's own $(find ...), RViz and the foxglove_bridge resolving
     # package:// meshes, and every helper that sources the chain.
     #
-    # THREE of them, all directories of the one onboard clone the installer builds: rg6 and rs16 describe a
+    # THREE of them, all directories of the one onboard clone the installer builds: rg6 and lidar describe a
     # COMPONENT each (the RG6 model, its macro and the measured rg6_v2.yaml; the RS16's macro and mesh), extras
     # describes THIS ROBOT's assembly (sensor arch, where the hand is bolted onto the UR5 flange, the RS16 on its
-    # mount).  platform.extras.urdf.path below names a file from extras, which includes a macro from each of the
-    # others -- so all three have to be listed, and a missing build is not a mesh that fails to draw but a generator
-    # run that dies on the include.
+    # mount) and what it starts beyond Clearpath's services (husky_extras_bringup).  platform.extras.urdf.path below
+    # names a file from extras, which includes a macro from each of the others -- so all three have to be listed, and
+    # a missing build is not a mesh that fails to draw but a generator run that dies on the include.
     workspaces:
       - /home/robot/onboard/rg6/install/setup.bash    # rg6_description, rg6_control
-      - /home/robot/onboard/rs16/install/setup.bash   # rs16_description
+      - /home/robot/onboard/lidar/install/setup.bash  # rs16_description
       - /home/robot/onboard/extras/install/setup.bash # husky_extras_description (the file under extras.urdf below)
 platform:
   mcu:
@@ -38,6 +38,17 @@ platform:
       # package:// meshes inside it resolve through the workspaces above.  Both halves of the pair have to move
       # together when this path does.
       path: /home/robot/onboard/extras/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
+    # What the robot starts beyond Clearpath's services, run by its clearpath-platform-extras service: the lidar's
+    # driver and self filter (onboard/lidar) and the scan on them (onboard/navigation), read-only.  A list in
+    # clearpath_config 2.9.x (Clearpath's docs still say one file).  It names a PACKAGE and a path in its share, not an
+    # absolute path: clearpath_generator_robot 2.9.3 builds Package(launch.package) unconditionally and dies on
+    # 'pkg_' + None.  lidar_model is the one place the robot's lidar model is named (onboard/lidar, clair.lidar.models;
+    # its tests hold the container's sim plants to it).
+    launch:
+      - package: husky_extras_bringup
+        path: launch/lidar.launch.py
+        args:
+          lidar_model: rs16
     ros_parameters:
       joy_node:
         # The Xbox 360 wireless receiver's pad under its own udev name (installer, managed udev block): js0 goes to
@@ -184,11 +195,12 @@ platform:
       xyz: [0.0, 0.0, 0.0]
       rpy: [0.0, 0.0, 0.0]
       enabled: true
-# The RoboSense RS-LiDAR-16 on the sensor arch.  clearpath_config has no RoboSense model (2.9.6, the robot's: its
-# lidar3d models are velodyne_lidar, ouster_os1 and seyond_lidar), so this file places only the FRAME the sensor
-# stands on, and husky_extras_description hangs rs16_description's macro there: lidar3d_0_link on the mounting face,
-# lidar3d_0_laser 39 mm above it, the frame rslidar_sdk writes into every PointCloud2.  The driver is onboard/rs16's
-# (launch/lidar.launch.py, with config/rslidar_rs16.yaml, the same file for container and robot).
+# The RoboSense RS-LiDAR-16 on the sensor arch.  clearpath_config has no RoboSense model (2.9.x: its lidar3d models
+# are velodyne_lidar, ouster_os1 and seyond_lidar, hesai_lidar only on its jazzy branch; Lidar3D.assert_model refuses
+# any other), so sensors.lidar3d cannot carry it.  This file places the FRAME the sensor stands on, and
+# husky_extras_description hangs rs16_description's macro there: lidar3d_0_link on the mounting face, lidar3d_0_laser
+# 39 mm above it, the frame rslidar_sdk writes into every PointCloud2.  The driver starts through
+# platform.extras.launch above (onboard/lidar, config/rslidar.yaml, the same file for container and robot).
 links:
   frame:
     - name: lidar3d_0_mount            # Clearpath appends _link

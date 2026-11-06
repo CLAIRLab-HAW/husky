@@ -26,9 +26,9 @@ def _exec(script: str, timeout: int = 120) -> str:
 
 #: The replay runs in a process group of its own, whose leader's pid stands here: one SIGINT to the group stops launch,
 #: driver and filters alike.  A SIGTERM to the launch alone does not -- three rslidar_sdk_node outlived the suites that
-#: way and published side by side (2026-10-09).  The rs16 and navigation suites share the file, so each stops what
+#: way and published side by side (2026-10-09).  The lidar and navigation suites share the file, so each stops what
 #: the other left before it starts.
-REPLAY_PID = "/tmp/rs16_replay.pid"
+REPLAY_PID = "/tmp/lidar_replay.pid"
 
 
 def _stop_group(pid_file: str) -> None:
@@ -61,7 +61,7 @@ def _replay(launch: str):
 
 @pytest.fixture(scope="module")
 def replay():
-    yield from _replay("/opt/clair/rs16/launch/lidar.launch.py")
+    yield from _replay("/opt/clair/lidar/launch/lidar.launch.py")
 
 
 def test_the_driver_reads_from_the_recording(replay):

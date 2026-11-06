@@ -21,10 +21,11 @@
 #   - build ~/onboard/rg6 (colcon), plus root-owned copies of
 #     rg6_moveit_patch (boot service) and rg6_grip_bridge.py + its linkage
 #     table (the gripper service) under /usr/local/bin
-#   - build ~/onboard/rs16 (colcon): rs16_description, the RS16's macro the
+#   - build ~/onboard/lidar (colcon): rs16_description, the RS16's macro the
 #     extras file includes, a workspace robot.yaml lists
 #   - build ~/onboard/extras (colcon): the URDF extras robot.yaml
-#     addresses under platform.extras.urdf and lists as a workspace
+#     addresses under platform.extras.urdf and lists as a workspace, and
+#     husky_extras_bringup, the launch robot.yaml starts under platform.extras.launch
 #   - root-owned copies of urdf_physics_patch, sensor_mesh_uri_patch,
 #     ride_height_patch and a200_look_patch (all this repo) under
 #     /usr/local/bin, likewise for the boot service
@@ -46,8 +47,10 @@
 #     (/a200_0553/joint_states) plus the relays back onto the platform bus
 #   - optional: clearpath-custom-octomap-feed.service: throttled depth ->
 #     PointCloud2 for MoveIt's occupancy map monitor
-#   - optional: clearpath-custom-lidar.service: the RS16 (rslidar_sdk, self filter out of ~/onboard/rs16,
-#     pointcloud_to_laserscan out of ~/onboard/navigation), once both apt packages are there
+#   - optional: the lidar's apt packages (rslidar_sdk, pointcloud_to_laserscan) and a .pth that puts
+#     ~/onboard/lidar/src and ~/onboard/navigation/src on the system Python's path.  Clearpath's
+#     clearpath-platform-extras service starts the chain itself, from robot.yaml's platform.extras.launch; a
+#     clearpath-custom-lidar.service found installed is taken out, it would start a second driver
 #   - optional: clearpath-custom-manipulator-diagnostics.service: UR5 + RG6 as
 #     diagnostic_msgs for the Clearpath aggregator (Cockpit, diagnostics_agg)
 #   - optional: mask ds4drv.service (a PS4 pad driver this robot does not use;
@@ -173,13 +176,13 @@ OCTO_WRAPPER="${BIN_DIR}/octomap-feed.sh"
 OCTO_UNIT="clearpath-custom-octomap-feed.service"
 OCTO_UNIT_PATH="/etc/systemd/system/${OCTO_UNIT}"
 
-# RS16 sensor path and its scan: onboard/navigation's launch/scan.launch.py, which includes onboard/rs16's
-# launch/lidar.launch.py (rslidar_sdk + self filter) and adds pointcloud_to_laserscan -- run straight out of the
-# checkout, with the same config/rslidar_rs16.yaml the container mock renders.  Read-only: nothing in it commands the
-# base or the arm.
-LIDAR_WRAPPER="${BIN_DIR}/lidar.sh"
-LIDAR_UNIT="clearpath-custom-lidar.service"
-LIDAR_UNIT_PATH="/etc/systemd/system/${LIDAR_UNIT}"
+# The lidar's sensor path and its scan start under robot.yaml's platform.extras.launch, in Clearpath's
+# clearpath-platform-extras service, not in a unit of this script's.  This unit and its wrapper are the custom service
+# that carried the same chain; where one is installed, the lidar block takes it out -- next to the extras launch it
+# would start a second rslidar_sdk_node on the same UDP ports.
+RETIRED_LIDAR_WRAPPER="${BIN_DIR}/lidar.sh"
+RETIRED_LIDAR_UNIT="clearpath-custom-lidar.service"
+RETIRED_LIDAR_UNIT_PATH="/etc/systemd/system/${RETIRED_LIDAR_UNIT}"
 
 # Manipulator diagnostics: translates UR mode/safety/external control and the
 # RG6 state into diagnostic_msgs and publishes them on the /diagnostics topic
@@ -354,7 +357,7 @@ ONBOARD_WS="${USER_HOME}/onboard"
 SETUP_WS="${ONBOARD_WS}/setup"   # versioned robot.yaml (symlink target)
 RG6_WS="${ONBOARD_WS}/rg6"
 EXTRAS_WS="${ONBOARD_WS}/extras"   # the path robot.yaml names; do not move without moving it there
-RS16_WS="${ONBOARD_WS}/rs16"       # likewise
+LIDAR_WS="${ONBOARD_WS}/lidar"     # likewise
 USM_WS="${ONBOARD_WS}/ur-state"
 CKPT_WS="${ONBOARD_WS}/cockpit-diagnostics"
 CRT_WS="${ONBOARD_WS}/cockpit-tools"   # the Cockpit page "Roboter-Werkzeuge"
@@ -1007,26 +1010,27 @@ else
     echo ">>> rg6: skipped (the existing build stays)."
 fi
 
-# --- build rs16 (as the real user, not root) --------------------------------
+# --- build lidar (as the real user, not root) -------------------------------
 # rs16_description, the RS16's macro and mesh: the extras file includes it with $(find rs16_description), so the
 # generator dies on that include while the workspace robot.yaml lists is unbuilt.  A pure data package.
-DO_RS16=1
-if [ -d "${RS16_WS}/install" ]; then
-    confirm ">>> rs16 is built in ${RS16_WS}. Rebuild?" || DO_RS16=0
+DO_LIDAR_BUILD=1
+if [ -d "${LIDAR_WS}/install" ]; then
+    confirm ">>> lidar is built in ${LIDAR_WS}. Rebuild?" || DO_LIDAR_BUILD=0
 fi
-if [ "$DO_RS16" -eq 1 ]; then
-    echo ">>> Building ${RS16_WS} (colcon, user ${REAL_USER})"
+if [ "$DO_LIDAR_BUILD" -eq 1 ]; then
+    echo ">>> Building ${LIDAR_WS} (colcon, user ${REAL_USER})"
     sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
-        "source '$ROS_SETUP' && cd '$RS16_WS' && colcon build --packages-select rs16_description" \
+        "source '$ROS_SETUP' && cd '$LIDAR_WS' && colcon build --packages-select rs16_description" \
         || echo "    WARN: colcon build failed - the generator cannot expand the extras file (no robot model)."
 else
-    echo ">>> rs16: skipped (the existing build stays)."
+    echo ">>> lidar: skipped (the existing build stays)."
 fi
 
 # --- build extras (as the real user, not root) ------------------------------
 # The last workspace robot.yaml lists, and it hangs on the others: the extras file instantiates the RG6 macro out
-# of rg6_description and the RS16's out of rs16_description, so it is built after them.  A pure data package
-# (urdf/ + meshes/), so the build is a copy into install/ and takes no measurable time.
+# of rg6_description and the RS16's out of rs16_description, so it is built after them.  Two data packages
+# (husky_extras_description's urdf/ + meshes/, husky_extras_bringup's launch/), so the build is a copy into install/
+# and takes no measurable time.
 DO_EXTRAS=1
 if [ -d "${EXTRAS_WS}/install" ]; then
     confirm ">>> extras is built in ${EXTRAS_WS}. Rebuild?" || DO_EXTRAS=0
@@ -1034,8 +1038,10 @@ fi
 if [ "$DO_EXTRAS" -eq 1 ]; then
     echo ">>> Building ${EXTRAS_WS} (colcon, user ${REAL_USER})"
     sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
-        "source '$ROS_SETUP' && cd '$EXTRAS_WS' && colcon build --packages-select husky_extras_description" \
-        || echo "    WARN: colcon build failed - package://husky_extras_description stays unresolvable (arch without a mesh)."
+        "source '$ROS_SETUP' && cd '$EXTRAS_WS' \
+         && colcon build --packages-select husky_extras_description husky_extras_bringup" \
+        || echo "    WARN: colcon build failed - package://husky_extras_description stays unresolvable" \
+                "(arch without a mesh), and clearpath-platform-extras finds no husky_extras_bringup (no lidar)."
 else
     echo ">>> extras: skipped (the existing build stays)."
 fi
@@ -1480,13 +1486,19 @@ else
     echo ">>> Octomap feed: skipped."
 fi
 
-# --- RS16 lidar (optional) ---------------------------------------------------
-# rslidar_sdk and pointcloud_to_laserscan come from apt.  They are installed only while a simulation shows nothing
-# but new packages: on 2026-09-29 that was 3 new (both plus ros-jazzy-rslidar-msg), 0 upgraded, 0 removed, all
-# from the pinned ROS snapshot.  Anything else leaves apt alone and the unit unwritten -- a unit without its driver
-# would fail every five seconds.  The self filter runs without clair-twin[body] on the robot and passes the points
-# through (R63).
+# --- lidar (optional) --------------------------------------------------------
+# robot.yaml's platform.extras.launch starts the chain: Clearpath's clearpath-platform-extras service runs
+# husky_extras_bringup's lidar.launch.py with lidar_model, which includes onboard/navigation's scan.launch.py and with
+# it onboard/lidar's driver and self filter.  Two things that service cannot bring along are done here:
+#   - rslidar_sdk and pointcloud_to_laserscan come from apt.  They are installed only while a simulation shows
+#     nothing but new packages: on 2026-09-29 that was 3 new (both plus ros-jazzy-rslidar-msg), 0 upgraded,
+#     0 removed, all from the pinned ROS snapshot.  Without them the extras launch dies at its start.
+#   - the service sources /etc/clearpath/setup.bash and nothing else, and clair.lidar and clair.navigation are no
+#     ament packages: a .pth in the system site-packages puts their source trees on its Python's path, as the offboard
+#     image does with its own.
+# The self filter runs without clair-twin[body] on the robot and passes the points through (R63).
 LIDAR_APT=(ros-jazzy-rslidar-sdk ros-jazzy-pointcloud-to-laserscan)
+LIDAR_PTH="$(python3 -c 'import site; print(site.getsitepackages()[0])')/clair-onboard.pth"
 lidar_missing() {
     local pkg missing=""
     for pkg in rslidar_sdk pointcloud_to_laserscan; do
@@ -1495,11 +1507,10 @@ lidar_missing() {
     printf '%s' "$missing"
 }
 DO_LIDAR=1
-if [ -f "$LIDAR_UNIT_PATH" ]; then
-    confirm ">>> ${LIDAR_UNIT} is already installed. Update?" || DO_LIDAR=0
+if [ -f "$LIDAR_PTH" ]; then
+    confirm ">>> ${LIDAR_PTH} is already installed. Update the lidar's packages and path?" || DO_LIDAR=0
 else
-    confirm ">>> Install the RS16 lidar service (points, filtered points, 2D scan; apt: ${LIDAR_APT[*]})?" \
-        || DO_LIDAR=0
+    confirm ">>> Install the lidar (apt: ${LIDAR_APT[*]}; ${LIDAR_PTH})?" || DO_LIDAR=0
 fi
 if [ "$DO_LIDAR" -eq 1 ]; then
     if [ -n "$(lidar_missing)" ]; then
@@ -1514,42 +1525,23 @@ if [ "$DO_LIDAR" -eq 1 ]; then
         fi
     fi
     LIDAR_MISSING="$(lidar_missing)"
-    if [ -n "$LIDAR_MISSING" ]; then
-        echo "    WARN: not installed:${LIDAR_MISSING} - lidar service skipped."
-    elif [ ! -f "${NAV_WS}/launch/scan.launch.py" ] || [ ! -f "${RS16_WS}/launch/lidar.launch.py" ]; then
-        echo "    WARN: ${NAV_WS}/launch/scan.launch.py or ${RS16_WS}/launch/lidar.launch.py is missing" \
-             "(onboard not cloned?) - lidar service skipped."
+    [ -n "$LIDAR_MISSING" ] && \
+        echo "    WARN: not installed:${LIDAR_MISSING} - clearpath-platform-extras cannot start the lidar."
+    if [ ! -d "${LIDAR_WS}/src/clair" ] || [ ! -d "${NAV_WS}/src/clair" ]; then
+        echo "    WARN: ${LIDAR_WS}/src or ${NAV_WS}/src is missing (onboard not cloned?) - ${LIDAR_PTH} not written."
     else
-        echo ">>> Installing ${LIDAR_WRAPPER} + ${LIDAR_UNIT}"
-        cat > "$LIDAR_WRAPPER" <<EOF
-#!/usr/bin/env bash
-# RS16: rslidar_sdk + self filter (onboard/rs16) + pointcloud_to_laserscan (onboard/navigation/launch/scan.launch.py).
-source /etc/clearpath/setup.bash
-export PYTHONPATH="${RS16_WS}/src:${NAV_WS}/src\${PYTHONPATH:+:\$PYTHONPATH}"
-exec ros2 launch ${NAV_WS}/launch/scan.launch.py
-EOF
-        chmod 0755 "$LIDAR_WRAPPER"
-
-        cat > "$LIDAR_UNIT_PATH" <<EOF
-[Unit]
-Description=RS16 lidar: rslidar_sdk + self filter + pointcloud_to_laserscan
-After=clearpath-platform.service
-Wants=clearpath-platform.service
-PartOf=clearpath-robot.service
-
-[Service]
-User=${REAL_USER}
-ExecStart=${LIDAR_WRAPPER}
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-        chmod 0644 "$LIDAR_UNIT_PATH"
+        echo ">>> Writing ${LIDAR_PTH}"
+        printf '%s\n' "${LIDAR_WS}/src" "${NAV_WS}/src" > "$LIDAR_PTH"
+        chmod 0644 "$LIDAR_PTH"
     fi
 else
-    echo ">>> RS16 lidar: skipped."
+    echo ">>> lidar: skipped."
+fi
+if [ -f "$RETIRED_LIDAR_UNIT_PATH" ]; then
+    echo ">>> Removing ${RETIRED_LIDAR_UNIT}: robot.yaml's platform.extras.launch starts the lidar"
+    systemctl disable --now "$RETIRED_LIDAR_UNIT" || true
+    rm -f "$RETIRED_LIDAR_UNIT_PATH" "$RETIRED_LIDAR_WRAPPER"
+    systemctl daemon-reload
 fi
 
 # --- manipulator diagnostics (optional) ------------------------------------
@@ -1923,7 +1915,6 @@ systemctl enable --now "$UNIT_NAME" "$JS_UNIT"
 # Watchdog: enable + start the TIMER (the .service is the oneshot check it triggers).
 [ -f "$WD_TIMER_PATH" ] && systemctl enable --now "$WD_TIMER"
 [ -f "$OCTO_UNIT_PATH" ] && systemctl enable --now "$OCTO_UNIT"
-[ -f "$LIDAR_UNIT_PATH" ] && systemctl enable --now "$LIDAR_UNIT"
 [ -f "$MD_UNIT_PATH" ] && systemctl enable --now "$MD_UNIT"
 [ -f "$BT_JOY_UNIT_PATH" ] && systemctl enable --now "$BT_JOY_UNIT"
 # Start the bridge IMMEDIATELY too, not only on the next boot: without it
@@ -1937,7 +1928,6 @@ VERIFY_UNITS=("$UNIT_PATH" "$JS_UNIT_PATH")
 [ -f "$USM_UNIT_PATH" ] && VERIFY_UNITS+=("$USM_UNIT_PATH")
 [ -f "$WD_UNIT_PATH" ] && VERIFY_UNITS+=("$WD_UNIT_PATH" "$WD_TIMER_PATH")
 [ -f "$OCTO_UNIT_PATH" ] && VERIFY_UNITS+=("$OCTO_UNIT_PATH")
-[ -f "$LIDAR_UNIT_PATH" ] && VERIFY_UNITS+=("$LIDAR_UNIT_PATH")
 [ -f "$MD_UNIT_PATH" ] && VERIFY_UNITS+=("$MD_UNIT_PATH")
 [ -f "$BT_JOY_UNIT_PATH" ] && VERIFY_UNITS+=("$BT_JOY_UNIT_PATH")
 [ -f "$RG6_BRIDGE_UNIT_PATH" ] && VERIFY_UNITS+=("$RG6_BRIDGE_UNIT_PATH")
@@ -1978,8 +1968,8 @@ echo "  ${RIDE_HEIGHT_PATCH_BIN}    : root-owned copy of scripts/ride_height_pat
 echo "  ${A200_LOOK_PATCH_BIN}   : root-owned copy of scripts/a200_look_patch.py (same; offboard too)"
 [ -f "$OCTO_UNIT_PATH" ] && \
 echo "  ${OCTO_UNIT}   : depth─▶PointCloud2 for MoveIt's octomap (the move_group sensor parameters come from robot.yaml)"
-[ -f "$LIDAR_UNIT_PATH" ] && \
-echo "  ${LIDAR_UNIT}  : RS16 points, filtered points and the 2D scan (onboard/navigation's scan.launch.py)"
+[ -f "$LIDAR_PTH" ] && \
+echo "  ${LIDAR_PTH} : clair.lidar + clair.navigation for clearpath-platform-extras (lidar points, filtered, 2D scan)"
 [ -f "$MD_UNIT_PATH" ] && \
 echo "  ${MD_UNIT} : UR5 + RG6 ─▶ diagnostic_msgs (the analyzers come from robot.yaml)"
 [ -f "$BT_JOY_UNIT_PATH" ] && \
@@ -2003,8 +1993,8 @@ echo "  journalctl -u ${USM_UNIT} -b"
 echo "  journalctl -t manipulators-watchdog -b   # + 'systemctl list-timers ${WD_TIMER}'"
 [ -f "$OCTO_UNIT_PATH" ] && \
 echo "  journalctl -u ${OCTO_UNIT} -b"
-[ -f "$LIDAR_UNIT_PATH" ] && \
-echo "  journalctl -u ${LIDAR_UNIT} -b   # + 'ros2 topic hz /a200_0553/sensors/lidar3d_0/points'"
+[ -f "$LIDAR_PTH" ] && \
+echo "  journalctl -u clearpath-platform-extras -b   # + 'ros2 topic hz /a200_0553/sensors/lidar3d_0/points'"
 [ -f "$MD_UNIT_PATH" ] && \
 echo "  journalctl -u ${MD_UNIT} -b   # + 'ros2 topic echo ${MANIP_NS%/manipulators}/diagnostics_agg'"
 [ -f "$BT_JOY_UNIT_PATH" ] && \

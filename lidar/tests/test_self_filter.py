@@ -1,10 +1,10 @@
-"""The self filter drops the RS16's points of the robot itself, and only near the sensor."""
+"""The self filter drops the lidar's points of the robot itself, and only near the sensor."""
 
 from __future__ import annotations
 
 import numpy as np
 
-from clair.rs16.self_filter import NEAR_M, robot_points
+from clair.lidar.self_filter import NEAR_M, robot_points
 
 
 def test_a_point_inside_the_robot_near_the_sensor_is_dropped() -> None:
