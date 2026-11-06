@@ -226,6 +226,21 @@ def test_robot_yaml_starts_a_launch_file_the_bringup_ships():
         assert (BRINGUP / launch["path"]).is_file(), launch["path"]
 
 
+def test_robot_yaml_hands_its_own_namespace_to_the_bringup():
+    """The generator passes an extras launch no namespace; robot.yaml states it as an argument, which has to be the
+    one the rest of the robot runs under, or bt_joy/open_pairing appears where Echo does not look."""
+    import yaml
+
+    robot_yaml = yaml.safe_load(_sibling("onboard/setup/config/robot.yaml").read_text(encoding="utf-8"))
+    stated = [
+        launch["args"]["namespace"]
+        for launch in robot_yaml["platform"]["extras"]["launch"]
+        if "namespace" in (launch.get("args") or {})
+    ]
+    assert stated, "no extras launch takes the namespace -- bt_joy.launch.py needs it"
+    assert set(stated) == {robot_yaml["system"]["ros2"]["namespace"]}
+
+
 MARWIN_TOOLED = REPO / "src" / "marwin_extras_description" / "urdf" / "marwin5_tooled.urdf.xacro"
 
 

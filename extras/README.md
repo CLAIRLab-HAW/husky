@@ -90,6 +90,10 @@ macro, the gripper package includes nothing from here.
   one place the model is named. A package and not a path, because Clearpath's generator (2.9.3) dies on an
   `extras.launch` entry without one; it is the bringup half of the description/bringup pair Clearpath's
   customization docs describe.
+- **The Bluetooth joystick pairing, started by `robot.yaml`**: `husky_extras_bringup`'s `launch/bt_joy.launch.py`
+  starts onboard/setup's `bt-joy-pairing` with the robot's `namespace`, the second `platform.extras.launch` entry. A
+  program the launch cannot find would end the whole extras launch, the lidar with it, so where the installer left
+  the pairing out it starts nothing and says so.
 - **MARWIN 5's tooled arm**, a third package, `marwin_extras_description`:
   `urdf/marwin5_tooled.urdf.xacro` is marwin_control's controlled description
   plus the SmartShift changer on `ur5e_tool0` (`urdf/smartshift.macro.xacro`,

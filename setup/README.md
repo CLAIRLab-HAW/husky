@@ -104,7 +104,7 @@ the Clearpath stack restarts. `--verify` reports both files as `MISSING` when th
 All units the installer creates carry the prefix `clearpath-custom-*`
 (`clearpath-custom-rg6-grip-bridge`, `clearpath-custom-joint-states`,
 `clearpath-custom-ur-dashboard`, `clearpath-custom-ur-state-manager`,
-`clearpath-custom-manipulator-diagnostics`, `clearpath-custom-octomap-feed`, `clearpath-custom-bt-joy`,
+`clearpath-custom-manipulator-diagnostics`, `clearpath-custom-octomap-feed`,
 `clearpath-custom-manipulators-watchdog.service`/`.timer` and
 `clearpath-custom-setup`). The arm controllers are not a service of their own but part of `ur_state_manager.launch.py`
 (argument `load_arm_controllers`). Drop-ins on Clearpath's own units (`clearpath-manipulators.service.d/override.conf`)
@@ -408,13 +408,15 @@ process (the candidate
 publishes). The change to robot.yaml takes effect immediately — `clearpath-robot-check` restarts the stack; the
 generated file is recreated on every boot anyway, and a `.bak` sits next to it.
 
-### `clearpath-custom-bt-joy.service` (the phone as Bluetooth joystick)
+### `bt-joy-pairing` (the phone as Bluetooth joystick, no unit of its own)
 
 Echo for Android can act as an HID gamepad whose reports land on the same `joy_linux` indices as the robot's own pad,
 so `joy_node` and `teleop_twist_joy` drive the base with the robot's speeds and deadman, without any network. The robot
 has Bluetooth (Intel AX200, `bluetooth.service` running) but no screen, so a pairing request waits for an agent that
 never answers. `scripts/bt_joy_pairing.py` (root-owned copy `/usr/local/bin/bt-joy-pairing`, running as the robot
-user) is that agent:
+user) is that agent. `robot.yaml` starts it under `platform.extras.launch` (`husky_extras_bringup`'s `bt_joy.launch.py`
+with the robot's `namespace`), in Clearpath's `clearpath-platform-extras` service, and it respawns there; where the
+installer's pairing step was skipped, the launch finds no program and starts nothing:
 
 * **`<ns>/bt_joy/open_pairing`** (`std_srvs/Trigger`) makes the adapter discoverable and pairable for 60 s and answers
   with flat JSON (`address`, `name`, `window_s`). The app calls it over the bridge and bonds to that address. Outside
@@ -424,24 +426,25 @@ user) is that agent:
   app offers the gamepad, with no window and no agent involved.
 
 The installer also writes `/etc/dbus-1/system.d/clearpath-custom-bt-joy.conf`, which lets the robot user talk to
-`org.bluez`.
+`org.bluez`, and takes out a `clearpath-custom-bt-joy` service it finds installed.
 
 **On the phone:** Drive → Bluetooth → *Pair with robot* (while connected to the robot over WiFi) and confirm Android's
 pairing dialog. After that, opening Drive → Bluetooth is enough.
 
 **Two pads side by side:** Clearpath's `joy_node` reads the Xbox pad as `/dev/input/xbox_pad` (robot.yaml), the
-service starts a second `joy_node` on `/dev/input/bt_joy` (any Bluetooth joystick but a PS4 pad) and a second
+agent starts a second `joy_node` on `/dev/input/bt_joy` (any Bluetooth joystick but a PS4 pad) and a second
 `teleop_twist_joy` onto the same `joy_teleop/cmd_vel`. Both udev names come from the installer's managed block.
 `teleop_twist_joy` publishes only while its deadman is held, so whoever holds it drives.
 
-**Check:** `journalctl -u clearpath-custom-bt-joy -b`, `bluetoothctl devices Paired`, `ls -l /dev/input/js*`,
+**Check:** `journalctl -u clearpath-platform-extras -b`, `bluetoothctl devices Paired`, `ls -l /dev/input/js*`,
 `ros2 topic echo /a200_0553/joy_teleop/joy`. The live test is R62 in `ROBOTER-TODO.md`.
 
 **ds4drv is masked** (installer, optional step): it is Clearpath's PS4 pad driver, this robot drives with the Xbox
 pad, and its virtual pad took a joystick slot. It had been disabled once and ran again, hence masked. Undo:
 `sudo systemctl unmask ds4drv && sudo systemctl enable --now ds4drv`.
 
-**Rollback:** `sudo systemctl disable --now clearpath-custom-bt-joy`, delete the unit file and the D-Bus policy.
+**Rollback:** take the `bt_joy.launch.py` entry out of `robot.yaml`, delete `/usr/local/bin/bt-joy-pairing` and
+the D-Bus policy.
 
 ## Running Tests
 

@@ -55,9 +55,11 @@
 #     diagnostic_msgs for the Clearpath aggregator (Cockpit, diagnostics_agg)
 #   - optional: mask ds4drv.service (a PS4 pad driver this robot does not use;
 #     its virtual pad takes a joystick slot and it came back after being disabled)
-#   - optional: clearpath-custom-bt-joy.service: the BlueZ agent that lets Echo
-#     for Android pair as the robot's Bluetooth joystick (HID only, inside a
-#     window the app opens over bt_joy/open_pairing), plus its D-Bus policy
+#   - optional: bt-joy-pairing, the BlueZ agent that lets Echo for Android
+#     pair as the robot's Bluetooth joystick (HID only, inside a window the app
+#     opens over bt_joy/open_pairing), plus its D-Bus policy.  Started by
+#     clearpath-platform-extras from robot.yaml's platform.extras.launch; a
+#     clearpath-custom-bt-joy.service found installed is taken out
 #   - clearpath-custom-rg6-grip-bridge.service: commands the RG6 over XML-RPC to
 #     the OnRobot URCap and publishes the finger joint plus the gripper state
 #   - optional: the cockpit-ros2-diagnostics fork with the manipulator panel to
@@ -201,11 +203,13 @@ MD_UNIT_PATH="/etc/systemd/system/${MD_UNIT}"
 # Echo for Android pairs as the robot's gamepad without anyone at a shell
 # (scripts/bt_joy_pairing.py says why it is gated the way it is).  It runs as
 # the robot user; the D-Bus policy lets that user talk to org.bluez.
+# robot.yaml's platform.extras.launch starts it (husky_extras_bringup's bt_joy.launch.py, which finds it on the PATH
+# by this name); the unit and wrapper are the custom service that carried it, taken out where installed.
 BT_JOY_BIN="${BIN_DIR}/bt-joy-pairing"
-BT_JOY_WRAPPER="${BIN_DIR}/bt-joy-pairing.sh"
-BT_JOY_UNIT="clearpath-custom-bt-joy.service"
-BT_JOY_UNIT_PATH="/etc/systemd/system/${BT_JOY_UNIT}"
 BT_JOY_DBUS_POLICY="/etc/dbus-1/system.d/clearpath-custom-bt-joy.conf"
+RETIRED_BT_JOY_WRAPPER="${BIN_DIR}/bt-joy-pairing.sh"
+RETIRED_BT_JOY_UNIT="clearpath-custom-bt-joy.service"
+RETIRED_BT_JOY_UNIT_PATH="/etc/systemd/system/${RETIRED_BT_JOY_UNIT}"
 
 # Cockpit plugin (fork of clearpathrobotics/cockpit-ros2-diagnostics with the
 # manipulator panel). Cockpit searches packages in this order:
@@ -720,7 +724,7 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{seria
 # js0: js0 goes to whichever joystick appears first -- ds4drv's virtual pad or the phone.
 KERNEL=="js*", SUBSYSTEM=="input", ATTRS{idVendor}=="045e", ATTRS{idProduct}=="0719", SYMLINK+="input/xbox_pad", MODE="0666"
 
-# A Bluetooth joystick (HID bus 0005) as input/bt_joy, which clearpath-custom-bt-joy's joy_node reads: Echo for
+# A Bluetooth joystick (HID bus 0005) as input/bt_joy, which bt-joy-pairing's joy_node reads: Echo for
 # Android as the robot's gamepad.  The PS4 pad (Sony, 054C) is ds4drv's, which re-emits it on js0 -- skipped, or it
 # would drive twice.
 KERNEL=="js*", SUBSYSTEM=="input", KERNELS=="0005:054C:*", GOTO="bt_joy_end"
@@ -1654,26 +1658,28 @@ fi
 
 # --- Bluetooth joystick pairing (optional) ----------------------------------
 # The robot has Bluetooth (Intel AX200, bluez running) but no agent: a phone's
-# pairing request waits for a confirmation nobody gives.  This unit is that
-# agent -- pairing only inside the window bt_joy/open_pairing opens, HID only,
-# the paired phone trusted so it reconnects by itself.  R62 in ROBOTER-TODO.md
-# is the live test.  Uninstalling: 'systemctl disable --now
-# clearpath-custom-bt-joy', delete the unit file and the D-Bus policy.
+# pairing request waits for a confirmation nobody gives.  bt-joy-pairing is
+# that agent -- pairing only inside the window bt_joy/open_pairing opens, HID
+# only, the paired phone trusted so it reconnects by itself.  R62 in the
+# ROBOTER-TODO archive was its live test.  robot.yaml's platform.extras.launch
+# starts it; this block installs the program and the D-Bus policy that lets the
+# robot user talk to org.bluez.  Uninstalling: delete ${BT_JOY_BIN} and the
+# policy -- the launch then starts nothing and says so.
 DO_BT_JOY=1
-if [ -f "$BT_JOY_UNIT_PATH" ]; then
-    confirm ">>> ${BT_JOY_UNIT} is already installed. Update?" || DO_BT_JOY=0
+if [ -f "$BT_JOY_BIN" ]; then
+    confirm ">>> ${BT_JOY_BIN} is already installed. Update?" || DO_BT_JOY=0
 else
     confirm ">>> Install the Bluetooth joystick pairing (Echo for Android pairs as the robot's gamepad)?" || DO_BT_JOY=0
 fi
 if [ "$DO_BT_JOY" -eq 1 ]; then
     if install_repo_tool scripts/bt_joy_pairing.py "$BT_JOY_BIN" python3 "$BT_JOY_BIN" --selftest; then
-        echo ">>> Installing ${BT_JOY_DBUS_POLICY}, ${BT_JOY_WRAPPER} + ${BT_JOY_UNIT}"
+        echo ">>> Installing ${BT_JOY_DBUS_POLICY}"
         # bluez's own policy lets only root (and on Ubuntu the bluetooth group) send to org.bluez; bluetoothd's calls
         # back into the agent are covered by that same file's root policy.
         cat > "$BT_JOY_DBUS_POLICY" <<EOF
 <!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
-<!-- clearpath-custom-bt-joy: the pairing agent runs as ${REAL_USER}. -->
+<!-- bt-joy-pairing: the pairing agent runs as ${REAL_USER}. -->
 <busconfig>
   <policy user="${REAL_USER}">
     <allow send_destination="org.bluez"/>
@@ -1682,37 +1688,17 @@ if [ "$DO_BT_JOY" -eq 1 ]; then
 EOF
         chmod 0644 "$BT_JOY_DBUS_POLICY"
         systemctl reload dbus || echo "    WARN: 'systemctl reload dbus' failed - the policy takes effect at the next boot."
-
-        cat > "$BT_JOY_WRAPPER" <<EOF
-#!/usr/bin/env bash
-# BlueZ agent + bt_joy/open_pairing: Echo for Android pairs as the robot's joystick.
-source /etc/clearpath/setup.bash
-exec python3 ${BT_JOY_BIN} --ros-args -r __ns:=${MANIP_NS%/manipulators}
-EOF
-        chmod 0755 "$BT_JOY_WRAPPER"
-
-        cat > "$BT_JOY_UNIT_PATH" <<EOF
-[Unit]
-Description=Bluetooth joystick pairing: BlueZ agent + bt_joy/open_pairing for Echo for Android
-After=bluetooth.service clearpath-platform.service
-Wants=bluetooth.service
-PartOf=clearpath-robot.service
-
-[Service]
-User=${REAL_USER}
-ExecStart=${BT_JOY_WRAPPER}
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-        chmod 0644 "$BT_JOY_UNIT_PATH"
     else
         echo "    WARN: bt_joy_pairing.py neither loadable nor present locally - Bluetooth joystick pairing skipped."
     fi
 else
     echo ">>> Bluetooth joystick pairing: skipped."
+fi
+if [ -f "$RETIRED_BT_JOY_UNIT_PATH" ]; then
+    echo ">>> Removing ${RETIRED_BT_JOY_UNIT}: robot.yaml's platform.extras.launch starts the pairing"
+    systemctl disable --now "$RETIRED_BT_JOY_UNIT" || true
+    rm -f "$RETIRED_BT_JOY_UNIT_PATH" "$RETIRED_BT_JOY_WRAPPER"
+    systemctl daemon-reload
 fi
 
 # --- the arm's files: kinematics calibration and RTDE recipe ----------------
@@ -1950,7 +1936,6 @@ systemctl enable --now "$UNIT_NAME" "$JS_UNIT"
 [ -f "$WD_TIMER_PATH" ] && systemctl enable --now "$WD_TIMER"
 [ -f "$OCTO_UNIT_PATH" ] && systemctl enable --now "$OCTO_UNIT"
 [ -f "$MD_UNIT_PATH" ] && systemctl enable --now "$MD_UNIT"
-[ -f "$BT_JOY_UNIT_PATH" ] && systemctl enable --now "$BT_JOY_UNIT"
 # Start the bridge IMMEDIATELY too, not only on the next boot: without it
 # rg6_finger_joint is missing from /joint_states, and until the reboot move_group
 # plans against a hand in its default pose (R22 in the ROBOTER-TODO archive).
@@ -1963,7 +1948,6 @@ VERIFY_UNITS=("$UNIT_PATH" "$JS_UNIT_PATH")
 [ -f "$WD_UNIT_PATH" ] && VERIFY_UNITS+=("$WD_UNIT_PATH" "$WD_TIMER_PATH")
 [ -f "$OCTO_UNIT_PATH" ] && VERIFY_UNITS+=("$OCTO_UNIT_PATH")
 [ -f "$MD_UNIT_PATH" ] && VERIFY_UNITS+=("$MD_UNIT_PATH")
-[ -f "$BT_JOY_UNIT_PATH" ] && VERIFY_UNITS+=("$BT_JOY_UNIT_PATH")
 [ -f "$RG6_BRIDGE_UNIT_PATH" ] && VERIFY_UNITS+=("$RG6_BRIDGE_UNIT_PATH")
 systemd-analyze verify "${VERIFY_UNITS[@]}" && echo "    units OK."
 
@@ -2006,8 +1990,8 @@ echo "  ${OCTO_UNIT}   : depth─▶PointCloud2 for MoveIt's octomap (the move_g
 echo "  ${LIDAR_PTH} : clair.lidar + clair.navigation for clearpath-platform-extras (lidar points, filtered, 2D scan)"
 [ -f "$MD_UNIT_PATH" ] && \
 echo "  ${MD_UNIT} : UR5 + RG6 ─▶ diagnostic_msgs (the analyzers come from robot.yaml)"
-[ -f "$BT_JOY_UNIT_PATH" ] && \
-echo "  ${BT_JOY_UNIT} : BlueZ agent, Echo for Android pairs as the joystick (bt_joy/open_pairing)"
+[ -f "$BT_JOY_BIN" ] && \
+echo "  ${BT_JOY_BIN} : BlueZ agent, Echo for Android pairs as the joystick; clearpath-platform-extras starts it"
 [ -f "$RG6_BRIDGE_UNIT_PATH" ] && \
 echo "  ${RG6_BRIDGE_UNIT} : RG6 over XML-RPC to the OnRobot URCap (grip commands, finger joint, gripper state)"
 [ -d "$CKPT_PKG_DIR" ] && \
@@ -2031,8 +2015,8 @@ echo "  journalctl -u ${OCTO_UNIT} -b"
 echo "  journalctl -u clearpath-platform-extras -b   # + 'ros2 topic hz /a200_0553/sensors/lidar3d_0/points'"
 [ -f "$MD_UNIT_PATH" ] && \
 echo "  journalctl -u ${MD_UNIT} -b   # + 'ros2 topic echo ${MANIP_NS%/manipulators}/diagnostics_agg'"
-[ -f "$BT_JOY_UNIT_PATH" ] && \
-echo "  journalctl -u ${BT_JOY_UNIT} -b   # + 'bluetoothctl devices Paired', 'ls -l /dev/input/js*'"
+[ -f "$BT_JOY_BIN" ] && \
+echo "  journalctl -u clearpath-platform-extras -b | grep bt_joy   # + 'bluetoothctl devices Paired'"
 [ -f "$RG6_BRIDGE_UNIT_PATH" ] && \
 echo "  journalctl -u ${RG6_BRIDGE_UNIT} -b   # + 'ros2 topic echo ${MANIP_NS}/rg6/bridge_state'"
 echo

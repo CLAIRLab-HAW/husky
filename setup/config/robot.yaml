@@ -39,18 +39,26 @@ platform:
       # together when this path does.
       path: /home/robot/onboard/extras/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
     # What the robot starts beyond Clearpath's services, run by its clearpath-platform-extras service: the lidar's
-    # driver and self filter (onboard/lidar) and the scan on them (onboard/navigation), read-only.  A list in
-    # clearpath_config 2.9.x (Clearpath's docs still say one file).  It names a PACKAGE and a path in its share, not an
-    # absolute path: clearpath_generator_robot 2.9.3 builds Package(launch.package) unconditionally and dies on
-    # 'pkg_' + None.  lidar_model names the robot's ONE lidar in the slot lidar3d_0: rs16, or qb2 (the lab's Blickfeld
-    # Qb2) in its place (onboard/lidar, clair.lidar.models).  The container's sim plants read it here; the extras
-    # file's lidar_model default has to say the same, which its tests hold, since the generator passes it no arguments.
-    # A switch to qb2 also wants the mount pose below measured again, and a rerun of the installer (R88).
+    # driver and self filter (onboard/lidar) and the scan on them (onboard/navigation), read-only, and the Bluetooth
+    # joystick pairing.  A list in clearpath_config 2.9.x (Clearpath's docs still say one file).  It names a PACKAGE
+    # and a path in its share, not an absolute path: clearpath_generator_robot 2.9.3 builds Package(launch.package)
+    # unconditionally and dies on 'pkg_' + None.
+    # lidar_model names the robot's ONE lidar in the slot lidar3d_0: rs16, or qb2 (the lab's Blickfeld Qb2) in its
+    # place (onboard/lidar, clair.lidar.models).  The container's sim plants read it here; the extras file's
+    # lidar_model default has to say the same, which its tests hold, since the generator passes it no arguments.  A
+    # switch to qb2 also wants the mount pose below measured again, and a rerun of the installer (R88).
     launch:
       - package: husky_extras_bringup
         path: launch/lidar.launch.py
         args:
           lidar_model: rs16
+      # The Bluetooth joystick pairing (onboard/setup's scripts/bt_joy_pairing.py, installed as bt-joy-pairing): the
+      # BlueZ agent and bt_joy/open_pairing.  namespace is system.ros2.namespace's; the generator gives an extras
+      # launch none, and a test holds the two equal.
+      - package: husky_extras_bringup
+        path: launch/bt_joy.launch.py
+        args:
+          namespace: a200_0553
     ros_parameters:
       joy_node:
         # The Xbox 360 wireless receiver's pad under its own udev name (installer, managed udev block): js0 goes to
