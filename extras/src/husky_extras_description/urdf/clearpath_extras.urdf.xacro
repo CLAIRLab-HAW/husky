@@ -10,7 +10,7 @@
   Hangs ONLY new links/joints onto frames the generator has already produced:
     - arm_0_tool0          = UR5 tool frame (ROS-Industrial all-zeros)  -> the end effector (tools/, RG6 by default)
     - top_plate_rear_mount = frame the sensor arch stands on
-    - lidar3d_0_mount_link = robot.yaml's frame where the RS16 sits on the arch -> the RS16 (rs16_description)
+    - lidar3d_0_mount_link = robot.yaml's frame where the lidar sits on the arch -> the RS16 or the Qb2 (lidars/)
     - top_chassis_link     = Clearpath's top chassis -> the charging connector on its sloped rear face
 
   WHY THIS IS ITS OWN PACKAGE.  Everything here is THIS ROBOT's assembly, not a
@@ -19,14 +19,15 @@
   them; it describes an RG6, which is the same hand on any arm.  The
   dependency therefore runs one way only: this package includes
   rg6_description's macro, and rg6_description includes nothing from here.
-  The same holds for the RS16 and rs16_description.
+  The same holds for the lidars and rs16_description / qb2_description.
 
   END EFFECTOR: tools/<end_effector>.urdf.xacro; tools/rg6.urdf.xacro says how the RG6 is modelled.
+  LIDAR: lidars/<lidar_model>.urdf.xacro, the robot's one lidar in the slot lidar3d_0.
 
-  PRECONDITION: ALL THREE packages have to be installed in a workspace listed in
+  PRECONDITION: the packages have to be installed in a workspace listed in
   robot.yaml under 'system.ros2.workspaces': 'husky_extras_description' for
   the arch mesh and this file itself, 'rg6_description' for the gripper macro
-  and 'rs16_description' for the lidar's, each with its meshes.  Without one of
+  and 'rs16_description' or 'qb2_description' for the lidar's, each with its meshes.  Without one of
   them the generator dies on an include, or RViz and the foxglove_bridge draw a
   robot with holes in it where the package:// meshes belong.
 -->
@@ -39,13 +40,14 @@
   <xacro:arg name="end_effector" default="rg6"/>
   <xacro:include filename="tools/$(arg end_effector).urdf.xacro"/>
 
-  <!-- ===== RS16 on the arch, at robot.yaml's lidar3d_0_mount ===== -->
-  <!-- The mounting pose is robot.yaml's (links.frame lidar3d_0_mount, measured on the robot); the sensor, its
-       mesh, collision, mass and the laser frame 39 mm above the mounting face are rs16_description's. -->
-  <xacro:include filename="$(find rs16_description)/urdf/rs16.urdf.xacro"/>
-  <xacro:rs16 name="lidar3d_0" parent_link="lidar3d_0_mount_link">
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-  </xacro:rs16>
+  <!-- ===== the lidar on the arch, at robot.yaml's lidar3d_0_mount ===== -->
+  <!-- ONE lidar, the RS16 or the Qb2 in its place: one file per model under lidars/, chosen by lidar_model.  robot.yaml
+       names the model under platform.extras.launch, but Clearpath's generator passes this file no arguments
+       (clearpath_config 2.9.x: extras.urdf is a package and a path), so on the robot the default decides, and a
+       test holds it to robot.yaml's lidar_model (tests/test_extras_urdf.py).  The offboard mock passes
+       lidar_model:= from its robot.yaml. -->
+  <xacro:arg name="lidar_model" default="rs16"/>
+  <xacro:include filename="lidars/$(arg lidar_model).urdf.xacro"/>
 
   <!-- ===== custom top assembly (replaces a200.sensor_arch) ===== -->
   <link name="husky_top_assembly">

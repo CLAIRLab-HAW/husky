@@ -33,9 +33,13 @@ macro, the gripper package includes nothing from here.
   of 6.21 kg. Until 2026-08-20 the link had no collision at all and MoveIt
   planned straight through it (R15); until 2026-08-31 no mass, so both
   simulators carried a half-metre portal frame as 0.1 kg (R47).
-- **The RS16 where robot.yaml measured it.** `robot.yaml` places the frame `lidar3d_0_mount_link`; this file hangs
-  [rs16_description](../lidar/src/rs16_description/README.md)'s macro on it, which brings the lidar's mesh,
-  collision cylinder, mass and `lidar3d_0_laser`.
+- **The lidar where robot.yaml measured it — one, the RS16 or the Qb2.** `robot.yaml` places the frame
+  `lidar3d_0_mount_link`; the xacro argument `lidar_model` (default `rs16`) includes `urdf/lidars/<name>.urdf.xacro`,
+  which hangs [rs16_description](../lidar/src/rs16_description/README.md)'s or
+  [qb2_description](../lidar/src/qb2_description/README.md)'s macro on it, with the lidar's mesh or box, collision,
+  mass and `lidar3d_0_laser`. Clearpath's generator passes this file no arguments, so on the robot the default
+  decides: a test holds it to `robot.yaml`'s `lidar_model`. The offboard mock passes `lidar_model:=` from its
+  `robot.yaml`.
 - **The a200's top chassis in its real colors**, `meshes/a200_top_chassis.dae`: Clearpath's mesh split into its
   parts by `tools/a200_chassis_mesh.py`: the chassis #E29000, the emergency stop red, the power button and the key
   lock metallic silver, the status LEDs black (Clearpath's mesh has one greenish-yellow material for all of it).

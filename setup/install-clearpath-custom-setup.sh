@@ -1011,8 +1011,9 @@ else
 fi
 
 # --- build lidar (as the real user, not root) -------------------------------
-# rs16_description, the RS16's macro and mesh: the extras file includes it with $(find rs16_description), so the
-# generator dies on that include while the workspace robot.yaml lists is unbuilt.  A pure data package.
+# rs16_description and qb2_description, the two lidars' macros: the extras file includes the one robot.yaml's model
+# names with $(find ...), so the generator dies on that include while the workspace robot.yaml lists is unbuilt.
+# Both are built, so that switching the model in robot.yaml needs no build.  Pure data packages.
 DO_LIDAR_BUILD=1
 if [ -d "${LIDAR_WS}/install" ]; then
     confirm ">>> lidar is built in ${LIDAR_WS}. Rebuild?" || DO_LIDAR_BUILD=0
@@ -1020,7 +1021,7 @@ fi
 if [ "$DO_LIDAR_BUILD" -eq 1 ]; then
     echo ">>> Building ${LIDAR_WS} (colcon, user ${REAL_USER})"
     sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
-        "source '$ROS_SETUP' && cd '$LIDAR_WS' && colcon build --packages-select rs16_description" \
+        "source '$ROS_SETUP' && cd '$LIDAR_WS' && colcon build --packages-select rs16_description qb2_description" \
         || echo "    WARN: colcon build failed - the generator cannot expand the extras file (no robot model)."
 else
     echo ">>> lidar: skipped (the existing build stays)."
@@ -1499,6 +1500,28 @@ fi
 # The self filter runs without clair-twin[body] on the robot and passes the points through (R63).
 LIDAR_APT=(ros-jazzy-rslidar-sdk ros-jazzy-pointcloud-to-laserscan)
 LIDAR_PTH="$(python3 -c 'import site; print(site.getsitepackages()[0])')/clair-onboard.pth"
+# The Qb2's driver, built only where robot.yaml names the Qb2: Blickfeld ships no apt package (none in rosdistro's
+# jazzy or humble, 2026-11-07) and claims Foxy and Humble, not Jazzy -- so it is built from its tag here, and a failed
+# build says so instead of stopping the installer (R88).  Its CMake fetches Blickfeld's protocol
+# (github.com/Blickfeld/blickfeld-qb2) while it builds, so this needs the network.  The build dependencies are its
+# README's, from apt.
+QB2_DRIVER_URL="https://github.com/Blickfeld/blickfeld_qb2_ros2_driver.git"
+QB2_DRIVER_TAG="v2.1.0"
+QB2_DRIVER_DIR="${LIDAR_WS}/src/blickfeld_qb2_ros2_driver"   # untracked (onboard/lidar/.gitignore)
+QB2_APT=(libgrpc++-dev protobuf-compiler-grpc libprotobuf-dev ros-jazzy-diagnostic-updater)
+# apt-get install of "$@", but only while a simulation shows nothing but new packages.
+apt_add_only() {
+    local sim
+    echo ">>> apt: $* (simulated first)"
+    sim="$(apt-get -s install "$@" 2>/dev/null || true)"
+    if grep -qE '^Remv |^Inst [^ ]+ \[|DOWNGRADED' <<<"$sim"; then
+        echo "    WARN: apt would remove, downgrade or upgrade an installed package - nothing installed:"
+        grep -E '^(Remv|Inst) ' <<<"$sim" | sed 's/^/          /'
+        return 1
+    fi
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-upgrade "$@" \
+        || { echo "    WARN: apt-get install failed."; return 1; }
+}
 lidar_missing() {
     local pkg missing=""
     for pkg in rslidar_sdk pointcloud_to_laserscan; do
@@ -1513,17 +1536,7 @@ else
     confirm ">>> Install the lidar (apt: ${LIDAR_APT[*]}; ${LIDAR_PTH})?" || DO_LIDAR=0
 fi
 if [ "$DO_LIDAR" -eq 1 ]; then
-    if [ -n "$(lidar_missing)" ]; then
-        echo ">>> apt: ${LIDAR_APT[*]} (simulated first)"
-        _sim="$(apt-get -s install "${LIDAR_APT[@]}" 2>/dev/null || true)"
-        if grep -qE '^Remv |^Inst [^ ]+ \[|DOWNGRADED' <<<"$_sim"; then
-            echo "    WARN: apt would remove, downgrade or upgrade an installed package - nothing installed:"
-            grep -E '^(Remv|Inst) ' <<<"$_sim" | sed 's/^/          /'
-        else
-            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-upgrade "${LIDAR_APT[@]}" \
-                || echo "    WARN: apt-get install failed."
-        fi
-    fi
+    [ -n "$(lidar_missing)" ] && { apt_add_only "${LIDAR_APT[@]}" || true; }
     LIDAR_MISSING="$(lidar_missing)"
     [ -n "$LIDAR_MISSING" ] && \
         echo "    WARN: not installed:${LIDAR_MISSING} - clearpath-platform-extras cannot start the lidar."
@@ -1533,6 +1546,27 @@ if [ "$DO_LIDAR" -eq 1 ]; then
         echo ">>> Writing ${LIDAR_PTH}"
         printf '%s\n' "${LIDAR_WS}/src" "${NAV_WS}/src" > "$LIDAR_PTH"
         chmod 0644 "$LIDAR_PTH"
+    fi
+    # Read through clair.lidar itself, which the .pth just put on the path: the one place robot.yaml is parsed.
+    _read_model='import sys; from clair.lidar import models; print(models.robot_model(sys.argv[1]).name)'
+    LIDAR_MODEL="$(python3 -c "$_read_model" "${SETUP_WS}/config/robot.yaml" 2>/dev/null || true)"
+    echo ">>> robot.yaml's lidar: ${LIDAR_MODEL:-unreadable}"
+    if [ "$LIDAR_MODEL" = "qb2" ]; then
+        apt_add_only "${QB2_APT[@]}" || true
+        if [ ! -d "$QB2_DRIVER_DIR/.git" ]; then
+            sudo -u "$REAL_USER" git clone --quiet --depth 1 --branch "$QB2_DRIVER_TAG" \
+                "$QB2_DRIVER_URL" "$QB2_DRIVER_DIR" || echo "    WARN: cloning ${QB2_DRIVER_URL} failed."
+        elif [ "$(sudo -u "$REAL_USER" git -C "$QB2_DRIVER_DIR" describe --tags 2>/dev/null)" != "$QB2_DRIVER_TAG" ]
+        then
+            echo "    WARN: ${QB2_DRIVER_DIR} is not at ${QB2_DRIVER_TAG} - left as it is, built as it is."
+        fi
+        if [ -d "$QB2_DRIVER_DIR" ]; then
+            echo ">>> Building blickfeld_qb2_ros2_driver ${QB2_DRIVER_TAG} in ${LIDAR_WS} (colcon, user ${REAL_USER})"
+            sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
+                "source '$ROS_SETUP' && cd '$LIDAR_WS' && colcon build --packages-select blickfeld_qb2_ros2_driver" \
+                || echo "    WARN: the Qb2 driver did not build (Blickfeld claims Foxy and Humble, not Jazzy; R88)" \
+                        "- clearpath-platform-extras cannot start the lidar."
+        fi
     fi
 else
     echo ">>> lidar: skipped."

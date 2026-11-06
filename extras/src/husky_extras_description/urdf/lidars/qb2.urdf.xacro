@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!-- The Blickfeld Qb2 in the RS16's place, at robot.yaml's lidar3d_0_mount: qb2_description's back face on that
+     frame, its boresight along the frame's +x.  robot.yaml's mount pose is the RS16's, measured for a sensor lying
+     on its base; the Qb2 is screwed on by its back, so the pose has to be measured again once it is mounted (R88). -->
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:include filename="$(find qb2_description)/urdf/qb2.urdf.xacro"/>
+  <xacro:qb2 name="lidar3d_0" parent_link="lidar3d_0_mount_link">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:qb2>
+</robot>

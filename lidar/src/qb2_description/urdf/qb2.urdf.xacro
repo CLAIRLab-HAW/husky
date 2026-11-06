@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<!--
+  The Blickfeld Qb2 as a macro, in the shape of rs16_description's: ${name}_link on the mounting face,
+  ${name}_laser at the measurement origin, the frame blickfeld_qb2_ros2_driver stamps every PointCloud2 with.
+  Called with name="lidar3d_0", both names are the RS16's: the Qb2 is its alternative in the same slot.
+
+  ${name}_link sits at the middle of the BACK face, where the four M4 threads are (datasheet 51204-ETR-v2.2), x out of
+  the front along the boresight, z up.  ${name}_laser is the device's own frame, which the driver hands on unrotated:
+  x right, y ahead, z up (docs.blickfeld.com, Qb2 coordinate system), hence the -90° about z, so the points land
+  where the sensor looks.  Its origin lies at half the housing's height and about 20 mm ahead of the back face: the
+  drawing puts it 33 mm behind the front of the 53 mm deep ST housing.  The drawing also cants the boresight some 5°
+  below the housing's datum; read off a figure and not measured, it is left out here (R88).
+
+  The housing is the Qb2 ST's, 111 x 75 x 53 mm (W x H x D), about 0.40 kg; the ETR variant is 83 mm deep and 0.535 kg
+  (R88: which one the lab has).  A box for visual and collision alike: Blickfeld's CAD is a STEP without a stated
+  license, and no mesh is derived from it yet.  The inertia is that of a homogeneous box of that mass.
+-->
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:macro name="qb2" params="name parent_link *origin">
+    <xacro:property name="depth" value="0.053"/>
+    <xacro:property name="width" value="0.111"/>
+    <xacro:property name="height" value="0.075"/>
+    <xacro:property name="mass" value="0.40"/>
+    <link name="${name}_link">
+      <inertial>
+        <origin xyz="${depth / 2} 0 0"/>
+        <mass value="${mass}"/>
+        <inertia ixx="${mass * (width * width + height * height) / 12}" ixy="0" ixz="0"
+                 iyy="${mass * (depth * depth + height * height) / 12}" iyz="0"
+                 izz="${mass * (depth * depth + width * width) / 12}"/>
+      </inertial>
+      <visual>
+        <origin xyz="${depth / 2} 0 0"/>
+        <geometry>
+          <box size="${depth} ${width} ${height}"/>
+        </geometry>
+        <material name="qb2_housing">
+          <color rgba="0.15 0.15 0.16 1"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="${depth / 2} 0 0"/>
+        <geometry>
+          <box size="${depth} ${width} ${height}"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <joint name="${name}_joint" type="fixed">
+      <xacro:insert_block name="origin"/>
+      <parent link="${parent_link}"/>
+      <child link="${name}_link"/>
+    </joint>
+
+    <link name="${name}_laser"/>
+
+    <joint name="${name}_laser_joint" type="fixed">
+      <origin xyz="0.020 0 0" rpy="0 0 ${-pi / 2}"/>
+      <parent link="${name}_link"/>
+      <child link="${name}_laser"/>
+    </joint>
+  </xacro:macro>
+</robot>

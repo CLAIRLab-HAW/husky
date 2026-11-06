@@ -1,0 +1,15 @@
+# blickfeld_qb2_ros2_driver's parameters for a Blickfeld Qb2 in the a200-0553's lidar slot (v2.1.0,
+# src/qb2_ros2_driver.cpp declares them).  clair.lidar.blickfeld_qb2.parameters() adds the two the wiring owns,
+# frame_id and point_cloud_topic -- they are NOT here, so they cannot disagree with clair.lidar.wiring.
+#
+# fqdn: the Qb2 takes its address by DHCP and answers as qb2-<serial>.local; without a DHCP server it falls back to
+# 192.168.26.26/24 (docs.blickfeld.com, Qb2 firmware networking).  The fallback stands here until the lab's unit has
+# an address on the robot's network (R88).
+fqdn: 192.168.26.26
+serial_number: ""        # pins the device's TLS certificate when set
+application_key: ""
+# false: stamped with the host's clock at reading, like rslidar_sdk with use_lidar_clock false -- without PTP the
+# host clock is the one TF agrees with.
+use_measurement_timestamp: false
+publish_intensity: true  # photon count, UINT32
+publish_point_id: false

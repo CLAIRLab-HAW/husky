@@ -331,13 +331,16 @@ commits behind the checkout and nothing said so. A `--verify` run needs no root.
 ### The lidar (no unit of its own)
 
 `robot.yaml` starts it under `platform.extras.launch`: Clearpath's own `clearpath-platform-extras` service runs
-`husky_extras_bringup`'s `lidar.launch.py` ([onboard/extras](../extras/README.md)) with `lidar_model: rs16`, which
-includes [onboard/navigation](../navigation/README.md)'s scan and, through it, [onboard/lidar](../lidar/README.md)'s
-driver and self filter — `…/lidar3d_0/points`, `points_filtered` and `scan`, read-only. The installer brings what that
-service cannot: the apt packages `ros-jazzy-rslidar-sdk` and `ros-jazzy-pointcloud-to-laserscan`, and
-`clair-onboard.pth` in the system site-packages, which puts `~/onboard/lidar/src` and `~/onboard/navigation/src` on
-the Python path (the service sources `/etc/clearpath/setup.bash` and nothing else). A `clearpath-custom-lidar`
-service found installed is taken out: next to the extras launch it would start a second driver on the same ports.
+`husky_extras_bringup`'s `lidar.launch.py` ([onboard/extras](../extras/README.md)) with `lidar_model: rs16` (or `qb2`,
+the Blickfeld Qb2 in its place), which includes [onboard/navigation](../navigation/README.md)'s scan and, through it,
+[onboard/lidar](../lidar/README.md)'s driver and self filter — `…/lidar3d_0/points`, `points_filtered` and `scan`,
+read-only. The installer brings what that service cannot: the apt packages `ros-jazzy-rslidar-sdk` and
+`ros-jazzy-pointcloud-to-laserscan`, and `clair-onboard.pth` in the system site-packages, which puts
+`~/onboard/lidar/src` and `~/onboard/navigation/src` on the Python path (the service sources
+`/etc/clearpath/setup.bash` and nothing else). Where `robot.yaml` names the `qb2`, it also builds Blickfeld's driver,
+`blickfeld_qb2_ros2_driver` `v2.1.0`, from source into `~/onboard/lidar` (no apt package; its build fetches
+Blickfeld's protocol from GitHub). A `clearpath-custom-lidar` service found installed is taken out: next to the extras
+launch it would start a second driver on the same ports.
 
 ```bash
 journalctl -u clearpath-platform-extras -b

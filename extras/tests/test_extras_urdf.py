@@ -29,6 +29,8 @@ PACKAGE = "husky_extras_description"
 EXTRAS = REPO / "src" / PACKAGE / "urdf" / "clearpath_extras.urdf.xacro"
 #: The end effectors ``end_effector:=<name>`` selects, one file each.
 TOOLS = sorted((EXTRAS.parent / "tools").glob("*.urdf.xacro"))
+#: The lidars ``lidar_model:=<name>`` selects, one file each -- the robot carries one of them.
+LIDARS = sorted((EXTRAS.parent / "lidars").glob("*.urdf.xacro"))
 #: Every xacro file of every package here -- tools, the macros they call, the other robots' descriptions.
 XACROS = sorted((REPO / "src").rglob("*.xacro"))
 
@@ -166,6 +168,37 @@ def test_robot_yaml_addresses_this_file_and_sources_this_workspace():
         f"{ROBOT_WORKSPACE} is not in system.ros2.workspaces -- the generator would find the file and then fail "
         f"on $(find rg6_description) resp. leave package://{PACKAGE} unresolvable"
     )
+
+
+def test_the_lidar_is_an_argument_whose_default_is_robot_yamls(extras_text):
+    """Clearpath's generator passes this file no arguments, so on the robot the default IS the lidar: it has to be the
+    model robot.yaml starts the driver for, or the robot is drawn with one sensor while it reads the other."""
+    import re
+
+    import yaml
+
+    default = re.search(r'<xacro:arg name="lidar_model" default="([^"]+)"/>', extras_text)
+    assert default, "lidar_model is no argument with a default"
+    assert '<xacro:include filename="lidars/$(arg lidar_model).urdf.xacro"/>' in extras_text
+    robot_yaml = yaml.safe_load(_sibling("onboard/setup/config/robot.yaml").read_text(encoding="utf-8"))
+    named = [
+        launch["args"]["lidar_model"]
+        for launch in robot_yaml["platform"]["extras"]["launch"]
+        if "lidar_model" in (launch.get("args") or {})
+    ]
+    assert named == [default.group(1)], f"robot.yaml starts {named}, the description draws {default.group(1)}"
+
+
+def test_every_lidar_model_has_a_file_and_every_file_a_model():
+    """One file per model of clair.lidar.models, no more: an unknown lidar_model fails on its missing file, by name."""
+    models = pytest.importorskip("clair.lidar.models")
+    assert {p.name.removesuffix(".urdf.xacro") for p in LIDARS} == set(models.MODELS)
+
+
+@pytest.mark.parametrize("path", LIDARS, ids=lambda p: p.name)
+def test_every_lidar_hangs_on_the_one_slot(path):
+    text = path.read_text(encoding="utf-8")
+    assert 'name="lidar3d_0" parent_link="lidar3d_0_mount_link"' in text
 
 
 BRINGUP = REPO / "src" / "husky_extras_bringup"

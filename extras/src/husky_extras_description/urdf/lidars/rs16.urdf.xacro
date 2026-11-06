@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!-- The RS16 at robot.yaml's lidar3d_0_mount: the mounting pose is robot.yaml's (links.frame lidar3d_0_mount,
+     measured on the robot); the sensor, its mesh, collision, mass and the laser frame 39 mm above the mounting face
+     are rs16_description's. -->
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:include filename="$(find rs16_description)/urdf/rs16.urdf.xacro"/>
+  <xacro:rs16 name="lidar3d_0" parent_link="lidar3d_0_mount_link">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:rs16>
+</robot>

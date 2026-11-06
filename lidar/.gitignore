@@ -15,3 +15,5 @@ AMENT_IGNORE
 # a package run with --cov writes these; the workspace-wide measurement writes to the root instead
 .coverage
 .coverage.*
+# Blickfeld's Qb2 driver, cloned and built here by the installer where robot.yaml names the Qb2
+src/blickfeld_qb2_ros2_driver/
