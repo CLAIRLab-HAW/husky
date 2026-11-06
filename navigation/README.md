@@ -1,4 +1,4 @@
-# husky-navigation
+# onboard/navigation
 
 Provides the mobile-base capability; locomotion remains outside the first manipulation milestone.
 See the [physical-intelligence architecture](../../docs/COGNITIVE-ARCHITECTURE.md).

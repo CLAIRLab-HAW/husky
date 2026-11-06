@@ -1,4 +1,4 @@
-# husky-extras
+# onboard/extras
 
 The URDF extras of the **a200-0553**: everything this particular robot has that
 neither Clearpath's own description nor a component package knows about — the
@@ -16,7 +16,7 @@ platform:
       path: /home/robot/onboard/extras/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
 ```
 
-**Why this is a repo of its own.** Every link here hangs on a frame that only
+**Why this is a package of its own.** Every link here hangs on a frame that only
 exists once the generator has built an a200 with a UR5 on it — `arm_0_tool0`,
 `top_plate_rear_mount`, `top_plate_front_mount`. A component package must not
 know those: `rg6_description` describes an RG6, which is the same hand on any
@@ -38,7 +38,7 @@ macro, the gripper package includes nothing from here.
 - **The a200's top chassis in its real colors**, `meshes/a200_top_chassis.dae`: Clearpath's mesh split into its
   parts by `tools/a200_chassis_mesh.py`: the chassis #E29000, the emergency stop red, the power button and the key
   lock metallic silver, the status LEDs black (Clearpath's mesh has one greenish-yellow material for all of it).
-  `a200_look_patch` in [husky-custom-setup](../setup/README.md) points the `top_chassis_link` visual here.
+  `a200_look_patch` in [onboard/setup](../setup/README.md) points the `top_chassis_link` visual here.
 - **The a200's indoor wheel with its real rims**, `meshes/a200_indoor_wheel.dae`, written by
   `tools/a200_wheel_mesh.py`: Clearpath's indoor tire, shrunk radially to the measured rolling radius 0.1477 m (R58;
   Clearpath's reaches 0.1625 m) with its bead and width kept, on the a200-0553's rim from Clearpath's CAD (two
@@ -54,7 +54,7 @@ macro, the gripper package includes nothing from here.
   colored RealSense D435i (black acrylic front, gray camera modules, dark IR lenses in polished rims, the green IR
   emitter, the red-tinted RGB lens, the aluminum casing a light gray), registered onto `realsense2_description`'s
   `d435.dae` (one gray for the whole camera), so its frame and `clearpath_sensors_description`'s visual origin hold
-  unchanged; decimated to 23326 triangles, 1.5 MB. `a200_look_patch` in [husky-custom-setup](../setup/README.md)
+  unchanged; decimated to 23326 triangles, 1.5 MB. `a200_look_patch` in [onboard/setup](../setup/README.md)
   points the D435 macro's visual here.
 - **The RG6's tool cable**, `meshes/rg6_cable.dae`, written by `tools/rg6_cable_mesh.py`: a black M8 cable, 5.5 mm,
   from the outlet on the RG6's bracket round the wrist 3's -x side to the UR5's tool connector, with a straight plug
@@ -106,7 +106,7 @@ cd ~/onboard/extras && colcon build --packages-select husky_extras_description
 ```
 
 In the offboard container the package comes out of the build context and is
-built into `/opt/husky-extras` (the `extras-build` stage), so the image tag is
+built into `/opt/onboard/extras` (the `extras-build` stage), so the image tag is
 the state of the checkout it was built from; the entrypoint symlinks
 `/home/robot/onboard/extras` onto it, so the absolute paths from `robot.yaml`
 resolve there as well.
@@ -119,11 +119,11 @@ Nothing here is started. The file is read by
   in the `plant-mock` container),
 - RViz and the `foxglove_bridge`, which resolve the arch mesh through the
   ament index of their own container,
-- and `tools/derive_link_inertia.py` in `onrobot-rg6`, whose box mode recomputes
+- and `tools/derive_link_inertia.py` in `onboard/rg6`, whose box mode recomputes
   the arch inertia from its collision boxes:
 
 ```bash
-python3 ../onrobot-rg6/tools/derive_link_inertia.py --box-link \
+python3 ../rg6/tools/derive_link_inertia.py --box-link \
     src/husky_extras_description/urdf/clearpath_extras.urdf.xacro husky_top_assembly 6.21
 ```
 
@@ -138,21 +138,21 @@ well-formed XML (an XML comment cannot contain `--`, and a malformed extras file
 takes `move_group` down with it), that every `package://` URI names a package
 that really ships the file, that `end_effector` defaults to the RG6, that the
 addressed link names survived (the camera's parent in every tool), and that
-`robot.yaml` in `husky-custom-setup` still points at this path and lists this
+`robot.yaml` in `onboard/setup` still points at this path and lists this
 workspace.
 
 `.github/workflows/ci.yml` runs the same suite on every push and pull request.
-It checks `husky-custom-setup` out next to this repo and lays a
-`workspace.repos` above both, because the `robot.yaml` check skips itself while
+It checks the workspace root out alongside this repo, which carries
+`workspace.repos`, because the `robot.yaml` check skips itself while
 there is no workspace root — a run without that marker would be green having
 compared nothing.
 
 ## Related
 
-- [onrobot-rg6](../rg6/README.md) — the RG6 model whose macro this file
+- [onboard/rg6](../rg6/README.md) — the RG6 model whose macro this file
   instantiates, and `rg6_moveit_patch`, which puts the gripper into the
   generated SRDF
-- [husky-custom-setup](../setup/README.md) — `robot.yaml` (SSOT),
+- [onboard/setup](../setup/README.md) — `robot.yaml` (SSOT),
   the boot patcher and the installer that rolls this workspace out
 - [offboard](../../deploy/offboard/README.md) — the container that
   reconstructs the same setup without a robot
@@ -164,7 +164,7 @@ compared nothing.
 
 ## License
 
-MIT. The RG6 model this file instantiates is vendored in `onrobot-rg6`; its
+MIT. The RG6 model this file instantiates is vendored in `onboard/rg6`; its
 origin and the changes made to it are documented there
 (`LICENSE-THIRD-PARTY.md`). `meshes/a200_top_chassis.dae` is derived from
 `clearpath_platform_description`'s `top_chassis.dae` and stays under its BSD-3-Clause license, Copyright (c) 2023

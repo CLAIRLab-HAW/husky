@@ -18,7 +18,7 @@
 #                                       --power-off-arm
 #
 # NOTHING is started and nothing is shut down - the platform services must
-# already be running (boot services from husky-custom-setup). The arm stays
+# already be running (boot services from onboard/setup). The arm stays
 # powered and in trajectory mode at the end, so it is ready for MoveIt;
 # --power-off-arm de-energises it instead, so the arm stands in the target pose
 # on its brakes and has to be prepared again before the next movement.
@@ -122,7 +122,7 @@ die()  { printf '\033[1;31m[wakeup]\033[0m %s\n' "$*" >&2; exit 1; }
 # ROS environment
 # ---------------------------------------------------------------------------
 # The canonical entry point is /etc/clearpath/setup.bash: it sources the
-# jazzy setup, onrobot-rg6 and - DECISIVELY - sets ROS_DOMAIN_ID and
+# jazzy setup, onboard/rg6 and - DECISIVELY - sets ROS_DOMAIN_ID and
 # RMW_IMPLEMENTATION (rmw_zenoh_cpp). Without the latter the script runs in
 # the ROS jazzy default (FastDDS) and is NOT in the same graph as the robot
 # stacks -> ros2 service call hangs. So try it BEFORE the bare

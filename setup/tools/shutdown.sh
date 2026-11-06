@@ -39,7 +39,7 @@ MANIP_NS="${NS}/manipulators"
 ARM_TIME="${SHUTDOWN_ARM_TIME:-10.0}"
 GOAL_TIMEOUT="${SHUTDOWN_GOAL_TIMEOUT:-60}"
 
-# Pose "packed" from husky-custom-setup/robot.yaml (canonical UR order:
+# Pose "packed" from onboard/setup/config/robot.yaml (canonical UR order:
 # shoulder_pan, shoulder_lift, elbow, wrist_1, wrist_2, wrist_3). Keep in sync
 # here when robot.yaml changes (or use the generate_semantic_description path
 # and drive by MoveIt group state).
@@ -92,7 +92,7 @@ run() { log "$*"; "$@"; }
 # ROS environment
 # ---------------------------------------------------------------------------
 # The canonical entry point is /etc/clearpath/setup.bash: it sources the
-# jazzy setup, onrobot-rg6 and - DECISIVELY - sets ROS_DOMAIN_ID and
+# jazzy setup, onboard/rg6 and - DECISIVELY - sets ROS_DOMAIN_ID and
 # RMW_IMPLEMENTATION (rmw_zenoh_cpp). Without the latter the script runs in
 # the ROS jazzy default (FastDDS) and is NOT in the same graph as the robot
 # stacks -> ros2 service call hangs ("waiting for service to

@@ -13,7 +13,7 @@ names from here, and neither from the other.
 - **The sensor as a URDF macro** (`src/rs16_description`): `rs16(name, parent_link)` puts `${name}_link` on the
   mounting face — RoboSense's CAD model in its own colors, a collision cylinder Ø109 × 80.7 mm, 0.87 kg — and
   `${name}_laser` 39 mm above it, at the optical center. Where the sensor is mounted is the robot's: `robot.yaml`
-  places the frame `lidar3d_0_mount_link`, [husky-extras](../extras/README.md) hangs the macro on it.
+  places the frame `lidar3d_0_mount_link`, [onboard/extras](../extras/README.md) hangs the macro on it.
 - **One driver for the real sensor.** `rslidar_sdk` (apt, `ros-jazzy-rslidar-sdk`) reads the device on the robot and
   the recording `data/recordings/rs16_labor.pcap` in the container; the difference is `common.msg_source`, rendered
   from the one template `config/rslidar_rs16.yaml` by `clair.rs16.rslidar_config`. A sim plant (ManiSkill, MuJoCo)
