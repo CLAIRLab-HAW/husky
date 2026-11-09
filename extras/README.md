@@ -71,6 +71,13 @@ macro, the gripper package includes nothing from here.
   - `tools/rg6.urdf.xacro`: the RG6 at `arm_0_tool0`, without a mounting offset
     (the bracket screws onto the flange) and rotated by π, measured on the
     device rather than guessed.
+  - `tools/robotiq_2f_85.urdf.xacro`: the Robotiq 2F-85 through Clearpath's own
+    macro (`clearpath_manipulators_description`, the names `robot.yaml`'s
+    `manipulators.arms[0].gripper` would give), its TCP and grasp frame on the
+    tool axis, and the camera mount where the RG6 puts it. Placed, not measured.
+  - A tool named after a gripper model of the robot contract
+    (`profiles/grippers/<name>.yaml`) is that hand: the mock serves its action,
+    fits the SRDF to it and the stack's logic serves its model.
   - `tools/key_holder.urdf.xacro`: a printed holder with a Rittal double-bit
     key for control cabinets (meshes from mujoco-mia, primitives collide), TCP
     `key_tip` 107.8 mm out, and the wrist camera clamped to the holder instead
@@ -146,11 +153,11 @@ Nothing else here is started. The description file is read by
   in the `plant-mock` container),
 - RViz and the `foxglove_bridge`, which resolve the arch mesh through the
   ament index of their own container,
-- and `tools/derive_link_inertia.py` in `onboard/rg6`, whose box mode recomputes
+- and `tools/derive_link_inertia.py` in `onboard/gripper`, whose box mode recomputes
   the arch inertia from its collision boxes:
 
 ```bash
-python3 ../rg6/tools/derive_link_inertia.py --box-link \
+python3 ../gripper/tools/derive_link_inertia.py --box-link \
     src/husky_extras_description/urdf/clearpath_extras.urdf.xacro husky_top_assembly 6.21
 ```
 
@@ -176,7 +183,7 @@ compared nothing.
 
 ## Related
 
-- [onboard/rg6](../rg6/README.md) — the RG6 model whose macro this file
+- [onboard/gripper](../gripper/README.md) — the RG6 model whose macro this file
   instantiates, and `rg6_moveit_patch`, which puts the gripper into the
   generated SRDF
 - [onboard/setup](../setup/README.md) — `robot.yaml` (SSOT),
@@ -191,7 +198,7 @@ compared nothing.
 
 ## License
 
-MIT. The RG6 model this file instantiates is vendored in `onboard/rg6`; its
+MIT. The RG6 model this file instantiates is vendored in `onboard/gripper`; its
 origin and the changes made to it are documented there
 (`LICENSE-THIRD-PARTY.md`). `meshes/a200_top_chassis.dae` is derived from
 `clearpath_platform_description`'s `top_chassis.dae` and stays under its BSD-3-Clause license, Copyright (c) 2023

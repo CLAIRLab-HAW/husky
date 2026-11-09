@@ -29,6 +29,8 @@ PACKAGE = "husky_extras_description"
 EXTRAS = REPO / "src" / PACKAGE / "urdf" / "clearpath_extras.urdf.xacro"
 #: The end effectors ``end_effector:=<name>`` selects, one file each.
 TOOLS = sorted((EXTRAS.parent / "tools").glob("*.urdf.xacro"))
+#: The robot contract's gripper models, one file each -- in the neighboring repo, robot/.
+GRIPPER_MODELS = REPO.parents[1] / "robot/contract/src/clair/robot/contract/profiles/grippers"
 #: The lidars ``lidar_model:=<name>`` selects, one file each -- the robot carries one of them.
 LIDARS = sorted((EXTRAS.parent / "lidars").glob("*.urdf.xacro"))
 #: Every xacro file of every package here -- tools, the macros they call, the other robots' descriptions.
@@ -251,3 +253,11 @@ def test_every_tool_the_changer_offers_is_a_macro_with_its_tcp(tool, tcp):
     assert f"$(find {PACKAGE})/urdf/{tool}.macro.xacro" in tooled
     assert f"{tool}='{tcp}'" in tooled, f"the tool map names another TCP for {tool}"
     assert f'<link name="{tcp}"' in _macro(tool)
+
+
+@pytest.mark.skipif(not GRIPPER_MODELS.is_dir(), reason="robot/contract is not checked out beside onboard/")
+def test_every_gripper_model_has_the_tool_file_of_its_name():
+    """A tool named after a model is that hand: the mock, the SRDF and the stack's logic find the model by the tool's
+    name, so a model without its tool file could never be put on the flange."""
+    models = {p.stem for p in GRIPPER_MODELS.glob("*.yaml")}
+    assert models and models <= {p.name.removesuffix(".urdf.xacro") for p in TOOLS}

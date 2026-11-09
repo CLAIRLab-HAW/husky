@@ -18,6 +18,8 @@
        Run-time only: nothing is compiled here, the package installs urdf/ and meshes/ and is read by the generator,
        RViz and foxglove_bridge. -->
   <exec_depend>rg6_description</exec_depend>
+  <!-- the Robotiq 2F-85 tool: Clearpath's macro over robotiq_description -->
+  <exec_depend>clearpath_manipulators_description</exec_depend>
   <exec_depend>rs16_description</exec_depend>
   <exec_depend>qb2_description</exec_depend>
   <exec_depend>xacro</exec_depend>
