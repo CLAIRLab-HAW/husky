@@ -13,7 +13,7 @@ in the `--verify` manifest it belongs in `scripts/`; if it is not, somebody star
 
 ## Features
 
-- **Two overlay workspaces come out of `robot.yaml`** — `onboard/rg6` (the gripper) and `onboard/extras` (this robot's
+- **Two overlay workspaces come out of `robot.yaml`** — `onboard/gripper` (the gripper) and `onboard/extras` (this robot's
   URDF extras). The installer clones and builds both; `system.ros2.workspaces` is what puts them on
   `AMENT_PREFIX_PATH` for the generator, RViz and the `foxglove_bridge` alike.
 - **`config/robot.yaml` is the single source of truth** — `/etc/clearpath/robot.yaml`
@@ -24,7 +24,7 @@ in the `--verify` manifest it belongs in `scripts/`; if it is not, somebody star
 - **A watchdog for a late arm power-up** and for a motion link that died while ExternalControl kept reporting it was
   "running".
 - **The RG6 gripper service** — `clearpath-custom-rg6-grip-bridge`, unit and wrapper. The node itself
-  (`rg6_grip_bridge`, XML-RPC against the OnRobot URCap) belongs to [onboard/rg6](../rg6/README.md), where its
+  (`rg6_grip_bridge`, XML-RPC against the OnRobot URCap) belongs to [onboard/gripper](../gripper/README.md), where its
   mock counterpart already sat; the installer rolls it out from that workspace as a root-owned copy, together with its
   linkage table.
 - **The phone as the robot's Bluetooth joystick** — a BlueZ agent that lets Echo for Android pair as an HID gamepad
@@ -182,7 +182,7 @@ Three building blocks close the gap, all from the installer (optional steps):
 
 1. **`manipulator-diagnostics`** (`scripts/manipulator_diagnostics.py`, a root-owned copy under `/usr/local/bin`):
    publishes five statuses at 1 Hz on
-   `/a200_0553/diagnostics`. The wrapper needs no `onboard/rg6` overlay — the gripper state arrives as JSON, not as an
+   `/a200_0553/diagnostics`. The wrapper needs no `onboard/gripper` overlay — the gripper state arrives as JSON, not as an
    `rg6_msgs` type:
 
    | Status | Content |
@@ -457,7 +457,7 @@ python3 scripts/octomap_feed.py --selftest
 ```
 
 The fourth, `rg6_grip_bridge --selftest`, moved with the node into
-[onboard/rg6](../rg6/README.md) and runs there; the installer still executes it against the copy it has just
+[onboard/gripper](../gripper/README.md) and runs there; the installer still executes it against the copy it has just
 deployed.
 
 The patch tools have a dry run instead, which writes nothing —
@@ -486,8 +486,8 @@ compile.
 
 ## Related
 
-- [onboard/rg6](../rg6/README.md) — gripper model, MoveIt patch, and the gripper on both stages
-  (`rg6_grip_bridge`, `rg6_control_sim`); one of the two workspaces `robot.yaml` lists, and the source of three files
+- [onboard/gripper](../gripper/README.md) — gripper model, MoveIt patch, and the gripper on both stages
+  (`rg6_grip_bridge`, `gripper_sim`); one of the two workspaces `robot.yaml` lists, and the source of three files
   this installer deploys
 - [onboard/extras](../extras/README.md) — the a200-0553's URDF extras (sensor arch, RG6 mounting), the
   other one; `robot.yaml`
