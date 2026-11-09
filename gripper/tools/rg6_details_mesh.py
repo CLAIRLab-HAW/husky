@@ -51,8 +51,8 @@ finger's plates carry the same gray and are not written, the plates hide them.
 The DAE is written with pycollada directly, ``Z_UP``, in meters, and with a fixed :data:`STAMP`, so a second run on
 the same source writes the same bytes.
 
-    uv run onboard/rg6/tools/rg6_details_mesh.py onboard/gripper_rg6.gltf \\
-        onboard/rg6/src/rg6_description/meshes/rg6_v2/visual
+    uv run onboard/gripper/tools/rg6_details_mesh.py onboard/gripper_rg6.gltf \\
+        onboard/gripper/src/rg6_description/meshes/rg6_v2/visual
 """
 
 from __future__ import annotations
@@ -527,7 +527,7 @@ def write(parts: list[tuple[str, trimesh.Trimesh]], dae_path: Path) -> None:
     dae.assetInfo.created = dae.assetInfo.modified = STAMP
     dae.assetInfo.contributors.append(
         asset.Contributor(
-            authoring_tool="onboard/rg6/tools/rg6_details_mesh.py",
+            authoring_tool="onboard/gripper/tools/rg6_details_mesh.py",
             source_data="gripper_rg6.gltf (Onshape export of the OnRobot RG6, the owner's, not committed)",
         )
     )

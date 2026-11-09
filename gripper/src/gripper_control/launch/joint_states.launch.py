@@ -25,7 +25,7 @@ Preconditions:
   - The arm JSB remap in clearpath_manipulators/control.launch.py is set to
     manipulators/joint_states by clearpath-custom-setup.
   - The gripper publishes on manipulators/endeffectors/joint_states.  The source is
-    rg6_grip_bridge (on the robot, 5 Hz) or rg6_control_sim (in the container).
+    model's driver (rg6_grip_bridge on the robot, 5 Hz) or gripper_sim (in the container).
 The wheels stay (correctly) on platform/joint_states.
 """
 
@@ -38,7 +38,7 @@ NAMESPACE = "a200_0553"
 def generate_launch_description():
     # Aggregate for observation/recording: /a200_0553/joint_states (complete).
     aggregator = Node(
-        package="rg6_control",
+        package="gripper_control",
         executable="joint_state_aggregator",
         namespace=NAMESPACE,
         name="joint_state_aggregator",
@@ -61,7 +61,7 @@ def generate_launch_description():
     # subscriber; see joint_state_relay.cpp). The subscriptions reconnect automatically when clearpath-manipulators
     # (and with it the arm JSB) restarts.
     relay = Node(
-        package="rg6_control",
+        package="gripper_control",
         executable="joint_state_relay",
         namespace=NAMESPACE,
         name="joint_state_relay",

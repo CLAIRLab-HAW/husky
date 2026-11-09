@@ -18,7 +18,7 @@
 #   - sysctl 10-ur-reserved-ports.conf: takes the UR driver ports 50001-50004 out
 #     of the ephemeral range, so nothing else can occupy them before the driver
 #   - optional: speed up the GRUB boot (hide the menu, GRUB_TIMEOUT=0)
-#   - build ~/onboard/rg6 (colcon), plus root-owned copies of
+#   - build ~/onboard/gripper (colcon), plus root-owned copies of
 #     rg6_moveit_patch (boot service) and rg6_grip_bridge.py + its linkage
 #     table (the gripper service) under /usr/local/bin
 #   - build ~/onboard/lidar (colcon): rs16_description, the RS16's macro the
@@ -253,7 +253,7 @@ USM_UNIT_PATH="/etc/systemd/system/${USM_UNIT}"
 # joint-states: robot-wide joint_state_aggregator (/a200_0553/joint_states)
 # plus relays of the clean arm/gripper source topics back onto the
 # platform/joint_states bus (for RSP + move_group). Uses the rg6
-# workspace (rg6_control joint_states.launch.py), no build of its own.
+# workspace (gripper_control joint_states.launch.py), no build of its own.
 JS_WRAPPER="${BIN_DIR}/joint-states.sh"
 JS_UNIT="clearpath-custom-joint-states.service"
 JS_UNIT_PATH="/etc/systemd/system/${JS_UNIT}"
@@ -368,7 +368,7 @@ CRT_WS="${ONBOARD_WS}/cockpit-tools"   # the Cockpit page "Roboter-Werkzeuge"
 NAV_WS="${ONBOARD_WS}/navigation"
 # The colcon builds see ROS and nothing else.  /etc/clearpath/setup.bash also sources the workspaces robot.yaml
 # lists, and colcon writes every workspace sourced at build time into the new install/setup.sh as an underlay: on
-# 2026-09-29 ~/onboard/rg6 chained itself and the retired ~/onrobot-rg6 that way, both on AMENT_PREFIX_PATH.
+# 2026-09-29 ~/onboard/gripper chained itself and the retired ~/onrobot-rg6 that way, both on AMENT_PREFIX_PATH.
 ROS_SETUP="/opt/ros/jazzy/setup.bash"
 
 # Find a file of THIS repo.  The installer does NOT necessarily run out of the
@@ -995,8 +995,8 @@ if [ -d "${RG6_WS}/install" ]; then
 fi
 if [ "$DO_RG6" -eq 1 ]; then
     echo ">>> Building ${RG6_WS} (colcon, user ${REAL_USER})"
-    # rg6_description = gripper model + meshes; rg6_control = the gripper on BOTH stages (rg6_grip_bridge for the
-    # real one, rg6_control_sim for the container mock), the joint_state helper nodes and rg6_moveit_patch.
+    # rg6_description = gripper model + meshes; rg6_control = the RG6's own (rg6_grip_bridge, rg6_moveit_patch);
+    # gripper_control = what every model shares (gripper_sim for the container mock, the joint_state helper nodes).
     #
     # Three files of that workspace are rolled out here as root-owned copies: the SRDF patch for the boot service,
     # and the bridge plus its linkage table for the gripper service (see rg6_tool_src).  clearpath-custom-joint-states
@@ -1008,7 +1008,7 @@ if [ "$DO_RG6" -eq 1 ]; then
     # so a reader needs std_msgs and nothing else.  Cross-checked on the robot on
     # 2026-08-24: <ns>/rg6/state does not exist, only bridge_state.
     sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
-        "source '$ROS_SETUP' && cd '$RG6_WS' && colcon build --packages-select rg6_description rg6_control" \
+        "source '$ROS_SETUP' && cd '$RG6_WS' && colcon build --packages-select rg6_description rg6_control gripper_control" \
         || echo "    WARN: colcon build failed - without rg6_description the gripper is missing from the URDF, without rg6_control the joint-states relay."
 else
     echo ">>> rg6: skipped (the existing build stays)."
@@ -1369,7 +1369,7 @@ else
 fi
 
 # --- joint-states aggregation + legacy bus relays ----------------
-# Starts rg6_control/joint_states.launch.py: joint_state_aggregator
+# Starts gripper_control/joint_states.launch.py: joint_state_aggregator
 # (-> /a200_0553/joint_states, complete, for rosbag/Foxglove) plus the OWN
 # joint_state_relay (manipulators/joint_states and
 # manipulators/endeffectors/joint_states -> platform/joint_states, so that RSP and
@@ -1385,7 +1385,7 @@ cat > "$JS_WRAPPER" <<EOF
 # Robot-wide joint_states aggregation + legacy bus relays (see joint_states.launch.py).
 source /etc/clearpath/setup.bash
 source ${RG6_WS}/install/setup.bash
-exec ros2 launch rg6_control joint_states.launch.py
+exec ros2 launch gripper_control joint_states.launch.py
 EOF
 chmod 0755 "$JS_WRAPPER"
 
@@ -1397,7 +1397,7 @@ Description=Robot-wide joint_states aggregation + legacy bus relays
 # the bridge. An After= on a name that does not exist orders against nothing:
 # systemd carries it without complaint, and the ordering this is about would be
 # gone unnoticed.
-# PartOf: the relay/aggregator (the custom rg6_control nodes joint_state_relay/
+# PartOf: the relay/aggregator (the custom gripper_control nodes joint_state_relay/
 # joint_state_aggregator) does NOT resubscribe reliably under rmw_zenoh when the
 # source publishes anew after a restart -> without restarting along, the rg6
 # joints drop out of the TF feed and the gripper TF goes flat. That is why the
@@ -1727,8 +1727,8 @@ else
 fi
 
 if [ "$DO_RG6_BRIDGE" -eq 1 ]; then
-    # From the rg6 workspace, not from setup/: the bridge is the DRIVER half of the gripper, whose mock
-    # half (rg6_control_sim) has always been in rg6_control -- same action, same bridge_state fields, same linkage
+    # From the gripper workspace, not from setup/: the bridge is the DRIVER half of the gripper, whose mock
+    # half (gripper_control's gripper_sim) lies beside it -- same action, same bridge_state fields, same linkage
     # table.  What belongs here is what surrounds it: this unit, its wrapper, and the root-owned copy below.
     if ! RG6_SRC="$(rg6_tool_src rg6_grip_bridge.py)" || [ -z "$RG6_SRC" ]; then
         echo "    WARN: rg6_grip_bridge.py not found in ${RG6_WS} (cloned and built?) -"

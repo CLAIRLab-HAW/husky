@@ -712,7 +712,7 @@ def run(argv) -> int:
     # Second entrance to the same device: the GripperCommand action.  Without
     # it the controller entry in moveit.yaml points at nothing, and a grip
     # command from RViz or MoveGroupInterface runs into a timeout on ``real``
-    # instead of into a "cannot do that".  In the mock, rg6_control_sim serves
+    # instead of into a "cannot do that".  In the mock, gripper_sim serves
     # the same name -- the bridge runs onboard only, so there are never two
     # servers.
     #

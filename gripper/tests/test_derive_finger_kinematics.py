@@ -64,13 +64,15 @@ def _urdf(tmp_path, lower="0.0", upper="1.0", name="rg6_finger_joint", fingers=(
         rpy, axis = spec[side]
         driving = name if i == 0 else f"{side}_joint"
         limit = f'<limit lower="{lower}" upper="{upper}" effort="1" velocity="1"/>' if i == 0 else ""
+        # The second finger follows the first, as a real hand's do: by <mimic>, which the script reads.
+        mimic = f'<mimic joint="{name}" multiplier="1"/>' if i else ""
         joints += f"""
       <joint name="{driving}" type="revolute">
         <parent link="world"/>
         <child link="{side}_prox"/>
         <origin xyz="0 0 0" rpy="{rpy}"/>
         <axis xyz="{axis}"/>
-        {limit}
+        {limit}{mimic}
       </joint>
       <joint name="{side}_tip" type="fixed">
         <parent link="{side}_prox"/>
@@ -84,7 +86,7 @@ def _urdf(tmp_path, lower="0.0", upper="1.0", name="rg6_finger_joint", fingers=(
 
 def test_the_joint_limit_is_read_from_both_ends(tmp_path):
     """``lower`` is not always 0 -- the RG6's mechanical open stop does not reach the geometric zero of the chain."""
-    _K, limit = gen._chain(_urdf(tmp_path, lower="0.038", upper="1.25"))
+    _K, limit, _root = gen._chain(_urdf(tmp_path, lower="0.038", upper="1.25"))
     assert limit == (0.038, 1.25)
 
 
@@ -95,22 +97,22 @@ def test_a_urdf_without_the_driving_joint_is_refused(tmp_path):
 
 
 def test_the_chain_walk_finds_the_finger_links(tmp_path):
-    K, _limit = gen._chain(_urdf(tmp_path))
+    K, _limit, _root = gen._chain(_urdf(tmp_path))
     assert sorted(n for n in K if n.endswith("flex_finger")) == ["left_flex_finger", "right_flex_finger"]
 
 
 def test_a_pose_at_zero_is_the_joint_origin(tmp_path):
-    K, _limit = gen._chain(_urdf(tmp_path))
+    K, _limit, _root = gen._chain(_urdf(tmp_path))
     assert np.allclose(gen._pose(K, "left_flex_finger", 0.0)[:3, 3], [0.5, 0.0, 0.0], atol=1e-12)
 
 
 def test_a_pose_follows_the_driving_joint(tmp_path):
     """A quarter turn of the base carries the finger from +x round to +y -- the chain really composes."""
-    K, _limit = gen._chain(_urdf(tmp_path))
+    K, _limit, _root = gen._chain(_urdf(tmp_path))
     assert np.allclose(gen._pose(K, "left_flex_finger", math.pi / 2)[:3, 3], [0.0, 0.5, 0.0], atol=1e-12)
 
 
-# ---- the two output formats -----------------------------------------------------------------------------------
+# ---- the output -----------------------------------------------------------------------------------
 def _run(urdf, fmt, check=True):
     return subprocess.run(
         [sys.executable, gen.__file__, urdf, "--format", fmt], check=check, capture_output=True, text=True
@@ -138,25 +140,6 @@ def test_the_upper_limit_is_sampled_even_when_the_step_overshoots_it(tmp_path):
     assert table[-1][0] == 0.07
 
 
-def test_the_two_formats_carry_the_same_numbers(tmp_path):
-    """One source, two outputs -- that is the script's whole reason to exist."""
-    import re
-
-    urdf = _urdf(tmp_path, lower="0.1", upper="0.9")
-    js = [[q, w] for q, w in json.loads(_stdout(urdf, "json"))["table_q_rad_width_m"]]
-    cpp = [[float(q), float(w)] for q, w in re.findall(r"\{\{([\d.]+), ([\d.]+)\}\}", _stdout(urdf, "cpp"))]
-    assert cpp == js
-
-
-def test_the_cpp_output_declares_the_table_length_it_actually_writes(tmp_path):
-    """``std::array<..., N>`` with the wrong N does not compile -- but it is generated, so nobody would see it."""
-    import re
-
-    text = _stdout(_urdf(tmp_path, lower="0.1", upper="0.9"), "cpp")
-    declared = int(re.search(r"std::array<double, 2>, (\d+)>", text).group(1))
-    assert declared == len(re.findall(r"\{\{([\d.]+), ([\d.]+)\}\}", text))
-
-
 def test_a_chain_without_two_gripping_faces_is_refused_by_name(tmp_path):
     """One finger cannot have a clear width; guessing one would put a plausible wrong number into all three copies.
 
@@ -165,13 +148,13 @@ def test_a_chain_without_two_gripping_faces_is_refused_by_name(tmp_path):
     """
     done = _run(_urdf(tmp_path, fingers=("left",)), "json", check=False)
     assert done.returncode != 0
-    assert "expected two flex_finger gripping faces" in done.stderr
+    assert "expected two pad links" in done.stderr
 
 
 def test_the_reported_interpolation_error_really_bounds_the_deviation(tmp_path):
     """The figure the script writes into both outputs is a promise about the table -- so it has to be measured.
 
-    It ends up in the JSON (``max_interpolationsfehler_m``) and in the header comment, and everything downstream
+    It ends up in the JSON (``max_interpolationsfehler_m``) and in the model file's comment, and everything downstream
     trusts it: the sampling step was chosen so this stays below the RG6's finger position resolution. Nothing
     checked that it is computed against the real curve rather than against a degenerate grid.
     """
@@ -180,7 +163,7 @@ def test_the_reported_interpolation_error_really_bounds_the_deviation(tmp_path):
     table = data["table_q_rad_width_m"]
     reported = data["max_interpolationsfehler_m"]
 
-    K, (qmin, qmax) = gen._chain(urdf)
+    K, (qmin, qmax), _root = gen._chain(urdf)
     faces = sorted(n for n in K if n.endswith("flex_finger"))
 
     def width(q):

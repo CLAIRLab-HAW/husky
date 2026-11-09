@@ -38,7 +38,7 @@ clearpath-custom-setup.py):
      empirically -- see the CHANGELOG):
        + moveit_simple_controller_manager: GripperCommand controller
          'manipulators/rg6_gripper_controller' (action_ns gripper_cmd) ->
-         served by rg6_grip_bridge on the robot, by rg6_control_sim in the mock
+         served by rg6_grip_bridge on the robot, by gripper_sim in the mock
          (both under the same name rg6_gripper_controller/gripper_cmd)
        + robot_description_planning.joint_limits.rg6_finger_joint
          (acceleration limit for the TOTG time parameterisation)

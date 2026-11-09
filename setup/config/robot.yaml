@@ -21,7 +21,7 @@ system:
     # names a file from extras, which includes a macro from each of the others -- so all three have to be listed, and
     # a missing build is not a mesh that fails to draw but a generator run that dies on the include.
     workspaces:
-      - /home/robot/onboard/rg6/install/setup.bash    # rg6_description, rg6_control
+      - /home/robot/onboard/gripper/install/setup.bash    # rg6_description, rg6_control
       - /home/robot/onboard/lidar/install/setup.bash  # rs16_description
       - /home/robot/onboard/extras/install/setup.bash # husky_extras_description (the file under extras.urdf below)
 platform:
@@ -296,7 +296,7 @@ manipulators:
         # moveit_simple_controller_manager with the arm controller here on every
         # boot, and our block is merged into it instead of replacing it.
         # The action is served on the robot by rg6_grip_bridge, in the container
-        # mock by rg6_control_sim (both under the same name).
+        # mock by gripper_sim (both under the same name).
         # ATTENTION: merge_dict EXTENDS lists, it does not replace them. So
         # controller_names must NOT contain the arm controller the generator
         # writes itself -- it would stand there twice.

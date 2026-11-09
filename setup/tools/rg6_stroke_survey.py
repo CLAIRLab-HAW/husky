@@ -44,8 +44,8 @@ from pathlib import Path
 # on the workstation, and next to the built workspace on the robot.
 _BRIDGE_DIRS = (
     Path(__file__).resolve().parents[2] / "rg6/src/rg6_control/scripts",  # the checkout this tool sits in
-    Path.home() / "onboard/rg6/src/rg6_control/scripts",  # the robot's clone
-    Path.home() / "onboard/rg6/install/rg6_control/lib/rg6_control",  # its install space
+    Path.home() / "onboard/gripper/src/rg6_control/scripts",  # the robot's clone
+    Path.home() / "onboard/gripper/install/rg6_control/lib/rg6_control",  # its install space
 )
 for _dir in _BRIDGE_DIRS:
     if (_dir / "rg6_grip_bridge.py").is_file():
