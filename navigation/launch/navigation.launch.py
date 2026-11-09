@@ -174,7 +174,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             DeclareLaunchArgument("localization", default_value="none", choices=["none", "amcl", "slam"]),
-            DeclareLaunchArgument("map", default_value="leerer_raum.yaml"),
+            DeclareLaunchArgument("map", default_value="empty_room.yaml"),
             DeclareLaunchArgument("use_sim_time", default_value="false", choices=["true", "false"]),
             OpaqueFunction(function=_setup),
         ]

@@ -3,6 +3,12 @@
 Format after [Keep a Changelog](https://keepachangelog.com/),
 versioning after [SemVer](https://semver.org/).
 
+## 2026-11-09 — The stored map is `empty_room`
+
+- `maps/leerer_raum.*` is now `maps/empty_room.*`, the default of `navigation.launch.py`'s `map` argument and of
+  `map_server.yaml_filename`. Regenerated with `make_map`, so the `.pgm` header names `clair.navigation.make_map`;
+  the pixel data is unchanged. Older plans and this changelog keep quoting the old name.
+
 ## 2026-09-29 — The self filter runs without clair-log
 
 - `self_filter` falls back to `logging.basicConfig` when `clair.log` is not importable. On the robot `clair-log` and
