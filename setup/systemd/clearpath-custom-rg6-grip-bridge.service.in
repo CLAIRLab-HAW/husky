@@ -12,11 +12,11 @@ StartLimitIntervalSec=120
 StartLimitBurst=5
 
 [Service]
-Type=simple
 User=@REAL_USER@
 ExecStart=@RG6_BRIDGE_WRAPPER@
 Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=multi-user.target
+# Boot, and every start of a unit in PartOf= -- PartOf passes on stop and restart, never start.
+WantedBy=multi-user.target clearpath-robot.service clearpath-manipulators.service

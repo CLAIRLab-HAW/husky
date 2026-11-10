@@ -10,8 +10,8 @@ Type=oneshot
 # wrapper switches to @REAL_USER@ itself via 'sudo -u'.
 ExecStart=@WD_WRAPPER@ @ARM_ROBOT_IP@ @MANIP_NS@/io_and_status_controller/robot_program_running @REAL_USER@ @USER_HOME@
 # The recovery blocks on the systemctl restart plus dashboard calls and polls.
-# With the SIGINT stop drop-in (WD_MANIP_DROPIN) the driver stops in ~1-3s;
-# without the drop-in SIGTERM can take up to 90s until SIGKILL. The systemd
+# With the SIGINT stop drop-in (clearpath-manipulators.service.d/override.conf)
+# the driver stops in ~1-3s; without it SIGTERM can take up to 90s until SIGKILL. The systemd
 # default timeout (90s) would kill the oneshot midway -> generous (headroom for a
 # slow stop plus the recovery).
 TimeoutStartSec=300

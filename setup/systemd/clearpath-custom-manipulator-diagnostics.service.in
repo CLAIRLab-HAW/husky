@@ -1,6 +1,6 @@
 [Unit]
 Description=Manipulator diagnostics: UR5 + RG6 -> diagnostic_msgs (Cockpit/diagnostics_agg)
-After=clearpath-manipulators.service @RG6_BRIDGE_UNIT@
+After=clearpath-manipulators.service clearpath-custom-rg6-grip-bridge.service
 Wants=clearpath-manipulators.service
 # Hang off BOTH roots: the practical stack restart goes through clearpath-robot,
 # the direct driver restart through clearpath-manipulators.
@@ -13,4 +13,5 @@ Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=multi-user.target
+# Boot, and every start of a unit in PartOf= -- PartOf passes on stop and restart, never start.
+WantedBy=multi-user.target clearpath-robot.service clearpath-manipulators.service

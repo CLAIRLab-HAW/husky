@@ -7,6 +7,6 @@
 #   no automatic brake release or powering). To move it, the operator calls
 #   'prepare' by hand. The driver connect happens on its own (JSC); the watchdog
 #   is the emergency brake (driver restart only, no brakes/powering).
+# Sources ~/tools and ~/husky as well: robot.yaml lists both under system.ros2.workspaces.
 source /etc/clearpath/setup.bash
-source @HUSKY_WS@/install/setup.bash
 exec ros2 launch husky_ur_state husky_ur_state.launch.py start_dashboard_client:=false auto_recover:=false

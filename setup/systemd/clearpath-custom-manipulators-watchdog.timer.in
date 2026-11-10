@@ -3,7 +3,7 @@ Description=Periodic manipulators-watchdog check (driver reconnect on a late arm
 
 [Timer]
 # Start only after the normal boot ramp-up time (give the driver time), then
-# regularly. A cadence of 10s (instead of 30s): that way the watchdog also fires
+# regularly. A cadence of 10s: that way the watchdog also fires
 # within ~10s after a clearpath-robot.service restart with the arm already
 # powered, as soon as the JSC stream (the health signal) stops. The grace timeout
 # in the script (JS_TIMEOUT=25s) prevents false alarms during the ~15s

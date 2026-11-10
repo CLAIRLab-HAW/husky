@@ -110,9 +110,9 @@ UNIT_NAME="clearpath-custom-setup.service"
 UNIT_PATH="/etc/systemd/system/${UNIT_NAME}"
 
 # RG6 gripper bridge: commands the gripper over XML-RPC to the OnRobot URCap
-# (block further down).  The NAMES sit up here because the diagnostics unit
-# needs them in its After= and is written further up -- under 'set -u' a later
-# definition would be an abort, not an empty field.
+# (block further down).  The NAMES sit up here because --verify reads them and
+# exits long before that block -- under 'set -u' a later definition would be an
+# abort, not an empty field.
 RG6_BRIDGE_BIN="${BIN_DIR}/rg6-grip-bridge"
 RG6_BRIDGE_WRAPPER="${BIN_DIR}/rg6-grip-bridge-wrapper"
 RG6_BRIDGE_UNIT="clearpath-custom-rg6-grip-bridge.service"

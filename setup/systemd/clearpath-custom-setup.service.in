@@ -24,9 +24,8 @@ Type=oneshot
 RemainAfterExit=yes
 # A clean journal identity:  journalctl -t clearpath-custom-setup -b
 SyslogIdentifier=clearpath-custom-setup
-StandardOutput=journal
-StandardError=journal
 ExecStart=@PY_PATH@
 
 [Install]
-WantedBy=multi-user.target
+# Boot, and every start of a unit in PartOf= -- PartOf passes on stop and restart, never start.
+WantedBy=multi-user.target clearpath-robot.service

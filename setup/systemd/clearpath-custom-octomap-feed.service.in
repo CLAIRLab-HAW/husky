@@ -2,7 +2,7 @@
 Description=Octomap feed: depth -> PointCloud2 for MoveIt's occupancy map monitor
 After=clearpath-sensors.service
 Wants=clearpath-sensors.service
-# Stack restart behaviour as for the other custom units: hang off both roots
+# Stack restart behavior as for the other custom units: hang off both roots
 # (the practical stack restart goes through clearpath-robot).
 PartOf=clearpath-robot.service clearpath-sensors.service
 
@@ -13,4 +13,5 @@ Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=multi-user.target
+# Boot, and every start of a unit in PartOf= -- PartOf passes on stop and restart, never start.
+WantedBy=multi-user.target clearpath-robot.service clearpath-sensors.service

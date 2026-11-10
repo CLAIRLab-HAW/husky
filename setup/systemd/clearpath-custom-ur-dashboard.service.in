@@ -21,4 +21,5 @@ Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=multi-user.target
+# Boot, and every start of a unit in PartOf= -- PartOf passes on stop and restart, never start.
+WantedBy=multi-user.target clearpath-robot.service
