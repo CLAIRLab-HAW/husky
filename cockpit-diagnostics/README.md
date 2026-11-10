@@ -135,9 +135,8 @@ in its own message type, and the arm's
 small bridge node has to translate them into `diagnostic_msgs` and publish onto the aggregator's `/diagnostics` topic.
 
 For the a200-0553 (UR5 CB3 + OnRobot RG6) that node is
-[
-`manipulator_diagnostics.py`](../setup/scripts/manipulator_diagnostics.py)
-in `setup/`, whose installer also installs it as a boot service and registers the matching aggregator analyzers. To
+[`husky_manipulator_diagnostics`](../src/husky_manipulator_diagnostics/README.md), which `setup/`'s installer
+starts as a boot service; the matching aggregator analyzers come from `setup/config/robot.yaml`. To
 feed the panel from a different arm or gripper, publish the same status names and value keys — the panel needs nothing
 else.
 

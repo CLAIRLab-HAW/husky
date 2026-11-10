@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>husky_manipulator_diagnostics</name>
+  <version>0.1.0</version>
+  <description>
+    The a200-0553's UR5 and OnRobot RG6 as diagnostic_msgs on the topic Clearpath's diagnostic_aggregator reads, so
+    the manipulator appears in Cockpit and diagnostics_agg. Started by husky/setup's
+    clearpath-custom-manipulator-diagnostics.service.
+  </description>
+  <maintainer email="hannes.voss@haw-hamburg.de">Hannes Voss</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <!-- Without any of these three only the status that reads it reports the missing package; the node keeps running. -->
+  <exec_depend>ur_dashboard_msgs</exec_depend>
+  <exec_depend>ur_msgs</exec_depend>
+  <exec_depend>controller_manager_msgs</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

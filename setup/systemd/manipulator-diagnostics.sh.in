@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# UR5 + OnRobot RG6 as diagnostic_msgs for the Clearpath diagnostic_aggregator.
+# UR5 + OnRobot RG6 as diagnostic_msgs for the Clearpath diagnostic_aggregator (husky_manipulator_diagnostics).
 # No rg6 overlay needed: the gripper state arrives as JSON from the
 # bridge (rg6/bridge_state), so std_msgs is enough -- rg6 ships no
 # interface package at all.
+# Sources ~/husky as well: robot.yaml lists it under system.ros2.workspaces.  python3 -m rather than ros2 run, so the
+# unit's main process is the node itself and its SIGTERM reaches rclpy directly.
 source /etc/clearpath/setup.bash
-exec python3 @MD_BIN@ --ros-args \
+exec python3 -m husky_manipulator_diagnostics.node --ros-args \
     -p manipulator_ns:=@MANIP_NS@ \
     -p robot_ip:=@ARM_ROBOT_IP@

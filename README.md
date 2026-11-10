@@ -9,6 +9,7 @@ ROS 2 Jazzy packages, configuration and installer for the Clearpath Husky A200 `
 | `src/husky_extras_description` | ament_cmake | URDF extras: sensor arch, end effector, lidar mount, charging port |
 | `src/husky_bringup` | ament_cmake | Launch file for `platform.extras.launch`: the lidar chain |
 | `src/husky_bt_joy` | ament_python | The phone as Bluetooth joystick: BlueZ pairing agent, its teleop chain |
+| `src/husky_manipulator_diagnostics` | ament_python | UR5 + RG6 as `diagnostic_msgs` for Cockpit/`diagnostics_agg` |
 | `src/husky_lidar` | ament_python | Lidar models (RS16, Qb2), driver configuration, topic names, self filter |
 | `src/husky_navigation` | ament_python | 2D scan from the lidar points, Nav2 and slam_toolbox configuration, maps |
 | `src/husky_moveit_config` | ament_cmake | The MoveIt viewer's RViz config and marker kinematics; the rest is generated |
@@ -54,7 +55,8 @@ Manual build:
 
 ```bash
 cd ~/husky && colcon build --packages-select husky_extras_description husky_bringup husky_bt_joy \
-  rs16_description qb2_description husky_lidar husky_navigation husky_ur_state husky_moveit_config
+  rs16_description qb2_description husky_lidar husky_navigation husky_ur_state husky_manipulator_diagnostics \
+  husky_moveit_config
 ```
 
 ## Tests

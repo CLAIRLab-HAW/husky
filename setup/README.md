@@ -184,7 +184,8 @@ of `<ns>/diagnostics_agg`. **The manipulator is missing there entirely** — and
 
 Three building blocks close the gap, all from the installer (optional steps):
 
-1. **`manipulator-diagnostics`** (`scripts/manipulator_diagnostics.py`, a root-owned copy under `/usr/local/bin`):
+1. **`manipulator-diagnostics`** (the package
+   [husky_manipulator_diagnostics](../src/husky_manipulator_diagnostics/README.md), built with `~/husky`):
    publishes five statuses at 1 Hz on
    `/a200_0553/diagnostics`. The wrapper needs no `tools` overlay — the gripper state arrives as JSON, not as
    an `rg6_msgs` type:
@@ -199,7 +200,7 @@ Three building blocks close the gap, all from the installer (optional steps):
 
    `Arm Control` deliberately judges the **joint\_state stream**, not
    `robot_program_running`: the latter stays `true` while the PC-side motion link is dead — exactly case (b) of the
-   watchdog above. Self-test without ROS: `python3 /usr/local/bin/manipulator-diagnostics --selftest`.
+   watchdog above. The evaluation behind each status is ROS-free and tested in `tests/manipulator_diagnostics/`.
 
    **The arm state decides about the gripper.** The RG6 hangs off the UR tool connector — without a powered arm it
    cannot have any supply at all. The state `rg6_grip_bridge` reports on `rg6/bridge_state` is *not* suitable as
@@ -452,15 +453,14 @@ pad, and its virtual pad took a joystick slot. It had been disabled once and ran
 
 ## Running Tests
 
-Three of the Python scripts carry a ROS-free self-test:
+Two of the Python scripts carry a ROS-free self-test:
 
 ```bash
 python3 scripts/clearpath_custom_setup.py --selftest
-python3 scripts/manipulator_diagnostics.py --selftest
 python3 scripts/octomap_feed.py --selftest
 ```
 
-The fourth, `rg6_grip_bridge --selftest`, moved with the node into
+The third, `rg6_grip_bridge --selftest`, moved with the node into
 [tools](../../tools/README.md) and runs there; the installer still executes it against the copy it
 has just deployed.
 

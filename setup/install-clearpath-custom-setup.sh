@@ -196,12 +196,12 @@ RETIRED_LIDAR_UNIT_PATH="/etc/systemd/system/${RETIRED_LIDAR_UNIT}"
 # manipulator appear in diagnostics_agg at all -- so in Cockpit,
 # rqt_robot_monitor and the diagnostics capture. The matching analyzer block
 # comes from robot.yaml.
-# The source resolves through repo_file as for the octomap feed (checkout
-# before GitHub main).
-MD_BIN="${BIN_DIR}/manipulator-diagnostics"
 MD_WRAPPER="${BIN_DIR}/manipulator-diagnostics.sh"
 MD_UNIT="clearpath-custom-manipulator-diagnostics.service"
 MD_UNIT_PATH="/etc/systemd/system/${MD_UNIT}"
+# The node is husky_manipulator_diagnostics, built with ~/husky; the root-owned copy is how it was deployed before,
+# taken out where installed.
+RETIRED_MD_BIN="${BIN_DIR}/manipulator-diagnostics"
 
 # Bluetooth joystick pairing: a BlueZ agent + ROS service, so a phone running
 # Echo for Android pairs as the robot's gamepad without anyone at a shell
@@ -485,7 +485,6 @@ verify_deployments() {
         "${PY_PATH}|scripts/clearpath_custom_setup.py"
         "${WD_WRAPPER}|scripts/manipulators_watchdog.sh"
         "${BIN_DIR}/octomap-feed|scripts/octomap_feed.py"
-        "${BIN_DIR}/manipulator-diagnostics|scripts/manipulator_diagnostics.py"
         "${URDF_PHYSICS_PATCH_BIN}|scripts/urdf_physics_patch.py"
         "${SENSOR_MESH_URI_PATCH_BIN}|scripts/sensor_mesh_uri_patch.py"
         "${RIDE_HEIGHT_PATCH_BIN}|scripts/ride_height_patch.py"
@@ -1032,9 +1031,10 @@ fi
 # One colcon workspace: husky_extras_description (the file robot.yaml's platform.extras.urdf.path names, with the arch
 # meshes), husky_bringup and husky_bt_joy (the launches robot.yaml's platform.extras.launch starts),
 # rs16_description and qb2_description (the two lidars' macros; both built, so that switching the model in robot.yaml
-# needs no build), husky_lidar and husky_navigation (the lidar's driver configuration, self filter and scan) and
-# husky_ur_state.  Built after tools: the extras' tool files include tool_description's macros, at run time.  The Qb2
-# driver, cloned into src/ where robot.yaml names the Qb2, is built by the lidar block below and left out here.
+# needs no build), husky_lidar and husky_navigation (the lidar's driver configuration, self filter and scan),
+# husky_ur_state and husky_manipulator_diagnostics (the nodes of two custom units).  Built after tools: the extras'
+# tool files include tool_description's macros, at run time.  The Qb2 driver, cloned into src/ where robot.yaml names
+# the Qb2, is built by the lidar block below and left out here.
 DO_HUSKY=1
 if [ -d "${HUSKY_WS}/install" ]; then
     confirm ">>> husky is built in ${HUSKY_WS}. Rebuild?" || DO_HUSKY=0
@@ -1044,7 +1044,7 @@ if [ "$DO_HUSKY" -eq 1 ]; then
     sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
         "source '$ROS_SETUP' && cd '$HUSKY_WS' && colcon build --packages-select husky_extras_description \
          husky_bringup husky_bt_joy rs16_description qb2_description husky_lidar husky_navigation \
-         husky_ur_state" \
+         husky_ur_state husky_manipulator_diagnostics" \
         || echo "    WARN: colcon build failed - package://husky_extras_description stays unresolvable (arch without a" \
                 "mesh), and clearpath-platform-extras finds no husky_bringup (no lidar)."
 else
@@ -1395,18 +1395,16 @@ else
     confirm ">>> Install the manipulator diagnostics (UR5 + RG6 then appear in Cockpit/diagnostics_agg)?" || DO_MD=0
 fi
 if [ "$DO_MD" -eq 1 ]; then
-    # Resolve order, compile check and discard rule live in install_repo_tool; the smoke test is the selftest of
-    # the evaluation logic (pure Python, no ROS needed).  Wrapper + unit only land while a usable copy does.
-    if install_repo_tool scripts/manipulator_diagnostics.py "$MD_BIN" python3 "$MD_BIN" --selftest; then
-        echo ">>> Installing ${MD_WRAPPER} + ${MD_UNIT}"
-        install_template systemd/manipulator-diagnostics.sh.in "$MD_WRAPPER" 0755
-
-        install_template systemd/clearpath-custom-manipulator-diagnostics.service.in "$MD_UNIT_PATH" 0644
-    else
-        echo "    WARN: manipulator_diagnostics.py neither loadable nor present locally - manipulator diagnostics skipped."
-    fi
+    # The node comes from husky_manipulator_diagnostics in the husky build above; the unit only starts it.
+    echo ">>> Installing ${MD_WRAPPER} + ${MD_UNIT}"
+    install_template systemd/manipulator-diagnostics.sh.in "$MD_WRAPPER" 0755
+    install_template systemd/clearpath-custom-manipulator-diagnostics.service.in "$MD_UNIT_PATH" 0644
 else
     echo ">>> Manipulator diagnostics: skipped."
+fi
+if [ -f "$RETIRED_MD_BIN" ]; then
+    echo ">>> Removing ${RETIRED_MD_BIN}: husky_manipulator_diagnostics carries the node now"
+    rm -f "$RETIRED_MD_BIN"
 fi
 
 # --- ds4drv masked (optional) ------------------------------------------------
