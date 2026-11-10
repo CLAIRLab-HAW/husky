@@ -275,7 +275,7 @@ JS_UNIT_PATH="/etc/systemd/system/${JS_UNIT}"
 # against loops). In addition a SIGINT stop drop-in on
 # clearpath-manipulators.service pins a graceful ROS shutdown instead of the
 # SIGTERM ignore (a 90 s zombie with a socket collision).
-WD_WRAPPER="${BIN_DIR}/manipulators-watchdog.sh"
+WD_BIN="${BIN_DIR}/manipulators-watchdog.sh"
 WD_UNIT="clearpath-custom-manipulators-watchdog.service"
 WD_UNIT_PATH="/etc/systemd/system/${WD_UNIT}"
 WD_TIMER="clearpath-custom-manipulators-watchdog.timer"
@@ -483,7 +483,7 @@ verify_deployments() {
     local rc=0 entry dst rel src candidate h_dst h_src status
     local -a MANIFEST=(
         "${PY_PATH}|scripts/boot_patches.py"
-        "${WD_WRAPPER}|scripts/manipulators_watchdog.sh"
+        "${WD_BIN}|scripts/manipulators_watchdog.sh"
         "${BIN_DIR}/octomap-feed|scripts/octomap_feed.py"
         "${URDF_PHYSICS_PATCH_BIN}|scripts/patch_urdf_physics.py"
         "${SENSOR_MESH_URI_PATCH_BIN}|scripts/patch_sensor_mesh_uri.py"
@@ -1202,7 +1202,7 @@ else
     confirm ">>> Install manipulators-watchdog (driver restart when the arm is powered up late)?" || DO_WD=0
 fi
 if [ "$DO_WD" -eq 1 ]; then
-    echo ">>> Installing ${WD_WRAPPER} + ${WD_UNIT} + ${WD_TIMER}"
+    echo ">>> Installing ${WD_BIN} + ${WD_UNIT} + ${WD_TIMER}"
     # A FILE in this repo (scripts/manipulators_watchdog.sh), for the same reason
     # as the patcher: 232 lines of shell inside a string are invisible to
     # to shellcheck, to `bash -n` and to every editor.  require_repo_file, because
@@ -1210,7 +1210,7 @@ if [ "$DO_WD" -eq 1 ]; then
     WD_SRC="$(require_repo_file scripts/manipulators_watchdog.sh)"
     bash -n "$WD_SRC" \
         || { echo "ERROR: $WD_SRC is not valid bash - refusing to deploy the watchdog." >&2; exit 1; }
-    install -m 0755 -o root -g root "$WD_SRC" "$WD_WRAPPER"
+    install -m 0755 -o root -g root "$WD_SRC" "$WD_BIN"
 
     install_template systemd/clearpath-custom-manipulators-watchdog.service.in "$WD_UNIT_PATH" 0644
 

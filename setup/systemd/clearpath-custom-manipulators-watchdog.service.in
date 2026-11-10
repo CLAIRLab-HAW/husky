@@ -7,8 +7,8 @@ After=clearpath-manipulators.service
 [Service]
 Type=oneshot
 # Runs as root (the default) -> may systemctl restart. The ROS check in the
-# wrapper switches to @REAL_USER@ itself via 'sudo -u'.
-ExecStart=@WD_WRAPPER@ @ARM_ROBOT_IP@ @MANIP_NS@/io_and_status_controller/robot_program_running @REAL_USER@ @USER_HOME@
+# script switches to @REAL_USER@ itself via 'sudo -u'.
+ExecStart=@WD_BIN@ @ARM_ROBOT_IP@ @MANIP_NS@/io_and_status_controller/robot_program_running @REAL_USER@ @USER_HOME@
 # The recovery blocks on the systemctl restart plus dashboard calls and polls.
 # With the SIGINT stop drop-in (clearpath-manipulators.service.d/override.conf)
 # the driver stops in ~1-3s; without it SIGTERM can take up to 90s until SIGKILL. The systemd
