@@ -94,9 +94,11 @@ uv run onboard/lidar/tools/rs16_mesh.py RS16.stp onboard/lidar/src/rs16_descript
 ## Running Tests
 
 ```bash
-uv run pytest -c pyproject.toml onboard/lidar                       # root addopts: no ROS, no container
-uv run pytest -c pyproject.toml -m e2e_container_nav onboard/lidar  # the driver replaying the recording
+uv run pytest lidar/tests                 # from the onboard root: no ROS, no container
 ```
+
+The driver replaying the RS16 recording in the offboard container is clearpath's
+`deploy/offboard/tests/test_lidar_driver_e2e.py`.
 
 ## Related
 

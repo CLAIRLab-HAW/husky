@@ -13,14 +13,7 @@ authors = [
 requires-python = ">=3.12"
 dependencies = ["clair-lidar", "pyyaml>=6.0"]
 
-# Test-only, hence a group and not `dependencies`: this package runs onboard the robot, where neither the
-# contract nor a lock file is wanted.  `robot-contract[testing]` brings `filelock` along -- the conftest
-# used to import it without anyone declaring it anywhere, which worked by transitive accident.
-[dependency-groups]
-dev = ["clair-robot[testing]"]
-
 [tool.uv.sources]
-clair-robot = { workspace = true }
 clair-lidar = { workspace = true }
 
 # `clair` is a PEP 420 namespace and carries NO __init__.py.
@@ -31,6 +24,3 @@ namespaces = true
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-markers = [
-    "e2e_container_nav: end-to-end against a DRIVING base (mock platform:=true + Nav2); needs a running offboard container, serialised by exclusive_base in conftest",
-]

@@ -24,12 +24,16 @@ the robot still sources the old single-repo clones under `/home/robot/` (**R57**
 ## Running tests
 
 ```bash
-uv run pytest onboard                     # what runs without ROS
-uv run pytest -m e2e_container_nav onboard/navigation onboard/lidar   # needs a driving base and Nav2
+uv sync
+uv run ruff check . && uv run ruff format --check --extend-exclude cockpit-diagnostics .
+uv run pytest                             # every package's suite, without ROS and without a container
 ```
 
-`e2e_container_nav` is deselected by the root run. Inside `navigation/` a file lock (`tests/conftest.py`,
-`exclusive_base`) serializes the driving tests — without it two xdist workers measure each other's drive.
+This repository needs no workspace around it: `pyproject.toml` here is a uv workspace over `lidar` and `navigation`,
+with its own `uv.lock` and `ruff.toml`. Tests that compare a file here against one in a neighboring clearpath
+repository skip with a named cause when there is none. Tests that import clearpath packages, and the end-to-end tests
+against the offboard container, live in the clearpath workspace (`deploy/offboard/tests`, `robot/contract/tests`,
+`twin/twinlink/tests`).
 
 ## Versioning
 

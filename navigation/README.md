@@ -110,9 +110,11 @@ See `deploy/offboard/scripts/nav` in the container.
 ## Running Tests
 
 ```bash
-uv run pytest onboard/navigation          # without ROS, without container
-uv run pytest -m e2e_container_nav                      # needs a running container
+uv run pytest navigation/tests            # from the onboard root: without ROS, without container
 ```
+
+The end-to-end tests against the driving base in the offboard container live in clearpath's `deploy/offboard/tests`
+(`uv run pytest -m e2e_container_nav deploy/offboard/tests` there).
 
 ## Related
 

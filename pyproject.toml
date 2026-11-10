@@ -1,0 +1,44 @@
+# onboard on its own: one uv workspace over the two Python distributions, and the tooling every package's tests run
+# with.  `uv sync && uv run ruff check . && uv run pytest` in a fresh clone of this repository is the whole check --
+# it needs no clearpath checkout around it.  Inside one, uv still takes this file for anything below onboard/, and
+# clearpath's root keeps lidar and navigation as members of its own workspace until it lets go of them.
+#
+# setup, extras, gripper and ur-state carry no pyproject.toml of their own: they are ROS packages and scripts, and
+# their tests import the scripts beside them through their conftest.py.
+
+[project]
+name = "onboard"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = ["clair-lidar", "clair-navigation"]
+
+# The root is a workspace root, not a package: nothing here gets built or installed.
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["lidar", "navigation"]
+
+[tool.uv.sources]
+clair-lidar = { workspace = true }
+clair-navigation = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.16.5,<0.17",
+    "numpy>=1.26",
+    "pyyaml>=6.0",
+]
+
+[tool.pytest.ini_options]
+# importlib: lidar and navigation both have a test_wiring.py, and no package ships a tests/__init__.py.
+addopts = "--import-mode=importlib"
+testpaths = [
+    "setup/tests",
+    "extras/tests",
+    "gripper/tests",
+    "ur-state/tests",
+    "lidar/tests",
+    "navigation/tests",
+]

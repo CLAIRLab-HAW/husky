@@ -1,30 +1,19 @@
 name: ci
 
-# The seven onboard checkouts, checked the way each one was checked before the consolidation -- in one file at
-# the root of the repository, because GitHub Actions never reads a workflow from a subdirectory.
+# onboard on its own: no other repository is checked out, and the Python job runs from this repository's
+# pyproject.toml, uv.lock and ruff.toml.  The tests that need clearpath live there (deploy/offboard/tests,
+# robot/contract/tests, twin/twinlink/tests), and clearpath's own CI runs them.
 #
 # Three jobs, by toolchain:
 #
-#   python              setup, extras, rg6, ur-state, navigation -- their own suites, `bash -n` over the
-#                       installer scripts, a syntax-level ruff pass, and the SSOT parity test in clair-contract
-#                       (robot.yaml against the a200_0553 profile), which is the one test outside this
-#                       repository that pins a file inside it.
+#   python              setup, extras, gripper, ur-state, lidar, navigation -- their own suites, `bash -n` over
+#                       the installer scripts, ruff: full rules on lidar, navigation and cockpit-tools, syntax-level
+#                       on the four packages that are ROS packages and scripts rather than distributions.
 #   cockpit-tools       the Cockpit page: `node --check`, `bash -n`, `npm test`.
 #   cockpit-diagnostics the upstream-derived plugin: `npm ci`, eslint, stylelint. The upstream's two bot
 #                       workflows (cockpit-lib-update, tasks-container-update) are NOT carried over: they open
 #                       pull requests against the upstream repository from a Cockpit-project identity, which
 #                       has no place in this one.
-#
-# WHY THE WHOLE WORKSPACE. The root repository `clearpath` owns pyproject.toml, uv.lock, conftest.py and
-# workspace.repos, and navigation's `test_suite_is_visible` reads the ROOT pytest options to prove the root run
-# descends into onboard/ and deselects the driving-base marker. The synthesized root this workflow carried
-# until 2026-09-17 had neither `norecursedirs` nor those options, and was red for exactly that on 2026-09-03.
-# So every workflow of the eight repositories checks out the root and the seven repositories at the branch the
-# run is for and runs `uv sync` from the one lock; the uv cache keeps the full venv to the first run.
-#
-# `CLAIRLAB_READ_TOKEN`, not `GITHUB_TOKEN`: the default token is scoped to the repository the workflow runs in,
-# so against another PRIVATE repository of the same organization the checkout answers "Not Found" rather than
-# 403. The org secret is the one every cross-repository checkout here has used since 2026-08-26.
 
 on:
   push:
@@ -36,60 +25,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  WORKSPACE_REF: ${{ github.head_ref || github.ref_name }}
-
 jobs:
   python:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
-        with:
-          repository: CLAIRLab-HAW/clearpath
-          ref: ${{ env.WORKSPACE_REF }}
-          token: ${{ secrets.CLAIRLAB_READ_TOKEN }}
-
-      - uses: actions/checkout@v7
-        with:
-          path: onboard
-
-      - uses: actions/checkout@v7
-        with:
-          repository: CLAIRLab-HAW/log
-          path: log
-          ref: ${{ env.WORKSPACE_REF }}
-          token: ${{ secrets.CLAIRLAB_READ_TOKEN }}
-      - uses: actions/checkout@v7
-        with:
-          repository: CLAIRLab-HAW/twin
-          path: twin
-          ref: ${{ env.WORKSPACE_REF }}
-          token: ${{ secrets.CLAIRLAB_READ_TOKEN }}
-      - uses: actions/checkout@v7
-        with:
-          repository: CLAIRLab-HAW/robot
-          path: robot
-          ref: ${{ env.WORKSPACE_REF }}
-          token: ${{ secrets.CLAIRLAB_READ_TOKEN }}
-      - uses: actions/checkout@v7
-        with:
-          repository: CLAIRLab-HAW/maniskill
-          path: maniskill
-          ref: ${{ env.WORKSPACE_REF }}
-          token: ${{ secrets.CLAIRLAB_READ_TOKEN }}
-      - uses: actions/checkout@v7
-        with:
-          repository: CLAIRLab-HAW/apps
-          path: apps
-          ref: ${{ env.WORKSPACE_REF }}
-          token: ${{ secrets.CLAIRLAB_READ_TOKEN }}
-      - uses: actions/checkout@v7
-        with:
-          repository: CLAIRLab-HAW/deploy
-          path: deploy
-          ref: ${{ env.WORKSPACE_REF }}
-          token: ${{ secrets.CLAIRLAB_READ_TOKEN }}
 
       - uses: astral-sh/setup-uv@v7
         with:
@@ -100,23 +41,15 @@ jobs:
       - run: uv sync
 
       - name: bash -n over the installer and boot scripts
-        working-directory: onboard/setup
+        working-directory: setup
         run: find . -name '*.sh' -print0 | xargs -0 -n1 bash -n
 
-      # Syntax-level only for the four checkouts without a pyproject.toml of their own (deliberately none:
-      # `uv` would take such a directory for the workspace root). navigation has one and gets the full set.
-      - run: uv run ruff check --select E9,F63,F7,F82 onboard/setup onboard/extras onboard/rg6 onboard/ur-state
-      - run: uv run ruff check onboard/navigation
-      - run: uv run ruff format --check onboard/navigation
+      - run: uv run ruff check --select E9,F63,F7,F82 setup extras gripper ur-state
+      - run: uv run ruff check lidar navigation cockpit-tools
+      # cockpit-diagnostics is upstream code with a [tool.ruff] of its own, formatted to its own rules.
+      - run: uv run ruff format --check --extend-exclude cockpit-diagnostics .
 
-      - name: own suites
-        run: >
-          uv run pytest onboard/setup onboard/extras onboard/rg6 onboard/ur-state onboard/navigation -q
-          -m 'not e2e_container and not e2e_container_nav and not e2e_container_maniskill
-          and not needs_recording and not slow_sim'
-
-      - name: robot.yaml against the a200_0553 profile
-        run: uv run pytest robot/contract/tests/test_ssot_parity.py -q
+      - run: uv run pytest -q
 
   cockpit-tools:
     runs-on: ubuntu-latest
