@@ -170,13 +170,18 @@ def log(msg, err=False):
 def atomic_write(path, content):
     """Write ``content`` over ``path``, keeping one backup and never leaving a half-written file.
 
-    The same shape as ``rg6_moveit_patch.atomic_write``: the backup is taken ONCE, so a second run cannot overwrite
-    the pristine apt copy with an already-patched one.
+    The same shape as ``ride_height_patch.atomic_write``: the backup is taken ONCE, so a second run cannot overwrite
+    the pristine apt copy with an already-patched one.  A backup that cannot be written does not stop the rewrite --
+    the fix outranks the undo record.
     """
     backup = path + ".bak"
     if not os.path.exists(backup):
-        shutil.copy2(path, backup)
-        log(f"backup written: {backup}")
+        try:
+            shutil.copy2(path, backup)
+            log(f"backup written: {backup}")
+        except OSError as e:
+            # The write below goes ahead regardless, but without the .bak it cannot be undone -- hence stderr.
+            log(f"no backup of {path}: {e}", err=True)
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path) or ".", suffix=".tmp")
     try:
         with os.fdopen(fd, "w") as f:

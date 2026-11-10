@@ -216,6 +216,20 @@ def test_the_backup_is_taken_once_and_keeps_the_pristine_copy(tmp_path):
     assert (tmp_path / "f.urdf.xacro.bak").read_text() == original
 
 
+def test_a_failed_backup_does_not_stop_the_rewrite(tmp_path, monkeypatch, capsys):
+    """The fix outranks the undo record, as in the other patchers: no .bak is logged, the file is written anyway."""
+    path = tmp_path / "f.urdf.xacro"
+    path.write_text('<robot>\n  <joint name="j">\n    <axis xyz="0 0 1"/>\n  </joint>\n</robot>')
+
+    def refuse(src, dst):
+        raise OSError("no space left on device")
+
+    monkeypatch.setattr(patch.shutil, "copy2", refuse)
+    assert patch.patch_file(str(path), [_target("p", "f", "joint", "j", "dynamics")], dry_run=False) == 1
+    assert "no backup" in capsys.readouterr().err
+    assert "<dynamics" in path.read_text()
+
+
 def test_a_dry_run_writes_nothing(tmp_path):
     path = tmp_path / "f.urdf.xacro"
     original = '<robot>\n  <joint name="j">\n    <axis xyz="0 0 1"/>\n  </joint>\n</robot>'
