@@ -151,8 +151,10 @@ A200_LOOK_PATCH_BIN="${BIN_DIR}/a200-look-patch"
 # lib/rg6_control next to the script instead of under share/ -- the bridge resolves it relative to itself.
 rg6_tool_src() {
     _cand=""
+    # The third: rg6_moveit_patch is installed as a command, but its source carries .py.
     for _cand in "${RG6_WS}/install/rg6_control/lib/rg6_control/$1" \
-                 "${RG6_WS}/src/rg6_control/scripts/$1"; do
+                 "${RG6_WS}/src/rg6_control/scripts/$1" \
+                 "${RG6_WS}/src/rg6_control/scripts/$1.py"; do
         [ -f "${_cand}" ] && { printf '%s' "${_cand}"; return 0; }
     done
     return 0
