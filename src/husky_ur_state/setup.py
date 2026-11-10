@@ -1,0 +1,32 @@
+"""Package setup of the ``husky_ur_state`` ROS 2 package (ament_python)."""
+
+from glob import glob
+
+from setuptools import find_packages, setup
+
+package_name = "husky_ur_state"
+
+setup(
+    name=package_name,
+    version="0.0.0",
+    packages=find_packages(exclude=["test"]),
+    data_files=[
+        ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
+        ("share/" + package_name, ["package.xml"]),
+        ("share/" + package_name + "/launch", glob("launch/*.launch.py")),
+        ("share/" + package_name + "/config", glob("config/*.yaml")),
+    ],
+    install_requires=["setuptools"],
+    zip_safe=True,
+    maintainer="Hannes Voss",
+    maintainer_email="hannes.voss@haw-hamburg.de",
+    description="UR5 state manager: make the arm ready for operation + recovery after a safety violation.",
+    license="TODO: License declaration",
+    tests_require=["pytest"],
+    entry_points={
+        "console_scripts": [
+            "state_manager = husky_ur_state.state_manager:main",
+            "controller_mode_manager = husky_ur_state.controller_mode_manager:main",
+        ]
+    },
+)

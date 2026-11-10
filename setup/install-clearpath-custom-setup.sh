@@ -18,22 +18,21 @@
 #   - sysctl 10-ur-reserved-ports.conf: takes the UR driver ports 50001-50004 out
 #     of the ephemeral range, so nothing else can occupy them before the driver
 #   - optional: speed up the GRUB boot (hide the menu, GRUB_TIMEOUT=0)
-#   - build ~/tools/gripper and ~/tools/description (colcon), plus root-owned copies of
-#     rg6_moveit_patch (boot service) and rg6_grip_bridge.py + its linkage
-#     table (the gripper service) under /usr/local/bin
-#   - build ~/husky/lidar (colcon): rs16_description, the RS16's macro the
-#     extras file includes, a workspace robot.yaml lists
-#   - build ~/husky/extras (colcon): the URDF extras robot.yaml
-#     addresses under platform.extras.urdf and lists as a workspace, and
-#     husky_extras_bringup, the launch robot.yaml starts under platform.extras.launch
+#   - build ~/tools (colcon, one workspace: the gripper and the tool macros), plus
+#     root-owned copies of rg6_moveit_patch (boot service) and rg6_grip_bridge.py
+#     + its linkage table (the gripper service) under /usr/local/bin
+#   - build ~/husky (colcon, one workspace): the URDF extras robot.yaml addresses
+#     under platform.extras.urdf, husky_bringup, the launch robot.yaml starts under
+#     platform.extras.launch, the lidars' macros, husky_lidar, husky_navigation
+#     and husky_ur_state; robot.yaml lists both install spaces
 #   - root-owned copies of urdf_physics_patch, sensor_mesh_uri_patch,
 #     ride_height_patch and a200_look_patch (all this repo) under
 #     /usr/local/bin, likewise for the boot service
 #   - optional: clearpath-custom-ur-dashboard.service: starts the ur_robot_driver
 #     dashboard_client (power_on/brake_release/unlock_protective_stop/restart_safety)
 #     at boot
-#   - optional: clearpath-custom-ur-state-manager.service: builds
-#     ~/husky/ur-state and starts the state manager
+#   - optional: clearpath-custom-ur-state-manager.service: starts the state
+#     manager out of the husky workspace
 #     (prepare/recover/ensure_ready/power_off) at boot
 #     (including the extra controller --inactive + ur_controller_mode_manager --
 #     part of the same launch, no separate arm-controllers unit)
@@ -47,8 +46,8 @@
 #     (/a200_0553/joint_states) plus the relays back onto the platform bus
 #   - optional: clearpath-custom-octomap-feed.service: throttled depth ->
 #     PointCloud2 for MoveIt's occupancy map monitor
-#   - optional: the lidar's apt packages (rslidar_sdk, pointcloud_to_laserscan) and a .pth that puts
-#     ~/husky/lidar/src and ~/husky/navigation/src on the system Python's path.  Clearpath's
+#   - optional: the lidar's apt packages (rslidar_sdk, pointcloud_to_laserscan, and scipy + trimesh for the self
+#     filter's hulls).  Clearpath's
 #     clearpath-platform-extras service starts the chain itself, from robot.yaml's platform.extras.launch; a
 #     clearpath-custom-lidar.service found installed is taken out, it would start a second driver
 #   - optional: clearpath-custom-manipulator-diagnostics.service: UR5 + RG6 as
@@ -204,7 +203,7 @@ MD_UNIT_PATH="/etc/systemd/system/${MD_UNIT}"
 # Echo for Android pairs as the robot's gamepad without anyone at a shell
 # (scripts/bt_joy_pairing.py says why it is gated the way it is).  It runs as
 # the robot user; the D-Bus policy lets that user talk to org.bluez.
-# robot.yaml's platform.extras.launch starts it (husky_extras_bringup's bt_joy.launch.py, which finds it on the PATH
+# robot.yaml's platform.extras.launch starts it (husky_bringup's bt_joy.launch.py, which finds it on the PATH
 # by this name); the unit and wrapper are the custom service that carried it, taken out where installed.
 BT_JOY_BIN="${BIN_DIR}/bt-joy-pairing"
 BT_JOY_DBUS_POLICY="/etc/dbus-1/system.d/clearpath-custom-bt-joy.conf"
@@ -361,14 +360,11 @@ USER_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
 HUSKY_WS="${USER_HOME}/husky"
 TOOLS_WS="${USER_HOME}/tools"
 SETUP_WS="${HUSKY_WS}/setup"   # versioned robot.yaml (symlink target)
-RG6_WS="${TOOLS_WS}/gripper"   # the paths robot.yaml lists; do not move without moving them there
-TOOL_DESC_WS="${TOOLS_WS}/description"
-EXTRAS_WS="${HUSKY_WS}/extras"   # the path robot.yaml names; do not move without moving it there
-LIDAR_WS="${HUSKY_WS}/lidar"     # likewise
-USM_WS="${HUSKY_WS}/ur-state"
+# Each clone is ONE colcon workspace (src/<package>), and robot.yaml lists the two install spaces; do not move them
+# without moving them there.  RG6_WS names the tools workspace by what this installer takes out of it.
+RG6_WS="${TOOLS_WS}"
 CKPT_WS="${HUSKY_WS}/cockpit-diagnostics"
 CRT_WS="${HUSKY_WS}/cockpit-tools"   # the Cockpit page "Roboter-Werkzeuge"
-NAV_WS="${HUSKY_WS}/navigation"
 # The colcon builds see ROS and nothing else.  /etc/clearpath/setup.bash also sources the workspaces robot.yaml
 # lists, and colcon writes every workspace sourced at build time into the new install/setup.sh as an underlay: on
 # 2026-09-29 the gripper workspace chained itself and the retired ~/onrobot-rg6 that way, both on AMENT_PREFIX_PATH.
@@ -591,8 +587,8 @@ fi
 
 # --- clone husky and tools + robot.yaml symlink -- FIRST ---------------------
 # FIRST, because every block below resolves against this checkout: repo_file
-# reads ${SETUP_WS}, the colcon builds run in ${RG6_WS}, ${EXTRAS_WS} and
-# ${USM_WS}, the Cockpit blocks install out of it.  Ahead of it, only "next to
+# reads ${SETUP_WS}, the colcon builds run in ${TOOLS_WS} and ${HUSKY_WS},
+# the Cockpit blocks install out of it.  Ahead of it, only "next to
 # the script" or the network can answer, and a wget of the single installer
 # file has no "next to the script".
 # Clearpath intends robot.yaml to be kept under version control and placed at
@@ -993,83 +989,49 @@ fi
 # remove, downgrade or upgrade anything already installed -- so `-y` cannot move
 # the pinned UR stack.
 
-# --- build rg6 (as the real user, not root) ---------------------------------
-DO_RG6=1
-if [ -d "${RG6_WS}/install" ]; then
-    confirm ">>> rg6 is built in ${RG6_WS}. Rebuild?" || DO_RG6=0
+# --- build tools (as the real user, not root) -------------------------------
+# One colcon workspace: rg6_description (the gripper model + meshes), rg6_control (rg6_grip_bridge, rg6_moveit_patch),
+# gripper_control (gripper_sim for the container mock, the joint_state helper nodes) and tool_description (the RG6 and
+# key holder macros the extras' tool files include).
+#
+# Three files of that workspace are rolled out here as root-owned copies: the SRDF patch for the boot service, and the
+# bridge plus its linkage table for the gripper service (see rg6_tool_src).  clearpath-custom-joint-states starts the
+# relay out of the same workspace.  The bridge publishes its state as flat JSON on rg6/bridge_state, so a reader needs
+# std_msgs and nothing else; the workspace ships no interface package.
+DO_TOOLS=1
+if [ -d "${TOOLS_WS}/install" ]; then
+    confirm ">>> tools is built in ${TOOLS_WS}. Rebuild?" || DO_TOOLS=0
 fi
-if [ "$DO_RG6" -eq 1 ]; then
-    echo ">>> Building ${RG6_WS} (colcon, user ${REAL_USER})"
-    # rg6_description = gripper model + meshes; rg6_control = the RG6's own (rg6_grip_bridge, rg6_moveit_patch);
-    # gripper_control = what every model shares (gripper_sim for the container mock, the joint_state helper nodes).
-    #
-    # Three files of that workspace are rolled out here as root-owned copies: the SRDF patch for the boot service,
-    # and the bridge plus its linkage table for the gripper service (see rg6_tool_src).  clearpath-custom-joint-states
-    # starts the relay out of the same workspace.  The other patch tools (urdf_physics_patch and its siblings) are
-    # scripts of THIS repo and need none of this build.
-    #
-    # These two are the whole workspace -- rg6 ships no interface
-    # package.  The bridge publishes its state as flat JSON on rg6/bridge_state,
-    # so a reader needs std_msgs and nothing else.  Cross-checked on the robot on
-    # 2026-08-24: <ns>/rg6/state does not exist, only bridge_state.
+if [ "$DO_TOOLS" -eq 1 ]; then
+    echo ">>> Building ${TOOLS_WS} (colcon, user ${REAL_USER})"
     sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
-        "source '$ROS_SETUP' && cd '$RG6_WS' && colcon build --packages-select rg6_description rg6_control gripper_control" \
-        || echo "    WARN: colcon build failed - without rg6_description the gripper is missing from the URDF, without rg6_control the joint-states relay."
+        "source '$ROS_SETUP' && cd '$TOOLS_WS' && colcon build" \
+        || echo "    WARN: colcon build failed - without rg6_description and tool_description the gripper is missing" \
+                "from the URDF, without rg6_control the joint-states relay."
 else
-    echo ">>> rg6: skipped (the existing build stays)."
+    echo ">>> tools: skipped (the existing build stays)."
 fi
 
-# --- build the tool macros (as the real user, not root) ---------------------
-# tool_description: the RG6 and key holder macros the extras' tool files include with $(find ...), so it is built
-# after rg6_description and before extras.  A data package.
-DO_TOOL_DESC=1
-if [ -d "${TOOL_DESC_WS}/install" ]; then
-    confirm ">>> the tool macros are built in ${TOOL_DESC_WS}. Rebuild?" || DO_TOOL_DESC=0
+# --- build husky (as the real user, not root) -------------------------------
+# One colcon workspace: husky_extras_description (the file robot.yaml's platform.extras.urdf.path names, with the arch
+# meshes), husky_bringup (the launches robot.yaml's platform.extras.launch starts), rs16_description and
+# qb2_description (the two lidars' macros; both built, so that switching the model in robot.yaml needs no build),
+# husky_lidar and husky_navigation (the lidar's driver configuration, self filter and scan) and husky_ur_state.  Built
+# after tools: the extras' tool files include tool_description's macros, at run time.  The Qb2 driver, cloned into
+# src/ where robot.yaml names the Qb2, is built by the lidar block below and left out here.
+DO_HUSKY=1
+if [ -d "${HUSKY_WS}/install" ]; then
+    confirm ">>> husky is built in ${HUSKY_WS}. Rebuild?" || DO_HUSKY=0
 fi
-if [ "$DO_TOOL_DESC" -eq 1 ]; then
-    echo ">>> Building ${TOOL_DESC_WS} (colcon, user ${REAL_USER})"
+if [ "$DO_HUSKY" -eq 1 ]; then
+    echo ">>> Building ${HUSKY_WS} (colcon, user ${REAL_USER})"
     sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
-        "source '$ROS_SETUP' && cd '$TOOL_DESC_WS' && colcon build --packages-select tool_description" \
-        || echo "    WARN: colcon build failed - the generator cannot expand the extras' tool file."
+        "source '$ROS_SETUP' && cd '$HUSKY_WS' && colcon build --packages-select husky_extras_description \
+         husky_bringup rs16_description qb2_description husky_lidar husky_navigation husky_ur_state" \
+        || echo "    WARN: colcon build failed - package://husky_extras_description stays unresolvable (arch without a" \
+                "mesh), and clearpath-platform-extras finds no husky_bringup (no lidar)."
 else
-    echo ">>> tool macros: skipped (the existing build stays)."
-fi
-
-# --- build lidar (as the real user, not root) -------------------------------
-# rs16_description and qb2_description, the two lidars' macros: the extras file includes the one robot.yaml's model
-# names with $(find ...), so the generator dies on that include while the workspace robot.yaml lists is unbuilt.
-# Both are built, so that switching the model in robot.yaml needs no build.  Pure data packages.
-DO_LIDAR_BUILD=1
-if [ -d "${LIDAR_WS}/install" ]; then
-    confirm ">>> lidar is built in ${LIDAR_WS}. Rebuild?" || DO_LIDAR_BUILD=0
-fi
-if [ "$DO_LIDAR_BUILD" -eq 1 ]; then
-    echo ">>> Building ${LIDAR_WS} (colcon, user ${REAL_USER})"
-    sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
-        "source '$ROS_SETUP' && cd '$LIDAR_WS' && colcon build --packages-select rs16_description qb2_description" \
-        || echo "    WARN: colcon build failed - the generator cannot expand the extras file (no robot model)."
-else
-    echo ">>> lidar: skipped (the existing build stays)."
-fi
-
-# --- build extras (as the real user, not root) ------------------------------
-# The last workspace robot.yaml lists, and it hangs on the others: the extras file instantiates the tool macros out
-# of tool_description and the RS16's out of rs16_description, so it is built after them.  Two data packages
-# (husky_extras_description's urdf/ + meshes/, husky_extras_bringup's launch/), so the build is a copy into install/
-# and takes no measurable time.
-DO_EXTRAS=1
-if [ -d "${EXTRAS_WS}/install" ]; then
-    confirm ">>> extras is built in ${EXTRAS_WS}. Rebuild?" || DO_EXTRAS=0
-fi
-if [ "$DO_EXTRAS" -eq 1 ]; then
-    echo ">>> Building ${EXTRAS_WS} (colcon, user ${REAL_USER})"
-    sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
-        "source '$ROS_SETUP' && cd '$EXTRAS_WS' \
-         && colcon build --packages-select husky_extras_description husky_extras_bringup" \
-        || echo "    WARN: colcon build failed - package://husky_extras_description stays unresolvable" \
-                "(arch without a mesh), and clearpath-platform-extras finds no husky_extras_bringup (no lidar)."
-else
-    echo ">>> extras: skipped (the existing build stays)."
+    echo ">>> husky: skipped (the existing build stays)."
 fi
 
 # --- install the five patch tools as root-owned copies ----------------------
@@ -1168,7 +1130,7 @@ install_repo_tool scripts/a200_look_patch.py "$A200_LOOK_PATCH_BIN" \
 # restart_safety/get_robot_mode/get_safety_mode). Its own service, no build:
 # 'ros2 run ur_robot_driver dashboard_client' connects to <ip>:29999.
 # __node:=dashboard_client is pinned -> the services land deterministically under
-# ${UR_DASH_NS}/dashboard_client/* (matching the ur_state_manager default).
+# ${UR_DASH_NS}/dashboard_client/* (matching the ur_state_manager node's default).
 DO_DASH=1
 if [ -f "$UR_DASH_UNIT_PATH" ]; then
     confirm ">>> ${UR_DASH_UNIT} is already installed. Update?" || DO_DASH=0
@@ -1222,25 +1184,20 @@ else
 fi
 
 # --- build ur-state + boot service (optional) -------------------------------
-# prepare/recover/ensure_ready/power_off services for the arm. Like rg6: build
-# as the real user, then start it via systemd. Needs the
+# prepare/recover/ensure_ready/power_off services for the arm, out of the husky workspace built above, started via
+# systemd. Needs the
 # dashboard_client (clearpath-custom-ur-dashboard.service) -> launch with start_dashboard_client:=false.
 DO_USM=1
 if [ -f "$USM_UNIT_PATH" ]; then
-    confirm ">>> ${USM_UNIT} is already installed. Rebuild ${USM_WS} + update the service?" || DO_USM=0
+    confirm ">>> ${USM_UNIT} is already installed. Update the service?" || DO_USM=0
 else
-    confirm ">>> Install ur-state-manager (prepare/recover services; builds ${USM_WS} + boot service)?" || DO_USM=0
+    confirm ">>> Install ur-state-manager (prepare/recover services; boot service)?" || DO_USM=0
 fi
 if [ "$DO_USM" -eq 1 ]; then
-    echo ">>> Building ${USM_WS} (colcon, user ${REAL_USER})"
-    sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
-        "source '$ROS_SETUP' && cd '$USM_WS' && colcon build --packages-select ur_state_manager" \
-        || echo "    WARN: colcon build failed - ${USM_UNIT} only runs after a successful build."
-
     echo ">>> Installing ${USM_WRAPPER} + ${USM_UNIT}"
     cat > "$USM_WRAPPER" <<EOF
 #!/usr/bin/env bash
-# Starts the ur_state_manager (prepare/recover/ensure_ready/power_off).
+# Starts the ur_state_manager node (prepare/recover/ensure_ready/power_off).
 # start_dashboard_client:=false -> the dashboard_client runs via clearpath-custom-ur-dashboard.service.
 # auto_recover:=false -> the auto_recover watcher is OFF: it would release the
 #   brakes and start external control via 'recover' (arm -> RUNNING). After a
@@ -1249,8 +1206,8 @@ if [ "$DO_USM" -eq 1 ]; then
 #   'prepare' by hand. The driver connect happens on its own (JSC); the watchdog
 #   is the emergency brake (driver restart only, no brakes/powering).
 source /etc/clearpath/setup.bash
-source ${USM_WS}/install/setup.bash
-exec ros2 launch ur_state_manager ur_state_manager.launch.py start_dashboard_client:=false auto_recover:=false
+source ${HUSKY_WS}/install/setup.bash
+exec ros2 launch husky_ur_state husky_ur_state.launch.py start_dashboard_client:=false auto_recover:=false
 EOF
     chmod 0755 "$USM_WRAPPER"
 
@@ -1288,7 +1245,7 @@ fi
 # --- arm controllers: no service of their own ------------------------------
 # The extra controllers (ft/tcp_pose/speed_scaling active; freedrive/forward/
 # passthrough --inactive) and the ur_controller_mode_manager come from
-# ur_state_manager.launch.py (argument load_arm_controllers, default true): same
+# husky_ur_state.launch.py (argument load_arm_controllers, default true): same
 # package, same workspace, same user, identical lifecycle -> no reason for a
 # second unit.
 
@@ -1514,17 +1471,15 @@ fi
 
 # --- lidar (optional) --------------------------------------------------------
 # robot.yaml's platform.extras.launch starts the chain: Clearpath's clearpath-platform-extras service runs
-# husky_extras_bringup's lidar.launch.py with lidar_model, which includes husky/navigation's scan.launch.py and with
-# it husky/lidar's driver and self filter.  Two things that service cannot bring along are done here:
+# husky_bringup's lidar.launch.py with lidar_model, which includes husky_navigation's scan.launch.py and with
+# it husky_lidar's driver and self filter.  Two things that service cannot bring along are done here:
 #   - rslidar_sdk and pointcloud_to_laserscan come from apt.  They are installed only while a simulation shows
 #     nothing but new packages: on 2026-09-29 that was 3 new (both plus ros-jazzy-rslidar-msg), 0 upgraded,
 #     0 removed, all from the pinned ROS snapshot.  Without them the extras launch dies at its start.
-#   - the service sources /etc/clearpath/setup.bash and nothing else, and clair.lidar and clair.navigation are no
-#     ament packages: a .pth in the system site-packages puts their source trees on its Python's path, as the offboard
-#     image does with its own.
-# The self filter runs without clair-twin[body] on the robot and passes the points through (R63).
-LIDAR_APT=(ros-jazzy-rslidar-sdk ros-jazzy-pointcloud-to-laserscan)
-LIDAR_PTH="$(python3 -c 'import site; print(site.getsitepackages()[0])')/clair-husky.pth"
+#   - the self filter's hulls read the meshes with trimesh and hull them with scipy, both from apt as well.
+# husky_lidar and husky_navigation are ament packages of the husky workspace, which robot.yaml lists, so the service
+# finds them by sourcing /etc/clearpath/setup.bash.
+LIDAR_APT=(ros-jazzy-rslidar-sdk ros-jazzy-pointcloud-to-laserscan python3-scipy python3-trimesh)
 # The Qb2's driver, built only where robot.yaml names the Qb2: Blickfeld ships no apt package (none in rosdistro's
 # jazzy or humble, 2026-11-07) and claims Foxy and Humble, not Jazzy -- so it is built from its tag here, and a failed
 # build says so instead of stopping the installer (R88).  Its CMake fetches Blickfeld's protocol
@@ -1532,7 +1487,7 @@ LIDAR_PTH="$(python3 -c 'import site; print(site.getsitepackages()[0])')/clair-h
 # README's, from apt.
 QB2_DRIVER_URL="https://github.com/Blickfeld/blickfeld_qb2_ros2_driver.git"
 QB2_DRIVER_TAG="v2.1.0"
-QB2_DRIVER_DIR="${LIDAR_WS}/src/blickfeld_qb2_ros2_driver"   # untracked (husky/lidar/.gitignore)
+QB2_DRIVER_DIR="${HUSKY_WS}/src/blickfeld_qb2_ros2_driver"   # untracked (husky's .gitignore)
 QB2_APT=(libgrpc++-dev protobuf-compiler-grpc libprotobuf-dev ros-jazzy-diagnostic-updater)
 # apt-get install of "$@", but only while a simulation shows nothing but new packages.
 apt_add_only() {
@@ -1552,32 +1507,27 @@ lidar_missing() {
     for pkg in rslidar_sdk pointcloud_to_laserscan; do
         ls -d /opt/ros/*/share/"$pkg" >/dev/null 2>&1 || missing="${missing} ${pkg}"
     done
+    python3 -c 'import scipy, trimesh' 2>/dev/null || missing="${missing} python3-scipy/python3-trimesh"
     printf '%s' "$missing"
 }
 DO_LIDAR=1
-if [ -f "$LIDAR_PTH" ]; then
-    confirm ">>> ${LIDAR_PTH} is already installed. Update the lidar's packages and path?" || DO_LIDAR=0
+if [ -z "$(lidar_missing)" ]; then
+    confirm ">>> The lidar's packages are installed. Check the Qb2 driver against robot.yaml again?" || DO_LIDAR=0
 else
-    confirm ">>> Install the lidar (apt: ${LIDAR_APT[*]}; ${LIDAR_PTH})?" || DO_LIDAR=0
+    confirm ">>> Install the lidar (apt: ${LIDAR_APT[*]})?" || DO_LIDAR=0
 fi
 if [ "$DO_LIDAR" -eq 1 ]; then
     [ -n "$(lidar_missing)" ] && { apt_add_only "${LIDAR_APT[@]}" || true; }
     LIDAR_MISSING="$(lidar_missing)"
     [ -n "$LIDAR_MISSING" ] && \
         echo "    WARN: not installed:${LIDAR_MISSING} - clearpath-platform-extras cannot start the lidar."
-    if [ ! -d "${LIDAR_WS}/src/clair" ] || [ ! -d "${NAV_WS}/src/clair" ]; then
-        echo "    WARN: ${LIDAR_WS}/src or ${NAV_WS}/src is missing (husky not cloned?) - ${LIDAR_PTH} not written."
-    else
-        echo ">>> Writing ${LIDAR_PTH}"
-        printf '%s\n' "${LIDAR_WS}/src" "${NAV_WS}/src" > "$LIDAR_PTH"
-        chmod 0644 "$LIDAR_PTH"
-        # The .pth of the clone at ~/husky, before it was ~/husky: left in place, its clair.lidar would stand on
-        # the path beside this one's.
-        rm -f "$(dirname "$LIDAR_PTH")/clair-onboard.pth"
-    fi
-    # Read through clair.lidar itself, which the .pth just put on the path: the one place robot.yaml is parsed.
-    _read_model='import sys; from clair.lidar import models; print(models.robot_model(sys.argv[1]).name)'
-    LIDAR_MODEL="$(python3 -c "$_read_model" "${SETUP_WS}/config/robot.yaml" 2>/dev/null || true)"
+    # The .pth files that put the lidar's source trees on the system Python's path before it was an ament package
+    # (~/onboard's, then ~/husky's): left in place, they would put a second husky_lidar beside the workspace's.
+    rm -f "$(python3 -c 'import site; print(site.getsitepackages()[0])')"/clair-{onboard,husky}.pth
+    # Read through husky_lidar itself, from its source tree: the one place robot.yaml is parsed.
+    _read_model='import sys; from husky_lidar import models; print(models.robot_model(sys.argv[1]).name)'
+    LIDAR_MODEL="$(PYTHONPATH="${HUSKY_WS}/src/husky_lidar" python3 -c "$_read_model" "${SETUP_WS}/config/robot.yaml" \
+        2>/dev/null || true)"
     echo ">>> robot.yaml's lidar: ${LIDAR_MODEL:-unreadable}"
     if [ "$LIDAR_MODEL" = "qb2" ]; then
         apt_add_only "${QB2_APT[@]}" || true
@@ -1589,9 +1539,9 @@ if [ "$DO_LIDAR" -eq 1 ]; then
             echo "    WARN: ${QB2_DRIVER_DIR} is not at ${QB2_DRIVER_TAG} - left as it is, built as it is."
         fi
         if [ -d "$QB2_DRIVER_DIR" ]; then
-            echo ">>> Building blickfeld_qb2_ros2_driver ${QB2_DRIVER_TAG} in ${LIDAR_WS} (colcon, user ${REAL_USER})"
+            echo ">>> Building blickfeld_qb2_ros2_driver ${QB2_DRIVER_TAG} in ${HUSKY_WS} (colcon, user ${REAL_USER})"
             sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
-                "source '$ROS_SETUP' && cd '$LIDAR_WS' && colcon build --packages-select blickfeld_qb2_ros2_driver" \
+                "source '$ROS_SETUP' && cd '$HUSKY_WS' && colcon build --packages-select blickfeld_qb2_ros2_driver" \
                 || echo "    WARN: the Qb2 driver did not build (Blickfeld claims Foxy and Humble, not Jazzy; R88)" \
                         "- clearpath-platform-extras cannot start the lidar."
         fi
@@ -2010,8 +1960,8 @@ echo "  ${RIDE_HEIGHT_PATCH_BIN}    : root-owned copy of scripts/ride_height_pat
 echo "  ${A200_LOOK_PATCH_BIN}   : root-owned copy of scripts/a200_look_patch.py (same; offboard too)"
 [ -f "$OCTO_UNIT_PATH" ] && \
 echo "  ${OCTO_UNIT}   : depth─▶PointCloud2 for MoveIt's octomap (the move_group sensor parameters come from robot.yaml)"
-[ -f "$LIDAR_PTH" ] && \
-echo "  ${LIDAR_PTH} : clair.lidar + clair.navigation for clearpath-platform-extras (lidar points, filtered, 2D scan)"
+[ -z "$(lidar_missing)" ] && \
+echo "  lidar apt packages : rslidar_sdk, pointcloud_to_laserscan, scipy + trimesh for the self filter's hulls"
 [ -f "$MD_UNIT_PATH" ] && \
 echo "  ${MD_UNIT} : UR5 + RG6 ─▶ diagnostic_msgs (the analyzers come from robot.yaml)"
 [ -f "$BT_JOY_BIN" ] && \
@@ -2035,7 +1985,7 @@ echo "  journalctl -u ${USM_UNIT} -b"
 echo "  journalctl -t manipulators-watchdog -b   # + 'systemctl list-timers ${WD_TIMER}'"
 [ -f "$OCTO_UNIT_PATH" ] && \
 echo "  journalctl -u ${OCTO_UNIT} -b"
-[ -f "$LIDAR_PTH" ] && \
+[ -z "$(lidar_missing)" ] && \
 echo "  journalctl -u clearpath-platform-extras -b   # + 'ros2 topic hz /a200_0553/sensors/lidar3d_0/points'"
 [ -f "$MD_UNIT_PATH" ] && \
 echo "  journalctl -u ${MD_UNIT} -b   # + 'ros2 topic echo ${MANIP_NS%/manipulators}/diagnostics_agg'"

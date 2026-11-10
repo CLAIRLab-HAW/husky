@@ -19,3 +19,9 @@ dist/
 
 # macOS Finder metadata
 .DS_Store
+
+# colcon
+install/
+log/
+# Blickfeld's Qb2 driver, cloned and built here by the installer where robot.yaml names the Qb2
+src/blickfeld_qb2_ros2_driver/

@@ -13,9 +13,9 @@ in the `--verify` manifest it belongs in `scripts/`; if it is not, somebody star
 
 ## Features
 
-- **Four overlay workspaces come out of `robot.yaml`** — `tools/gripper` (the gripper), `tools/description` (the tool
-  macros), `husky/lidar` (the lidars' macros) and `husky/extras` (this robot's URDF extras). The installer clones
-  both repositories and builds all four; `system.ros2.workspaces` is what puts them on
+- **Two overlay workspaces come out of `robot.yaml`** — `~/tools` (the gripper and the tool macros) and `~/husky`
+  (this robot's URDF extras, the lidars, navigation, the arm state). The installer clones both repositories and builds
+  each as one colcon workspace; `system.ros2.workspaces` is what puts them on
   `AMENT_PREFIX_PATH` for the generator, RViz and the `foxglove_bridge` alike.
 - **`config/robot.yaml` is the single source of truth** — `/etc/clearpath/robot.yaml`
   is a symlink to the repo clone, so a `git pull` takes effect within seconds instead of only at the next boot. On a
@@ -26,7 +26,7 @@ in the `--verify` manifest it belongs in `scripts/`; if it is not, somebody star
   "running".
 - **The RG6 gripper service** — `clearpath-custom-rg6-grip-bridge`, unit and wrapper. The node itself
   (`rg6_grip_bridge`, XML-RPC against the OnRobot URCap) belongs to
-  [tools/gripper](../../tools/gripper/README.md), where its mock counterpart already sat; the installer rolls it out
+  [tools](../../tools/README.md), where its mock counterpart already sat; the installer rolls it out
   from that workspace as a root-owned copy, together with its linkage table.
 - **The phone as the robot's Bluetooth joystick** — a BlueZ agent that lets Echo for Android pair as an HID gamepad
   inside a window the app opens, and nothing else.
@@ -74,7 +74,7 @@ Everything the installer builds or deploys comes out of those two clones: `robot
 that is checked out) before it builds.
 
 **Coming from `~/onboard`**: the first run clones `~/husky` and `~/tools`, re-points the `/etc/clearpath/robot.yaml`
-symlink at `~/husky/setup/config/robot.yaml` and drops `clair-onboard.pth`; `clearpath-robot-check` restarts the stack
+symlink at `~/husky/setup/config/robot.yaml` and drops `clair-onboard.pth`, as husky_lidar is an ament package now; `clearpath-robot-check` restarts the stack
 on that change — arm driver included. After `--verify` is green `~/onboard` is unused and can go.
 
 The installer is interactive and asks before every optional part (`[y/N]`, or
@@ -108,7 +108,7 @@ All units the installer creates carry the prefix `clearpath-custom-*`
 `clearpath-custom-ur-dashboard`, `clearpath-custom-ur-state-manager`,
 `clearpath-custom-manipulator-diagnostics`, `clearpath-custom-octomap-feed`,
 `clearpath-custom-manipulators-watchdog.service`/`.timer` and
-`clearpath-custom-setup`). The arm controllers are not a service of their own but part of `ur_state_manager.launch.py`
+`clearpath-custom-setup`). The arm controllers are not a service of their own but part of `husky_ur_state.launch.py`
 (argument `load_arm_controllers`). Drop-ins on Clearpath's own units (`clearpath-manipulators.service.d/override.conf`)
 keep the name of their target unit, by systemd convention.
 
@@ -184,7 +184,7 @@ Three building blocks close the gap, all from the installer (optional steps):
 
 1. **`manipulator-diagnostics`** (`scripts/manipulator_diagnostics.py`, a root-owned copy under `/usr/local/bin`):
    publishes five statuses at 1 Hz on
-   `/a200_0553/diagnostics`. The wrapper needs no `tools/gripper` overlay — the gripper state arrives as JSON, not as
+   `/a200_0553/diagnostics`. The wrapper needs no `tools` overlay — the gripper state arrives as JSON, not as
    an `rg6_msgs` type:
 
    | Status | Content |
@@ -333,14 +333,13 @@ commits behind the checkout and nothing said so. A `--verify` run needs no root.
 ### The lidar (no unit of its own)
 
 `robot.yaml` starts it under `platform.extras.launch`: Clearpath's own `clearpath-platform-extras` service runs
-`husky_extras_bringup`'s `lidar.launch.py` ([husky/extras](../extras/README.md)) with `lidar_model: rs16` (or `qb2`,
-the Blickfeld Qb2 in its place), which includes [husky/navigation](../navigation/README.md)'s scan and, through it,
-[husky/lidar](../lidar/README.md)'s driver and self filter — `…/lidar3d_0/points`, `points_filtered` and `scan`,
-read-only. The installer brings what that service cannot: the apt packages `ros-jazzy-rslidar-sdk` and
-`ros-jazzy-pointcloud-to-laserscan`, and `clair-husky.pth` in the system site-packages, which puts
-`~/husky/lidar/src` and `~/husky/navigation/src` on the Python path (the service sources
-`/etc/clearpath/setup.bash` and nothing else). Where `robot.yaml` names the `qb2`, it also builds Blickfeld's driver,
-`blickfeld_qb2_ros2_driver` `v2.1.0`, from source into `~/husky/lidar` (no apt package; its build fetches
+`husky_bringup`'s `lidar.launch.py` with `lidar_model: rs16` (or `qb2`, the Blickfeld Qb2 in its place), which
+includes [husky_navigation](../src/husky_navigation/README.md)'s scan and, through it,
+[husky_lidar](../src/husky_lidar/README.md)'s driver and self filter — `…/lidar3d_0/points`, `points_filtered` and
+`scan`, read-only. The installer brings what that service cannot: the apt packages `ros-jazzy-rslidar-sdk`,
+`ros-jazzy-pointcloud-to-laserscan`, `python3-scipy` and `python3-trimesh` (the self filter's hulls). Where
+`robot.yaml` names the `qb2`, it also builds Blickfeld's driver, `blickfeld_qb2_ros2_driver` `v2.1.0`, from source
+into `~/husky/src` (no apt package; its build fetches
 Blickfeld's protocol from GitHub). A `clearpath-custom-lidar` service found installed is taken out: next to the extras
 launch it would start a second driver on the same ports.
 
@@ -416,7 +415,7 @@ Echo for Android can act as an HID gamepad whose reports land on the same `joy_l
 so `joy_node` and `teleop_twist_joy` drive the base with the robot's speeds and deadman, without any network. The robot
 has Bluetooth (Intel AX200, `bluetooth.service` running) but no screen, so a pairing request waits for an agent that
 never answers. `scripts/bt_joy_pairing.py` (root-owned copy `/usr/local/bin/bt-joy-pairing`, running as the robot
-user) is that agent. `robot.yaml` starts it under `platform.extras.launch` (`husky_extras_bringup`'s `bt_joy.launch.py`
+user) is that agent. `robot.yaml` starts it under `platform.extras.launch` (`husky_bringup`'s `bt_joy.launch.py`
 with the robot's `namespace`), in Clearpath's `clearpath-platform-extras` service, and it respawns there; where the
 installer's pairing step was skipped, the launch finds no program and starts nothing:
 
@@ -459,7 +458,7 @@ python3 scripts/octomap_feed.py --selftest
 ```
 
 The fourth, `rg6_grip_bridge --selftest`, moved with the node into
-[tools/gripper](../../tools/gripper/README.md) and runs there; the installer still executes it against the copy it
+[tools](../../tools/README.md) and runs there; the installer still executes it against the copy it
 has just deployed.
 
 The patch tools have a dry run instead, which writes nothing —
@@ -488,14 +487,14 @@ compile.
 
 ## Related
 
-- [tools/gripper](../../tools/gripper/README.md) — gripper model, MoveIt patch, and the gripper on both stages
+- [tools](../../tools/README.md) — gripper model, MoveIt patch, and the gripper on both stages
   (`rg6_grip_bridge`, `gripper_sim`); one of the two workspaces `robot.yaml` lists, and the source of three files
   this installer deploys
-- [husky/extras](../extras/README.md) — the a200-0553's URDF extras (sensor arch, RG6 mounting), the
+- [husky_extras_description](../src/husky_extras_description/README.md) — the a200-0553's URDF extras (sensor arch, RG6 mounting), the
   other one; `robot.yaml`
   addresses its file under `platform.extras.urdf` and its bringup under `platform.extras.launch`
-- [husky/lidar](../lidar/README.md) — the lidar's models, driver and self filter, which that bringup starts
-- [ur-state-manager](../ur-state/README.md) — arm state and controller modes
+- [husky_lidar](../src/husky_lidar/README.md) — the lidar's models, driver and self filter, which that bringup starts
+- [husky_ur_state](../src/husky_ur_state/README.md) — arm state and controller modes
 - [cockpit-ros2-diagnostics](../cockpit-diagnostics/README.md) — the panel that displays these diagnostics
 - [cockpit-robot-tools](../cockpit-tools/README.md) — the Cockpit page *Roboter-Werkzeuge*, deployed by the same
   installer

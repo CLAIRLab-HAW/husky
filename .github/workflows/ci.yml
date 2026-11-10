@@ -6,9 +6,8 @@ name: ci
 #
 # Three jobs, by toolchain:
 #
-#   python              setup, extras, ur-state, lidar, navigation -- their own suites, `bash -n` over
-#                       the installer scripts, ruff: full rules on lidar, navigation and cockpit-tools, syntax-level
-#                       on the three packages that are ROS packages and scripts rather than distributions.
+#   python              src/'s packages, setup/ and scripts/ -- their suites, `bash -n` over the installer scripts,
+#                       ruff over everything but cockpit-diagnostics.
 #   cockpit-tools       the Cockpit page: `node --check`, `bash -n`, `npm test`.
 #   cockpit-diagnostics the upstream-derived plugin: `npm ci`, eslint, stylelint. The upstream's two bot
 #                       workflows (cockpit-lib-update, tasks-container-update) are NOT carried over: they open
@@ -44,8 +43,7 @@ jobs:
         working-directory: setup
         run: find . -name '*.sh' -print0 | xargs -0 -n1 bash -n
 
-      - run: uv run ruff check --select E9,F63,F7,F82 setup extras ur-state
-      - run: uv run ruff check lidar navigation cockpit-tools
+      - run: uv run ruff check --extend-exclude cockpit-diagnostics .
       # cockpit-diagnostics is upstream code with a [tool.ruff] of its own, formatted to its own rules.
       - run: uv run ruff format --check --extend-exclude cockpit-diagnostics .
 

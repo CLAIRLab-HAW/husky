@@ -14,18 +14,15 @@ system:
     # EVERYTHING that follows: the generator's own $(find ...), RViz and the foxglove_bridge resolving
     # package:// meshes, and every helper that sources the chain.
     #
-    # FOUR of them, from the two clones the installer builds, ~/husky and ~/tools: gripper, description and lidar
-    # describe a COMPONENT each (the RG6 model and the measured rg6_v2.yaml; the tool macros; the RS16's macro and
-    # mesh), extras describes THIS ROBOT's assembly (sensor arch, where the hand is bolted onto the UR5 flange, the
-    # RS16 on its mount) and what it starts beyond Clearpath's services (husky_extras_bringup).
-    # platform.extras.urdf.path below names a file from extras, which includes a macro from each of the others -- so
-    # all four have to be listed, and a missing build is not a mesh that fails to draw but a generator run that dies
-    # on the include.
+    # TWO of them, the two clones the installer builds, one colcon workspace each.  ~/tools carries the COMPONENTS on
+    # the flange (rg6_description with the measured rg6_v2.yaml, rg6_control, tool_description's macros); ~/husky
+    # carries THIS ROBOT (husky_extras_description: sensor arch, where the hand is bolted onto the UR5 flange, the
+    # lidar on its mount; the lidars' macros; husky_bringup, husky_lidar, husky_navigation, husky_ur_state).
+    # platform.extras.urdf.path below names a file of husky's, which includes macros of both -- so both have to be
+    # listed, and a missing build is not a mesh that fails to draw but a generator run that dies on the include.
     workspaces:
-      - /home/robot/tools/gripper/install/setup.bash      # rg6_description, rg6_control
-      - /home/robot/tools/description/install/setup.bash  # tool_description: the RG6 and key holder macros
-      - /home/robot/husky/lidar/install/setup.bash        # rs16_description
-      - /home/robot/husky/extras/install/setup.bash       # husky_extras_description (the file under extras.urdf below)
+      - /home/robot/tools/install/setup.bash   # rg6_description, rg6_control, gripper_control, tool_description
+      - /home/robot/husky/install/setup.bash   # husky_extras_description (the file under extras.urdf below) and the rest
 platform:
   mcu:
     protocol: proton
@@ -39,25 +36,25 @@ platform:
       # The SOURCE tree, not the install space: the generator reads this file as a path and expands it, while the
       # package:// meshes inside it resolve through the workspaces above.  Both halves of the pair have to move
       # together when this path does.
-      path: /home/robot/husky/extras/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
+      path: /home/robot/husky/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
     # What the robot starts beyond Clearpath's services, run by its clearpath-platform-extras service: the lidar's
-    # driver and self filter (husky/lidar) and the scan on them (husky/navigation), read-only, and the Bluetooth
+    # driver and self filter (husky_lidar) and the scan on them (husky_navigation), read-only, and the Bluetooth
     # joystick pairing.  A list in clearpath_config 2.9.x (Clearpath's docs still say one file).  It names a PACKAGE
     # and a path in its share, not an absolute path: clearpath_generator_robot 2.9.3 builds Package(launch.package)
     # unconditionally and dies on 'pkg_' + None.
     # lidar_model names the robot's ONE lidar in the slot lidar3d_0: rs16, or qb2 (the lab's Blickfeld Qb2) in its
-    # place (husky/lidar, clair.lidar.models).  The container's sim plants read it here; the extras file's
+    # place (husky_lidar.models).  The container's sim plants read it here; the extras file's
     # lidar_model default has to say the same, which its tests hold, since the generator passes it no arguments.  A
     # switch to qb2 also wants the mount pose below measured again, and a rerun of the installer (R88).
     launch:
-      - package: husky_extras_bringup
+      - package: husky_bringup
         path: launch/lidar.launch.py
         args:
           lidar_model: rs16
       # The Bluetooth joystick pairing (husky/setup's scripts/bt_joy_pairing.py, installed as bt-joy-pairing): the
       # BlueZ agent and bt_joy/open_pairing.  namespace is system.ros2.namespace's; the generator gives an extras
       # launch none, and a test holds the two equal.
-      - package: husky_extras_bringup
+      - package: husky_bringup
         path: launch/bt_joy.launch.py
         args:
           namespace: a200_0553
@@ -212,7 +209,7 @@ platform:
 # any other), so sensors.lidar3d cannot carry it.  This file places the FRAME the sensor stands on, and
 # husky_extras_description hangs rs16_description's macro there: lidar3d_0_link on the mounting face, lidar3d_0_laser
 # 39 mm above it, the frame rslidar_sdk writes into every PointCloud2.  The driver starts through
-# platform.extras.launch above (husky/lidar, config/rslidar.yaml, the same file for container and robot).
+# platform.extras.launch above (husky_lidar, config/rslidar.yaml, the same file for container and robot).
 links:
   frame:
     - name: lidar3d_0_mount            # Clearpath appends _link

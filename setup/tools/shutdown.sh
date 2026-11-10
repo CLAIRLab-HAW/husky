@@ -92,7 +92,7 @@ run() { log "$*"; "$@"; }
 # ROS environment
 # ---------------------------------------------------------------------------
 # The canonical entry point is /etc/clearpath/setup.bash: it sources the
-# jazzy setup, tools/gripper and - DECISIVELY - sets ROS_DOMAIN_ID and
+# jazzy setup, tools and - DECISIVELY - sets ROS_DOMAIN_ID and
 # RMW_IMPLEMENTATION (rmw_zenoh_cpp). Without the latter the script runs in
 # the ROS jazzy default (FastDDS) and is NOT in the same graph as the robot
 # stacks -> ros2 service call hangs ("waiting for service to

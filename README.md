@@ -5,20 +5,25 @@ other. What MARWIN 5 carries as well — the grippers and the tool macros — is
 [tools](https://github.com/CLAIRLab-HAW/tools) repository's; MARWIN 5's own description is
 [marwin](https://github.com/CLAIRLab-HAW/marwin)'s.
 
-| Directory | Was | What it is |
-|---|---|---|
-| [`setup/`](setup/README.md) | `husky-custom-setup` | The installer, the per-boot patcher, the boot services, the UR5 calibration — and **`robot.yaml`, the single source of truth** every other layer reads. |
-| [`extras/`](extras/README.md) | `husky-extras` | This robot's URDF extras: sensor arch, RG6 on the UR5 flange, RS16 on the arch. One xacro, pulled in by the Clearpath generator through `robot.yaml`, and `husky_extras_bringup`, the lidar launch `robot.yaml` starts. |
-| [`ur-state/`](ur-state/README.md) | `ur-state-manager` | Arm state (`prepare`, `recover`, `power_off`) and the controller-mode manager. |
-| [`lidar/`](lidar/README.md) | `rs16` | The robot's one lidar, the RS-LiDAR-16 or the Blickfeld Qb2 in its place: models and drivers, their URDF macros (`rs16_description`, `qb2_description`) and the self filter — the points, raw and without the robot's body. |
-| [`navigation/`](navigation/README.md) | `husky-navigation` | The 2D scan on the lidar's points and Nav2 — the same configuration in the container mock and on the robot. |
-| [`cockpit-diagnostics/`](cockpit-diagnostics/README.md) | `cockpit-ros2-diagnostics` | A Cockpit plugin: the robot's ROS 2 diagnostics as a web panel. |
-| [`cockpit-tools/`](cockpit-tools/README.md) | `cockpit-robot-tools` | A Cockpit page for the recurring manual tasks — today one card: start and stop the offboard `lite` container, with its VNC address. |
+One colcon workspace under `src/`, and beside it what colcon does not build:
+
+| Directory | What it is |
+|---|---|
+| [`src/husky_extras_description`](src/husky_extras_description/README.md) | This robot's URDF extras: sensor arch, the tool on the UR5 flange (tool_description's macro), the lidar on the arch. One xacro, pulled in by the Clearpath generator through `robot.yaml`. |
+| `src/husky_bringup` | The launches `robot.yaml` starts under `platform.extras.launch`: the lidar and its scan, the Bluetooth joystick pairing. |
+| [`src/husky_lidar`](src/husky_lidar/README.md) | The robot's one lidar, the RS-LiDAR-16 or the Blickfeld Qb2 in its place: models and drivers, the sensor's names and the self filter on the robot's own hulls. |
+| [`src/rs16_description`](src/rs16_description/README.md), [`src/qb2_description`](src/qb2_description/README.md) | The two lidars' URDF macros and meshes. |
+| [`src/husky_navigation`](src/husky_navigation/README.md) | The 2D scan on the lidar's points and Nav2 — the same configuration in the container mock and on the robot. |
+| [`src/husky_ur_state`](src/husky_ur_state/README.md) | Arm state (`prepare`, `recover`, `power_off`) and the controller-mode manager; its node is `ur_state_manager`. |
+| [`setup/`](setup/README.md) | The installer, the per-boot patcher, the boot services, the UR5 calibration — and **`robot.yaml`, the single source of truth** every other layer reads. |
+| [`cockpit-diagnostics/`](cockpit-diagnostics/README.md) | A Cockpit plugin: the robot's ROS 2 diagnostics as a web panel. |
+| [`cockpit-tools/`](cockpit-tools/README.md) | A Cockpit page for the recurring manual tasks — today one card: start and stop the offboard `lite` container, with its VNC address. |
+| `scripts/` | The mesh generators behind `husky_extras_description`'s and `rs16_description`'s meshes (not installed). |
+| `tests/` | The packages' suites, without ROS (`setup/tests` beside the installer). |
 
 **On the robot this repository is the clone `/home/robot/husky`, beside `/home/robot/tools`.** The
-[installer](setup/README.md) clones or pulls both, builds `tools/gripper/`, `tools/description/`, `lidar/`, `extras/`
-and `ur-state/` in place and points `/etc/clearpath/robot.yaml` at `setup/config/robot.yaml`, whose absolute paths
-name exactly those directories.
+[installer](setup/README.md) clones or pulls both, builds each as one colcon workspace and points
+`/etc/clearpath/robot.yaml` at `setup/config/robot.yaml`, which lists the two install spaces.
 
 ## Running tests
 

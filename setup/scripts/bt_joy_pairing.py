@@ -23,7 +23,7 @@ never answers. This node is that agent, and it is a narrow one:
 ``python3-dbus`` and ``python3-gi`` come with Ubuntu 24.04 on the robot (system snapshot); the node runs as the robot
 user, which the installer's D-Bus policy lets talk to ``org.bluez``.
 
-Invocation (robot.yaml's platform.extras.launch starts it through husky_extras_bringup's bt_joy.launch.py)::
+Invocation (robot.yaml's platform.extras.launch starts it through husky_bringup's bt_joy.launch.py)::
 
     bt-joy-pairing --ros-args -r __ns:=/a200_0553 -p window_s:=60
 
