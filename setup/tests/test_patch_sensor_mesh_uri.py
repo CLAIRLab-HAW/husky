@@ -15,7 +15,7 @@ is a no-op, and that the ``.bak`` keeps the PRISTINE apt copy rather than an alr
 
 from __future__ import annotations
 
-import sensor_mesh_uri_patch as patch
+import patch_sensor_mesh_uri as patch
 
 #: One of the four intel xacros, in the form the package ships.
 STOCK = """<?xml version="1.0"?>

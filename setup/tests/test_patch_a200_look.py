@@ -5,7 +5,7 @@ The wheel fixture is a COPY of ``urdf/a200/drivetrain/wheels/indoor.urdf.xacro``
 2.9.15 ships it, read from the plant-mock container's apt copy on 2026-10-09.  ``outdoor.urdf.xacro`` is the same file
 with the variant name swapped (and one blank line moved, compared the same day), so it is derived rather than copied
 a second time.  The chassis fixture is ``urdf/a200/a200.urdf.xacro`` from the same copy's ``.bak`` (the pristine one;
-``ride_height_patch`` edits the live file), verbatim down to the chassis joint, with the macro and the robot closed.
+``patch_ride_height`` edits the live file), verbatim down to the chassis joint, with the macro and the robot closed.
 Both are embedded rather than read from the workspace bundle under ``urdf/``: that bundle is re-synced from a
 container in which this very patcher has already run, and a fixture that is already patched tests nothing.
 
@@ -13,7 +13,7 @@ What is worth testing is not that a string replace replaces a string.  It is tha
 collision and inertial origins next to it do not, that only the indoor wheel's visual mesh changes and the outdoor
 one's does not, that only the chassis link's mesh changes and the base link's next to it does not, that the D435 box
 moves onto the measured visual body and the same origin line in the box visual next to it does not, that the D435
-macro ends the same with ``sensor_mesh_uri_patch`` run before this patcher or after it, that a second run and the
+macro ends the same with ``patch_sensor_mesh_uri`` run before this patcher or after it, that a second run and the
 ``.bak`` behave, that all four files are covered, and -- the one that matters most -- that an upstream that renamed a
 file or rewrote the line is reported with a nonzero exit instead of crashing or passing silently.
 """
@@ -25,9 +25,9 @@ import re
 import shutil
 import xml.etree.ElementTree as ET
 
-import a200_look_patch as patch
+import patch_a200_look as patch
+import patch_sensor_mesh_uri as sensor
 import pytest
-import sensor_mesh_uri_patch as sensor
 
 #: Verbatim, long inertia lines included -- hence the E501 waiver on the closing quotes.
 INDOOR = """<?xml version="1.0"?>
@@ -153,7 +153,7 @@ CHASSIS = """<?xml version="1.0"?>
 
 #: ``clearpath_sensors_description``'s ``urdf/intel/d435.urdf.xacro`` verbatim down to the camera link's end, then the
 #: macro and the robot closed -- from the plant-mock container's ``.bak``, the pristine apt copy with ``file://``
-#: (``sensor_mesh_uri_patch`` rewrites the live file at build time), 2.9.15, read on 2026-10-10.
+#: (``patch_sensor_mesh_uri`` rewrites the live file at build time), 2.9.15, read on 2026-10-10.
 D435 = """<?xml version="1.0"?>
 <robot name="sensor_d435" xmlns:xacro="http://ros.org/wiki/xacro">
   <!-- Includes -->
@@ -399,19 +399,19 @@ def test_only_the_d435_mesh_changes():
 
 
 def test_the_d435_swap_takes_the_line_with_sensor_mesh_uri_patch_applied_or_not():
-    """``sensor_mesh_uri_patch`` makes the same line ``package://``: either form ends in the same text."""
+    """``patch_sensor_mesh_uri`` makes the same line ``package://``: either form ends in the same text."""
     rewritten = D435.replace(sensor.MESH_URI_OLD, sensor.MESH_URI_NEW)
     assert patch.patch_d435_text(rewritten) == patch.patch_d435_text(D435)
 
 
-@pytest.mark.parametrize("first", ["sensor_mesh_uri_patch", "a200_look_patch"])
+@pytest.mark.parametrize("first", ["patch_sensor_mesh_uri", "patch_a200_look"])
 def test_the_two_patchers_compose_in_either_order(share, first):
     """Both rewrite the D435 macro: in either order the result is the same, the shared ``.bak`` is the pristine apt
     copy, and a second run of either changes nothing."""
     glob_, package = share
     camera = _camera(package)
     runs = [lambda: sensor.main([f"--ros-share={glob_}"]), lambda: patch.main([f"--ros-share={glob_}"])]
-    for run in runs if first == "sensor_mesh_uri_patch" else runs[::-1]:
+    for run in runs if first == "patch_sensor_mesh_uri" else runs[::-1]:
         assert run() == 0
     once = camera.read_text()
     assert once == patch.patch_d435_collision_text(patch.patch_d435_text(D435)[0])[0]

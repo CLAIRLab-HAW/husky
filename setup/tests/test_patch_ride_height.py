@@ -15,7 +15,7 @@ place.
 
 from __future__ import annotations
 
-import ride_height_patch as patch
+import patch_ride_height as patch
 
 #: The a200 xacro reduced to the two places that mention the wheel radius.  The ros2_control line is not decoration:
 #: it is the near miss this tool must not touch.

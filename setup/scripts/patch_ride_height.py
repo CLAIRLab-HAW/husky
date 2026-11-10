@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ride_height_patch: puts THIS vehicle's loaded tyre radius into the a200 description.
+"""patch_ride_height: puts THIS vehicle's loaded tyre radius into the a200 description.
 
 ``base_footprint`` is the ground reference of the whole workspace -- every calibrated height is measured against
 it -- and Clearpath derives it from the NOMINAL wheel radius:
@@ -28,8 +28,8 @@ frozen model pins that any geometry change has to re-cut anyway.
 
 NO LEVER IN robot.yaml: ``clearpath_config`` models mounts and sensors, not the ground reference -- the offset is
 computed inside ``a200.urdf.xacro`` from two xacro properties.  Same situation, same answer as
-``urdf_physics_patch`` and ``sensor_mesh_uri_patch``: patch the package after apt, before the generator,
-idempotently, with a backup.  It is NOT part of ``urdf_physics_patch`` on purpose -- that tool is about physical
+``patch_urdf_physics`` and ``patch_sensor_mesh_uri``: patch the package after apt, before the generator,
+idempotently, with a backup.  It is NOT part of ``patch_urdf_physics`` on purpose -- that tool is about physical
 properties a physics engine needs (joint dynamics, inertials) and deliberately carries no measured values; this is
 geometry, and it carries one.
 
@@ -62,7 +62,7 @@ import shutil
 import sys
 import tempfile
 
-TAG = "ride_height_patch"
+TAG = "patch_ride_height"
 
 #: Tyre deflection under the UR5 + RG6 payload (m), measured 2026-09-01 -- see the module docstring for the two
 #: descents behind it.  It is subtracted from the NOMINAL radius, which is what "loaded radius" means: the wheel
@@ -77,7 +77,7 @@ ORIGIN_OLD = '<origin xyz="0 0 ${wheel_vertical_offset - front_wheel_radius}" rp
 ORIGIN_NEW = f'<origin xyz="0 0 ${{wheel_vertical_offset - (front_wheel_radius - {SQUISH_M})}}" rpy="0 0 0" />'
 
 #: Where the ROS packages live.  A glob rather than a fixed distro, for the same reason as in
-#: ``urdf_physics_patch``: the same tool runs on the robot (jazzy from apt) and in the container (jazzy from the
+#: ``patch_urdf_physics``: the same tool runs on the robot (jazzy from apt) and in the container (jazzy from the
 #: image), and a hard-coded ``jazzy`` would fail silently on the day one of them moves.
 ROS_SHARE_GLOB = "/opt/ros/*/share"
 
@@ -95,7 +95,7 @@ def log(msg, err=False):
 def atomic_write(path, content):
     """Write ``content`` over ``path``, keeping one backup and never leaving a half-written file.
 
-    The same shape as ``sensor_mesh_uri_patch.atomic_write``: the backup is taken ONCE, so a second run cannot
+    The same shape as ``patch_sensor_mesh_uri.atomic_write``: the backup is taken ONCE, so a second run cannot
     overwrite the pristine apt copy with an already-patched one.  The diff against that copy is the only way to see
     what a boot changed.  A backup that cannot be written does not stop the rewrite -- the fix outranks the undo
     record.

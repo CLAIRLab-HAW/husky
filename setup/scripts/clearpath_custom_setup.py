@@ -159,7 +159,7 @@ def run_root_tool(label, tool, args=(), *, missing):
 def run_sensor_mesh_uri_patch(label):
     """Rewrite the sensor mesh URIs from file:// to package://, so the foxglove_bridge will serve them.
 
-    The tool is a script of this repo (``scripts/sensor_mesh_uri_patch.py``) and carries the whole reasoning --
+    The tool is a script of this repo (``scripts/patch_sensor_mesh_uri.py``) and carries the whole reasoning --
     what upstream ships, why neither "the URDF builds" nor "Foxglove shows it" settles the question, and what the
     bridge's ``asset_uri_allowlist`` does with a ``file://``.
 
@@ -197,7 +197,7 @@ def run_rg6_moveit_patch(label):
 def run_urdf_physics_patch(label):
     """Put physical properties into the apt descriptions, before the generator expands them.
 
-    The tool is a script of this repo (``scripts/urdf_physics_patch.py``), unlike the SRDF patcher, which comes
+    The tool is a script of this repo (``scripts/patch_urdf_physics.py``), unlike the SRDF patcher, which comes
     from the tools workspace: every target here is an arm, wheel or platform property, and none of them is a
     gripper part.
 
@@ -219,8 +219,8 @@ def run_urdf_physics_patch(label):
 def run_ride_height_patch(label):
     """Put this vehicle's loaded wheel radius into the a200 description, before the generator expands it.
 
-    The tool is a script of this repo (``scripts/ride_height_patch.py``) and carries the measurement.  Same window
-    as ``urdf_physics_patch`` -- it edits a package xacro the generator CONSUMES -- but a separate tool on purpose:
+    The tool is a script of this repo (``scripts/patch_ride_height.py``) and carries the measurement.  Same window
+    as ``patch_urdf_physics`` -- it edits a package xacro the generator CONSUMES -- but a separate tool on purpose:
     that one is about physical properties a physics engine needs and deliberately holds no measured value, this one
     is geometry and holds one.
 
@@ -239,8 +239,8 @@ def run_ride_height_patch(label):
 def run_a200_look_patch(label):
     """Fix the a200's look -- right wheels turned, real rims, chassis and camera colors -- before the generator runs.
 
-    The tool is a script of this repo (``scripts/a200_look_patch.py``) and carries the mesh measurement and the
-    wheel, chassis and D435 mesh URIs.  Same window as ``ride_height_patch`` -- it edits the a200 xacros the generator
+    The tool is a script of this repo (``scripts/patch_a200_look.py``) and carries the mesh measurement and the
+    wheel, chassis and D435 mesh URIs.  Same window as ``patch_ride_height`` -- it edits the a200 xacros the generator
     CONSUMES -- but a separate tool: it changes what is drawn and touches no frame, joint or inertial; its one
     collision edit moves the D435's box back onto the camera it stands for.  Without it the right wheels show their
     rim to the chassis, every wheel Clearpath's rim on a too large tire, the chassis a greenish yellow and the D435 one

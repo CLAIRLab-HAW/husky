@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""urdf_physics_patch: puts physical properties into descriptions that ship without them.
+"""patch_urdf_physics: puts physical properties into descriptions that ship without them.
 
 The robot's URDF is assembled from apt packages at every boot, and three of the things a physics engine needs are
 simply not in them:
@@ -46,7 +46,7 @@ confirms the state below rather than changing it.  R47 carries the measurement.
 Invocations:
   Robot:    from clearpath_custom_setup.py (per boot, before clearpath-robot-generate)
   Offboard: offboard entrypoint.sh, before the generate_* runs
-  Manual:   urdf_physics_patch --dry-run
+  Manual:   patch_urdf_physics --dry-run
 
 Self-contained: needs only python3 (no ROS environment, no PyYAML) -- the robot runs it as a root-owned copy in
 /usr/local/bin (the installer places it, like every other script here), and the offboard container copies the same
@@ -64,10 +64,12 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 
-TAG = "urdf_physics_patch"
+TAG = "patch_urdf_physics"
 
 #: Written next to every element this tool touches, so that a reader of an apt-owned file can see at a glance where
 #: the line came from.  No double dash inside: XML forbids it in a comment.
+#: The text is fixed, not the module's name: it already stands in the patched files on the robot and in the
+#: images, and the rewrite of an earlier block matches it there.
 MARKER = "<!-- husky-custom-setup:urdf_physics_patch -->"
 
 #: Where the ROS packages live.  A glob rather than a fixed distro, because the same tool runs on the robot (jazzy
@@ -170,7 +172,7 @@ def log(msg, err=False):
 def atomic_write(path, content):
     """Write ``content`` over ``path``, keeping one backup and never leaving a half-written file.
 
-    The same shape as ``ride_height_patch.atomic_write``: the backup is taken ONCE, so a second run cannot overwrite
+    The same shape as ``patch_ride_height.atomic_write``: the backup is taken ONCE, so a second run cannot overwrite
     the pristine apt copy with an already-patched one.  A backup that cannot be written does not stop the rewrite --
     the fix outranks the undo record.
     """

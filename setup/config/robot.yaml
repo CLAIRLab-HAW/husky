@@ -99,7 +99,7 @@ platform:
         # The ROLLING radius of the mounted tires, not Clearpath's nominal 0.1651 (13 inch): a straight run of 2.515 m
         # on a folding rule turned the wheels by 17.026 rad, and the odometry reported 2.811 m (2026-10-07, R58).
         # Tape: 29-30 cm across unloaded, the hubs 13-14 cm above the floor loaded -- the loaded radius is the
-        # ground reference (ride_height_patch), this one the odometry's and the commanded speed's.
+        # ground reference (patch_ride_height), this one the odometry's and the commanded speed's.
         wheel_radius: 0.1477
       # Asset allowlist of the foxglove_bridge.
       #
@@ -200,7 +200,7 @@ platform:
       # the deck down onto the chassis. Carrying those 31 mm here instead drives the superstructure INTO the
       # chassis and the wheels -- measured 2026-09-01, move_group then answers valid=False for every state
       # (husky_top_assembly 25.78 mm inside base_link), so no plan starts at all. The ride height lives in
-      # ride_height_patch (scripts/ride_height_patch.py), which puts this vehicle's LOADED wheel radius into the
+      # patch_ride_height (scripts/patch_ride_height.py), which puts this vehicle's LOADED wheel radius into the
       # a200 description, where clearpath_config has no lever.
       xyz: [0.0, 0.0, 0.0]
       rpy: [0.0, 0.0, 0.0]
@@ -320,7 +320,7 @@ manipulators:
       # flat onto the plate, so z stays 0 here -- the ~31 mm the whole vehicle
       # sits lower (tape measure ~330 mm vs. 363 modeled, tyre squish under the
       # UR mass) is the RIDE HEIGHT and must not be hidden in this joint; it
-      # lives in ride_height_patch.
+      # lives in patch_ride_height.
       xyz: [-0.107, 0.0, 0.0]
       rpy: [0.0, 0.0, 0.0]
       ur_type: ur5

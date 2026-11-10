@@ -25,8 +25,8 @@
 #     under platform.extras.urdf, husky_bringup, the launch robot.yaml starts under
 #     platform.extras.launch, the lidars' macros, husky_lidar, husky_navigation
 #     and husky_ur_state; robot.yaml lists both install spaces
-#   - root-owned copies of urdf_physics_patch, sensor_mesh_uri_patch,
-#     ride_height_patch and a200_look_patch (all this repo) under
+#   - root-owned copies of patch_urdf_physics, patch_sensor_mesh_uri,
+#     patch_ride_height and patch_a200_look (all this repo) under
 #     /usr/local/bin, likewise for the boot service
 #   - optional: clearpath-custom-ur-dashboard.service: starts the ur_robot_driver
 #     dashboard_client (power_on/brake_release/unlock_protective_stop/restart_safety)
@@ -485,10 +485,10 @@ verify_deployments() {
         "${PY_PATH}|scripts/clearpath_custom_setup.py"
         "${WD_WRAPPER}|scripts/manipulators_watchdog.sh"
         "${BIN_DIR}/octomap-feed|scripts/octomap_feed.py"
-        "${URDF_PHYSICS_PATCH_BIN}|scripts/urdf_physics_patch.py"
-        "${SENSOR_MESH_URI_PATCH_BIN}|scripts/sensor_mesh_uri_patch.py"
-        "${RIDE_HEIGHT_PATCH_BIN}|scripts/ride_height_patch.py"
-        "${A200_LOOK_PATCH_BIN}|scripts/a200_look_patch.py"
+        "${URDF_PHYSICS_PATCH_BIN}|scripts/patch_urdf_physics.py"
+        "${SENSOR_MESH_URI_PATCH_BIN}|scripts/patch_sensor_mesh_uri.py"
+        "${RIDE_HEIGHT_PATCH_BIN}|scripts/patch_ride_height.py"
+        "${A200_LOOK_PATCH_BIN}|scripts/patch_a200_look.py"
         # Templates: hashed as this run renders them.
         "${UNIT_PATH}|systemd/clearpath-custom-setup.service.in"
         "${UR_DASH_WRAPPER}|systemd/ur-dashboard.sh.in"
@@ -1054,11 +1054,11 @@ fi
 # --- install the five patch tools as root-owned copies ----------------------
 # The boot service clearpath-custom-setup runs as root: it hooks the RG6 into
 # the generated MoveIt config (rg6_moveit_patch), puts physical properties into
-# the apt descriptions the generator reads (urdf_physics_patch), rewrites the
+# the apt descriptions the generator reads (patch_urdf_physics), rewrites the
 # sensor mesh URIs the foxglove_bridge will only serve as package://
-# (sensor_mesh_uri_patch), puts the loaded wheel radius into the a200
-# description (ride_height_patch) and fixes the a200's look -- right wheels'
-# visual, chassis color (a200_look_patch). None of them may be called from where it is edited -
+# (patch_sensor_mesh_uri), puts the loaded wheel radius into the a200
+# description (patch_ride_height) and fixes the a200's look -- right wheels'
+# visual, chassis color (patch_a200_look). None of them may be called from where it is edited -
 # running user-writable code as root on every boot is a privilege escalation
 # (whoever can write there gets root; via git pull even the remote repo). Hence
 # root-owned copies: they only change through another installer run.
@@ -1133,13 +1133,13 @@ install_repo_tool() {
 }
 
 # '|| true': a missing patcher degrades that one patch at boot (see above), it must not kill the installer.
-install_repo_tool scripts/sensor_mesh_uri_patch.py "$SENSOR_MESH_URI_PATCH_BIN" \
+install_repo_tool scripts/patch_sensor_mesh_uri.py "$SENSOR_MESH_URI_PATCH_BIN" \
     "$SENSOR_MESH_URI_PATCH_BIN" --dry-run || true
-install_repo_tool scripts/urdf_physics_patch.py "$URDF_PHYSICS_PATCH_BIN" \
+install_repo_tool scripts/patch_urdf_physics.py "$URDF_PHYSICS_PATCH_BIN" \
     "$URDF_PHYSICS_PATCH_BIN" --dry-run || true
-install_repo_tool scripts/ride_height_patch.py "$RIDE_HEIGHT_PATCH_BIN" \
+install_repo_tool scripts/patch_ride_height.py "$RIDE_HEIGHT_PATCH_BIN" \
     "$RIDE_HEIGHT_PATCH_BIN" --dry-run || true
-install_repo_tool scripts/a200_look_patch.py "$A200_LOOK_PATCH_BIN" \
+install_repo_tool scripts/patch_a200_look.py "$A200_LOOK_PATCH_BIN" \
     "$A200_LOOK_PATCH_BIN" --dry-run || true
 
 # --- UR dashboard_client as a boot service (optional) ----------------------
@@ -1715,13 +1715,13 @@ echo "  clearpath-manipulators.service.d/override.conf : SIGINT stop drop-in (cl
 [ -f "$RG6_MOVEIT_PATCH_BIN" ] && \
 echo "  ${RG6_MOVEIT_PATCH_BIN}     : root-owned copy of rg6_moveit_patch (used by the boot service, updated only by the installer)"
 [ -f "$URDF_PHYSICS_PATCH_BIN" ] && \
-echo "  ${URDF_PHYSICS_PATCH_BIN}   : root-owned copy of scripts/urdf_physics_patch.py (used by the boot service, updated only by the installer)"
+echo "  ${URDF_PHYSICS_PATCH_BIN}   : root-owned copy of scripts/patch_urdf_physics.py (used by the boot service, updated only by the installer)"
 [ -f "$SENSOR_MESH_URI_PATCH_BIN" ] && \
-echo "  ${SENSOR_MESH_URI_PATCH_BIN}: root-owned copy of scripts/sensor_mesh_uri_patch.py (same; offboard too)"
+echo "  ${SENSOR_MESH_URI_PATCH_BIN}: root-owned copy of scripts/patch_sensor_mesh_uri.py (same; offboard too)"
 [ -f "$RIDE_HEIGHT_PATCH_BIN" ] && \
-echo "  ${RIDE_HEIGHT_PATCH_BIN}    : root-owned copy of scripts/ride_height_patch.py (same; offboard too)"
+echo "  ${RIDE_HEIGHT_PATCH_BIN}    : root-owned copy of scripts/patch_ride_height.py (same; offboard too)"
 [ -f "$A200_LOOK_PATCH_BIN" ] && \
-echo "  ${A200_LOOK_PATCH_BIN}   : root-owned copy of scripts/a200_look_patch.py (same; offboard too)"
+echo "  ${A200_LOOK_PATCH_BIN}   : root-owned copy of scripts/patch_a200_look.py (same; offboard too)"
 [ -f "$OCTO_UNIT_PATH" ] && \
 echo "  ${OCTO_UNIT}   : depth─▶PointCloud2 for MoveIt's octomap (the move_group sensor parameters come from robot.yaml)"
 [ -z "$(lidar_missing)" ] && \

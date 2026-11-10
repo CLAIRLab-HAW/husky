@@ -36,18 +36,18 @@ manifest it belongs in one of those two; if it is not, somebody starts it.
   an explicit state *out of service* instead of invented numbers.
 - **A boot patcher with six steps** — everything `robot.yaml` can express has moved there. Three of the six edit what
   the Clearpath generator writes (the sensor mesh URIs, the arm `joint_states` bus, the RG6's SRDF); three edit what
-  it reads and therefore run first: `urdf_physics_patch` (the UR joints' zero `<dynamics>`, the wheel joints' missing
-  one, `top_plate_link` without an `<inertial>`), `ride_height_patch` (this vehicle's loaded wheel radius under
-  `base_footprint`) and `a200_look_patch` (the right wheels' visual turned by pi about z, so the one-sided indoor
+  it reads and therefore run first: `patch_urdf_physics` (the UR joints' zero `<dynamics>`, the wheel joints' missing
+  one, `top_plate_link` without an `<inertial>`), `patch_ride_height` (this vehicle's loaded wheel radius under
+  `base_footprint`) and `patch_a200_look` (the right wheels' visual turned by pi about z, so the one-sided indoor
   wheel mesh shows its rim outward on both sides; the indoor wheel's visual pointed at `husky_extras_description`'s
   wheel: Clearpath's tire at the measured 0.1477 m tread radius on the a200-0553's real rims; the chassis visual
   pointed at its recolored mesh: #E29000, a red emergency stop, a silver power button and key lock; the wrist
-  D435's visual pointed at its colored mesh, in either URI form `sensor_mesh_uri_patch` leaves it; and the D435's
+  D435's visual pointed at its colored mesh, in either URI form `patch_sensor_mesh_uri` leaves it; and the D435's
   collision box moved 8.2 mm back onto the camera's visual body, the tool's only collision edit).
   Five of the steps are calls to a root-owned copy under `/usr/local/bin`, so the boot service never runs code out of
   a directory a user can write to.
-- **Four of those patchers are shared with the offboard container.** `sensor_mesh_uri_patch`, `urdf_physics_patch`,
-  `ride_height_patch` and `a200_look_patch` are self-contained scripts of this repo, and `deploy/offboard` copies the
+- **Four of those patchers are shared with the offboard container.** `patch_sensor_mesh_uri`, `patch_urdf_physics`,
+  `patch_ride_height` and `patch_a200_look` are self-contained scripts of this repo, and `deploy/offboard` copies the
   same files out of it. The robot and the container each generate a URDF of their own; a difference between the two
   must never be explainable by a fix having run on one side only.
 - **Both Cockpit packages are deployed and measured** — the diagnostics fork and the page *Roboter-Werkzeuge*.
@@ -465,14 +465,14 @@ The third, `rg6_grip_bridge --selftest`, moved with the node into
 has just deployed.
 
 The patch tools have a dry run instead, which writes nothing —
-`urdf_physics_patch` reports every target still waiting for a measurement,
+`patch_urdf_physics` reports every target still waiting for a measurement,
 the other three which xacros they would rewrite:
 
 ```bash
-python3 scripts/urdf_physics_patch.py --dry-run
-python3 scripts/sensor_mesh_uri_patch.py --dry-run
-python3 scripts/ride_height_patch.py --dry-run
-python3 scripts/a200_look_patch.py --dry-run
+python3 scripts/patch_urdf_physics.py --dry-run
+python3 scripts/patch_sensor_mesh_uri.py --dry-run
+python3 scripts/patch_ride_height.py --dry-run
+python3 scripts/patch_a200_look.py --dry-run
 ```
 
 Off the robot they find no `/opt/ros/*/share` to work in and say so; point

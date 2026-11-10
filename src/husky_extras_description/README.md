@@ -43,12 +43,12 @@ macro, the gripper package includes nothing from here.
 - **The a200's top chassis in its real colors**, `meshes/a200_top_chassis.dae`: Clearpath's mesh split into its
   parts by `a200_chassis_mesh.py`: the chassis #E29000, the emergency stop red, the power button and the key
   lock metallic silver, the status LEDs black (Clearpath's mesh has one greenish-yellow material for all of it).
-  `a200_look_patch` in [husky/setup](../setup/README.md) points the `top_chassis_link` visual here.
+  `patch_a200_look` in [husky/setup](../setup/README.md) points the `top_chassis_link` visual here.
 - **The a200's indoor wheel with its real rims**, `meshes/a200_indoor_wheel.dae`, written by
   `a200_wheel_mesh.py`: Clearpath's indoor tire, shrunk radially to the measured rolling radius 0.1477 m (R58;
   Clearpath's reaches 0.1625 m) with its bead and width kept, on the a200-0553's rim from Clearpath's CAD (two
   pressed halves, the keyed hub and the hub plate), dark gray with a metallic sheen. The outer face lies on +y like
-  Clearpath's mesh. `a200_look_patch` points the indoor wheel macro's visual here; the collision cylinder stays at
+  Clearpath's mesh. `patch_a200_look` points the indoor wheel macro's visual here; the collision cylinder stays at
   the nominal 0.1651 m. The CAD export the rim comes from is not in the repo (see License).
 - **The charging connector on the rear slope**, `meshes/charging_connector.dae`, written by
   `charging_connector_mesh.py` from the vendor's STEP files: the panel-mount socket with its plug permanently in
@@ -59,7 +59,7 @@ macro, the gripper package includes nothing from here.
   colored RealSense D435i (black acrylic front, gray camera modules, dark IR lenses in polished rims, the green IR
   emitter, the red-tinted RGB lens, the aluminum casing a light gray), registered onto `realsense2_description`'s
   `d435.dae` (one gray for the whole camera), so its frame and `clearpath_sensors_description`'s visual origin hold
-  unchanged; decimated to 23326 triangles, 1.5 MB. `a200_look_patch` in [husky/setup](../setup/README.md)
+  unchanged; decimated to 23326 triangles, 1.5 MB. `patch_a200_look` in [husky/setup](../setup/README.md)
   points the D435 macro's visual here.
 - **The RG6's tool cable**, `meshes/rg6_cable.dae`, written by `rg6_cable_mesh.py`: a black M8 cable, 5.5 mm,
   from the outlet on the RG6's bracket round the wrist 3's -x side to the UR5's tool connector, with a straight plug

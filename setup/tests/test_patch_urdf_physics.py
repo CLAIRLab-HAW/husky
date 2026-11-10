@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import patch_urdf_physics as patch
 import pytest
-import urdf_physics_patch as patch
 
 #: The workspace's copy of the generated bundle's source packages -- ``robot/<repo>/tests/`` is three
 #: levels below the workspace root.  Absent in a bare checkout of this repo, and then every test that

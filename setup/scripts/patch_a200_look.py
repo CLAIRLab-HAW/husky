@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""a200_look_patch: makes the a200 LOOK like the real one -- rims outward and real, chassis and camera in real colors.
+"""patch_a200_look: makes the a200 LOOK like the real one -- rims outward and real, chassis and camera in real colors.
 
 Three upstream mismatches of ``clearpath_platform_description`` and two of ``clearpath_sensors_description``: four
 that only a viewer sees, and the wrist D435's collision box, which sits off the camera it stands for.  All are fixed in
@@ -25,7 +25,7 @@ the vertical axis -- which is exactly Rz(pi), tread direction included.  A mirro
 outward too, but with the tread running the wrong way.  The expression ``${pi if 'right' in prefix else 0}`` uses
 xacro's builtin ``pi`` and the macro's own ``prefix`` (``front_right``, ``rear_right``, ...); checked 2026-10-09 with
 xacro 2.1.1 in the plant-mock container, it expands to ``0 0 3.141592653589793`` for the right prefixes and ``0 0 0``
-for the left ones.  Both wheel macros are patched, as ``urdf_physics_patch`` does for the same reason: which one is
+for the left ones.  Both wheel macros are patched, as ``patch_urdf_physics`` does for the same reason: which one is
 fitted is robot.yaml's choice and this tool does not read it.  Patching the variant that is not built costs nothing;
 missing the one that is would be silent.
 
@@ -39,7 +39,7 @@ swaps the URI.  WHY THE URI AND NOT A URDF MATERIAL: the visual sets no ``<mater
 every viewer shows (Foxglove and RViz via the DAE, the MuJoCo twin via ``clair.twin.collada``), and a URDF material is
 one color for the whole link.  ``husky_extras_description`` is installed wherever the generator runs: on the robot the
 installer builds ``husky_extras_description`` and robot.yaml lists its workspace, in the offboard images it is built
-into ``/opt/husky``.  ``ride_height_patch`` edits the same ``a200.urdf.xacro``; whichever of the two runs first
+into ``/opt/husky``.  ``patch_ride_height`` edits the same ``a200.urdf.xacro``; whichever of the two runs first
 takes the one ``.bak``, the pristine apt copy.
 
 THE INDOOR WHEELS: the visual mesh of ``urdf/a200/drivetrain/wheels/indoor.urdf.xacro`` is pointed at
@@ -51,18 +51,18 @@ lies on +y like Clearpath's, so the turn of the right wheels above holds for it 
 robot.yaml fits indoor wheels on both axles (``drivetrain.wheels.front/rear: indoor``), and the outdoor wheel is
 another tire this mesh does not show -- that variant keeps Clearpath's mesh.  The collision cylinder (r 0.1651, the
 macro's nominal radius) and the inertia stay: what the wheel touches the ground with is a separate decision, as the
-ground reference comes from ``ride_height_patch``'s LOADED radius and MoveIt and the twin collide with the cylinder.
+ground reference comes from ``patch_ride_height``'s LOADED radius and MoveIt and the twin collide with the cylinder.
 
 THE WRIST CAMERA: the visual of ``clearpath_sensors_description``'s D435 macro (``urdf/intel/d435.urdf.xacro``, which
 ``d435i.urdf.xacro`` includes as well) is pointed at ``husky_extras_description``'s ``meshes/d435.dae`` instead of
 ``realsense2_description``'s ``meshes/d435.dae``.  realsense's mesh is one gray (diffuse 0.749) for the whole camera;
 the a200-0553's D435 has a black front, dark lenses in polished rims and an aluminum casing (the owner, 2026-10-10).
 husky's ``d435.dae`` is MuJoCo Menagerie's colored D435 in exactly the frame of realsense's
-mesh, so the macro's visual origin stays as it is and only the URI changes.  ``sensor_mesh_uri_patch`` rewrites the
+mesh, so the macro's visual origin stays as it is and only the URI changes.  ``patch_sensor_mesh_uri`` rewrites the
 same line's ``file://$(find realsense2_description)`` to ``package://realsense2_description``: the anchor here takes
 the line in either form, so the two compose in any order.  After this one, the line names no
 ``realsense2_description`` and the other finds nothing to do in it; before it, this one finds the ``package://``
-form.  The robot runs ``sensor_mesh_uri_patch`` first (step 2 of the boot service, this tool step 7), the offboard
+form.  The robot runs ``patch_sensor_mesh_uri`` first (step 2 of the boot service, this tool step 7), the offboard
 image at build time and this tool at container start, and whichever runs first takes the shared ``.bak``, the
 pristine apt copy.
 
@@ -88,8 +88,8 @@ NO LEVER IN robot.yaml for any of them: ``clearpath_config`` picks the wheel var
 and nothing else -- the visual origin and the wheel mesh are literals inside the wheel macro, the chassis mesh a
 literal inside the a200 macro, the camera mesh and its collision origin literals inside the D435 macro.
 
-WHY ITS OWN TOOL: ``urdf_physics_patch`` is about physical properties a physics engine needs (joint dynamics,
-inertials), and this changes none; ``ride_height_patch`` moves the ground reference by a measured property of THIS
+WHY ITS OWN TOOL: ``patch_urdf_physics`` is about physical properties a physics engine needs (joint dynamics,
+inertials), and this changes none; ``patch_ride_height`` moves the ground reference by a measured property of THIS
 vehicle (its loaded tire radius), and nothing here moves a frame -- the indoor wheel mesh draws this vehicle's rims
 and rolling radius, but only draws them.  The D435 box is the exception that stays here: it is the same macro and
 the same camera as the mesh swap, the correction is the visual body's own extent, and a tool of its own for one
@@ -122,10 +122,12 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 
-TAG = "a200_look_patch"
+TAG = "patch_a200_look"
 
 #: Written above what this tool rewrites, so that a reader of an apt-owned file can see at a glance where the line
 #: came from.  No double dash inside: XML forbids it in a comment.
+#: The text is fixed, not the module's name: it already stands in the patched files on the robot and in the
+#: images, and the check for an already patched file looks for it.
 MARKER = "<!-- husky-custom-setup:a200_look_patch -->"
 
 #: The visual origin exactly as both wheel macros ship it (2.9.15), and what it has to become.  The same literal
@@ -158,7 +160,7 @@ WHEEL_MESH_NEW = '<mesh filename="package://husky_extras_description/meshes/a200
 WHEEL_VISUAL_RX = re.compile(r"(<visual>(?:(?!</visual>).)*?\n)([ \t]*)" + re.escape(WHEEL_MESH_OLD), re.S)
 
 #: The D435 visual's mesh as ``clearpath_sensors_description`` 2.9.15 ships it -- ``file://$(find ...)`` from apt,
-#: ``package://`` once ``sensor_mesh_uri_patch`` has run -- and the a200-0553's colored D435 in
+#: ``package://`` once ``patch_sensor_mesh_uri`` has run -- and the a200-0553's colored D435 in
 #: ``husky_extras_description``, in the same frame.
 D435_MESH_OLD = re.compile(
     r'<mesh filename="(?:file://\$\(find realsense2_description\)|package://realsense2_description)'
@@ -192,7 +194,7 @@ D435_COLLISION_RX = re.compile(
 )
 
 #: Where the ROS packages live.  A glob rather than a fixed distro, for the same reason as in
-#: ``urdf_physics_patch``: the same tool runs on the robot (jazzy from apt) and in the container (jazzy from the
+#: ``patch_urdf_physics``: the same tool runs on the robot (jazzy from apt) and in the container (jazzy from the
 #: image), and a hard-coded ``jazzy`` would fail silently on the day one of them moves.
 ROS_SHARE_GLOB = "/opt/ros/*/share"
 
@@ -215,7 +217,7 @@ def log(msg, err=False):
 def atomic_write(path, content):
     """Write ``content`` over ``path``, keeping one backup and never leaving a half-written file.
 
-    The same shape as ``ride_height_patch.atomic_write``: the backup is taken ONCE, so a second run cannot overwrite
+    The same shape as ``patch_ride_height.atomic_write``: the backup is taken ONCE, so a second run cannot overwrite
     the pristine apt copy with an already-patched one.  The diff against that copy is the only way to see what a
     boot changed.  A backup that cannot be written does not stop the rewrite -- the fix outranks the undo record.
     """
@@ -251,7 +253,7 @@ def _well_formed(content, patched):
 def _swap(content, rx, new, what):
     """Put ``new`` and the marker above it where ``rx`` matches exactly once.
 
-    String surgery rather than an XML round trip, for the reason ``urdf_physics_patch.element_spans`` gives: this is
+    String surgery rather than an XML round trip, for the reason ``patch_urdf_physics.element_spans`` gives: this is
     a file the workspace does not own, and ElementTree would reformat every untouched line and drop the upstream
     comments.  Well-formedness is checked on the result instead.  ``rx`` keeps everything up to the rewritten line in
     group 1 and that line's indentation in group 2.
@@ -288,7 +290,7 @@ def patch_wheel_mesh_text(content):
 
 def patch_d435_text(content):
     """Point the camera link's visual of the D435 macro at the a200-0553's colored D435 mesh (:func:`_swap`); it
-    matches the mesh line with ``sensor_mesh_uri_patch`` applied or not, so the order of the two does not matter."""
+    matches the mesh line with ``patch_sensor_mesh_uri`` applied or not, so the order of the two does not matter."""
     return _swap(content, D435_VISUAL_RX, D435_MESH_NEW, "D435 visual mesh(es)")
 
 

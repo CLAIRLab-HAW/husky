@@ -43,7 +43,7 @@
        apart, fit. Not measured: both legs 4 mm thick; the long leg from the short one to 5 mm past the holes; the short
        leg up to y 55 mm, past the rear screws at the camera's half height (y ~49 mm). A visual alone: it would touch
        the body's and the camera's collision geometry, and a contact the SRDF does not disable makes every MoveIt state
-       invalid (ride_height_patch's lesson, 2026-09-01). -->
+       invalid (patch_ride_height's lesson, 2026-09-01). -->
   <link name="camera_0_bracket">
     <!-- Both legs with their corners rounded by 3 mm, in this link's frame (d435_bracket_mesh.py, husky 1453d06, which
          holds the numbers above). No <material>: the DAE carries the silver-gray. -->
@@ -63,7 +63,7 @@
        static mesh in that frame. Here and not in rg6.macro.xacro: it ends on the UR5's wrist, which MARWIN 5's tool
        changer does not have. A visual alone: it runs a few millimeters off the wrist 3 and leaves the bracket's outlet
        face, so a collision body would touch the arm's own and the bracket's, and every such contact the SRDF does not
-       disable makes every MoveIt state invalid (ride_height_patch's lesson, 2026-09-01). -->
+       disable makes every MoveIt state invalid (patch_ride_height's lesson, 2026-09-01). -->
   <link name="rg6_cable">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>

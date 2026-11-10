@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""sensor_mesh_uri_patch: rewrites Clearpath's sensor mesh URIs from ``file://`` to ``package://``.
+"""patch_sensor_mesh_uri: rewrites Clearpath's sensor mesh URIs from ``file://`` to ``package://``.
 
 ``clearpath_sensors_description`` references the Realsense meshes as ``file://$(find realsense2_description)/...``
 -- unlike upstream ``realsense2_description`` itself, which writes ``package://realsense2_description/...``
@@ -54,7 +54,7 @@ import shutil
 import sys
 import tempfile
 
-TAG = "sensor_mesh_uri_patch"
+TAG = "patch_sensor_mesh_uri"
 
 #: The sensor mesh URI as Clearpath ships it, and what it has to become.  The package NAME is part of the anchor,
 #: not just the ``file://`` scheme: ``rg6_description`` writes its meshes the same way and must be left alone.
@@ -62,7 +62,7 @@ MESH_URI_OLD = "file://$(find realsense2_description)"
 MESH_URI_NEW = "package://realsense2_description"
 
 #: Where the ROS packages live.  A glob rather than a fixed distro, for the same reason as in
-#: ``urdf_physics_patch``: the same tool runs on the robot (jazzy from apt) and in the container (jazzy from the
+#: ``patch_urdf_physics``: the same tool runs on the robot (jazzy from apt) and in the container (jazzy from the
 #: image), and a hard-coded ``jazzy`` would fail silently on the day one of them moves.
 ROS_SHARE_GLOB = "/opt/ros/*/share"
 
@@ -80,7 +80,7 @@ def log(msg, err=False):
 def atomic_write(path, content):
     """Write ``content`` over ``path``, keeping one backup and never leaving a half-written file.
 
-    The same shape as ``urdf_physics_patch.atomic_write``: the backup is taken ONCE, so a second run cannot
+    The same shape as ``patch_urdf_physics.atomic_write``: the backup is taken ONCE, so a second run cannot
     overwrite the pristine apt copy with an already-patched one.  The diff against that copy is the only way to see
     what a boot changed.  One deviation from that shape: a backup that cannot be written does not stop the rewrite
     -- the fix outranks the undo record.
