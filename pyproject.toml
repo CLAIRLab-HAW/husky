@@ -23,5 +23,5 @@ dev = [
 [tool.pytest.ini_options]
 # importlib: tests/lidar and tests/navigation both have a test_wiring.py, and no package ships a tests/__init__.py.
 addopts = "--import-mode=importlib"
-pythonpath = ["src/husky_lidar", "src/husky_navigation", "src/husky_ur_state"]
+pythonpath = ["src/husky_bt_joy", "src/husky_lidar", "src/husky_navigation", "src/husky_ur_state"]
 testpaths = ["setup/tests", "tests"]

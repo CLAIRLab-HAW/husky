@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """bt_joy_pairing: lets a phone pair with the robot as its Bluetooth joystick, and nothing else.
 
 Echo for Android offers an HID gamepad whose reports land on the same ``joy_linux`` indices as the robot's pad (R62).
@@ -23,13 +22,9 @@ never answers. This node is that agent, and it is a narrow one:
 ``python3-dbus`` and ``python3-gi`` come with Ubuntu 24.04 on the robot (system snapshot); the node runs as the robot
 user, which the installer's D-Bus policy lets talk to ``org.bluez``.
 
-Invocation (robot.yaml's platform.extras.launch starts it through husky_bringup's bt_joy.launch.py)::
+Invocation (robot.yaml's platform.extras.launch starts it through this package's ``bt_joy.launch.py``)::
 
-    bt-joy-pairing --ros-args -r __ns:=/a200_0553 -p window_s:=60
-
-Selftest without ROS or D-Bus (runs on the workstation too)::
-
-    python3 bt_joy_pairing.py --selftest
+    ros2 run husky_bt_joy bt_joy_pairing --ros-args -r __ns:=/a200_0553 -p window_s:=60
 """
 
 from __future__ import annotations
@@ -80,25 +75,9 @@ def phone_teleop_params(generated: dict) -> dict:
     return {ns: {JOY_NODE: {"ros__parameters": joy}, TELEOP_NODE: {"ros__parameters": teleop}}}
 
 
-def selftest() -> int:
-    """Pure-Python check of the gating logic."""
-    assert pairing_allowed(10.0, 70.0) and not pairing_allowed(70.0, 70.0)
-    assert service_allowed(HID_UUID.upper(), paired=True)
-    assert not service_allowed(HID_UUID, paired=False)
-    assert not service_allowed("0000110b-0000-1000-8000-00805f9b34fb", paired=True)  # A2DP sink
-    assert json.loads(pairing_reply("AA:BB:CC:DD:EE:FF", "cpr-a200-0553", 60.0))["address"] == "AA:BB:CC:DD:EE:FF"
-    generated = {"ns": {"joy_node": {"ros__parameters": {"dev": "/dev/input/js0"}}, "teleop_twist_joy_node": {}}}
-    generated["ns"]["teleop_twist_joy_node"]["ros__parameters"] = {"enable_button": 4}
-    assert phone_teleop_params(generated)["ns"][JOY_NODE]["ros__parameters"]["dev"] == BT_JOY_DEV
-    print("bt_joy_pairing selftest: OK")
-    return 0
-
-
 def main(argv: list[str] | None = None) -> int:
     """Register the agent, serve ``bt_joy/open_pairing`` and run the GLib loop that carries both."""
     argv = sys.argv if argv is None else argv
-    if "--selftest" in argv:
-        return selftest()
 
     import subprocess
     import tempfile

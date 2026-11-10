@@ -185,19 +185,18 @@ def test_the_bringup_installs_its_launch_directory():
     assert "DESTINATION share/${PROJECT_NAME}" in cmake
 
 
-def test_robot_yaml_starts_a_launch_file_the_bringup_ships():
+def test_robot_yaml_starts_launch_files_this_repository_ships():
     """Every ``platform.extras.launch`` entry names a package -- clearpath_generator_robot 2.9.3 dies on
-    ``'pkg_' + None`` without one -- and the bringup's entry a file it installs: a wrong path fails at the robot's boot,
-    in clearpath-platform-extras, and nowhere before."""
+    ``'pkg_' + None`` without one -- and one of this repository's packages a file it installs: a wrong path fails at
+    the robot's boot, in clearpath-platform-extras, and nowhere before."""
     import yaml
 
     robot_yaml = yaml.safe_load(ROBOT_YAML.read_text(encoding="utf-8"))
     launches = robot_yaml["platform"]["extras"]["launch"]
     assert all(launch.get("package") for launch in launches), launches
-    ours = [launch for launch in launches if launch["package"] == BRINGUP.name]
-    assert ours, f"robot.yaml starts nothing of {BRINGUP.name}"
-    for launch in ours:
-        assert (BRINGUP / launch["path"]).is_file(), launch["path"]
+    assert {launch["package"] for launch in launches} == {BRINGUP.name, "husky_bt_joy"}
+    for launch in launches:
+        assert (REPO / "src" / launch["package"] / launch["path"]).is_file(), launch
 
 
 def test_robot_yaml_hands_its_own_namespace_to_the_bringup():

@@ -17,9 +17,10 @@ system:
     # TWO of them, the two clones the installer builds, one colcon workspace each.  ~/tools carries the COMPONENTS on
     # the flange (rg6_description with the measured rg6_v2.yaml, rg6_control, tool_description's macros); ~/husky
     # carries THIS ROBOT (husky_extras_description: sensor arch, where the hand is bolted onto the UR5 flange, the
-    # lidar on its mount; the lidars' macros; husky_bringup, husky_lidar, husky_navigation, husky_ur_state).
-    # platform.extras.urdf.path below names a file of husky's, which includes macros of both -- so both have to be
-    # listed, and a missing build is not a mesh that fails to draw but a generator run that dies on the include.
+    # lidar on its mount; the lidars' macros; husky_bringup, husky_bt_joy, husky_lidar, husky_navigation,
+    # husky_ur_state).  platform.extras.urdf.path below names a file of husky's, which includes macros of both -- so
+    # both have to be listed, and a missing build is not a mesh that fails to draw but a generator run that dies on
+    # the include.
     workspaces:
       - /home/robot/tools/install/setup.bash   # rg6_description, rg6_control, gripper_control, tool_description
       - /home/robot/husky/install/setup.bash   # husky_extras_description (the file under extras.urdf below) and the rest
@@ -51,10 +52,10 @@ platform:
         path: launch/lidar.launch.py
         args:
           lidar_model: rs16
-      # The Bluetooth joystick pairing (husky/setup's scripts/bt_joy_pairing.py, installed as bt-joy-pairing): the
-      # BlueZ agent and bt_joy/open_pairing.  namespace is system.ros2.namespace's; the generator gives an extras
+      # The Bluetooth joystick pairing (husky_bt_joy): the BlueZ agent and bt_joy/open_pairing, started only where
+      # the installer wrote its D-Bus policy.  namespace is system.ros2.namespace's; the generator gives an extras
       # launch none, and a test holds the two equal.
-      - package: husky_bringup
+      - package: husky_bt_joy
         path: launch/bt_joy.launch.py
         args:
           namespace: a200_0553

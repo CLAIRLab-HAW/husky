@@ -7,7 +7,8 @@ ROS 2 Jazzy packages, configuration and installer for the Clearpath Husky A200 `
 | Path | Type | Contents |
 |---|---|---|
 | `src/husky_extras_description` | ament_cmake | URDF extras: sensor arch, end effector, lidar mount, charging port |
-| `src/husky_bringup` | ament_cmake | Launch files for `platform.extras.launch`: lidar chain, joystick pairing |
+| `src/husky_bringup` | ament_cmake | Launch file for `platform.extras.launch`: the lidar chain |
+| `src/husky_bt_joy` | ament_python | The phone as Bluetooth joystick: BlueZ pairing agent, its teleop chain |
 | `src/husky_lidar` | ament_python | Lidar models (RS16, Qb2), driver configuration, topic names, self filter |
 | `src/husky_navigation` | ament_python | 2D scan from the lidar points, Nav2 and slam_toolbox configuration, maps |
 | `src/husky_moveit_config` | ament_cmake | The MoveIt viewer's RViz config and marker kinematics; the rest is generated |
@@ -27,7 +28,7 @@ ROS 2 Jazzy packages, configuration and installer for the Clearpath Husky A200 `
 |---|---|
 | `system.ros2.workspaces` | `/home/robot/tools/install/setup.bash`, `/home/robot/husky/install/setup.bash` |
 | `platform.extras.urdf.path` | `/home/robot/husky/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro` |
-| `platform.extras.launch` | `husky_bringup`: `launch/lidar.launch.py` (`lidar_model`), `launch/bt_joy.launch.py` |
+| `platform.extras.launch` | `husky_bringup`'s `lidar.launch.py` (`lidar_model`), `husky_bt_joy`'s `bt_joy.launch.py` |
 | `system.ros2.middleware` | `rmw_zenoh_cpp` |
 
 ## Dependencies
@@ -52,8 +53,8 @@ and installs the systemd units and the root-owned patcher copies. Details: [setu
 Manual build:
 
 ```bash
-cd ~/husky && colcon build --packages-select husky_extras_description husky_bringup rs16_description \
-  qb2_description husky_lidar husky_navigation husky_ur_state husky_moveit_config
+cd ~/husky && colcon build --packages-select husky_extras_description husky_bringup husky_bt_joy \
+  rs16_description qb2_description husky_lidar husky_navigation husky_ur_state husky_moveit_config
 ```
 
 ## Tests

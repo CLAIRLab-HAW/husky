@@ -1,11 +1,13 @@
-"""The pairing agent's gates: the window, HID-only, and the reply the app parses."""
+"""The pairing agent's gates: the window, HID-only, the policy its launch waits for, and the reply the app parses."""
 
 from __future__ import annotations
 
 import json
+import re
+from pathlib import Path
 
 import pytest
-from bt_joy_pairing import (
+from husky_bt_joy.pairing import (
     BT_JOY_DEV,
     HID_UUID,
     JOY_NODE,
@@ -13,7 +15,6 @@ from bt_joy_pairing import (
     pairing_allowed,
     pairing_reply,
     phone_teleop_params,
-    selftest,
     service_allowed,
 )
 
@@ -44,10 +45,6 @@ def test_reply_carries_the_address_the_app_bonds_to():
     assert reply == {"address": "AA:BB:CC:DD:EE:FF", "name": "cpr-a200-0553", "window_s": 60.0}
 
 
-def test_selftest_passes():
-    assert selftest() == 0
-
-
 def test_the_phone_teleop_takes_the_generated_parameters_on_its_own_device():
     generated = {
         "a200_0553": {
@@ -60,3 +57,14 @@ def test_the_phone_teleop_takes_the_generated_parameters_on_its_own_device():
     assert params[TELEOP_NODE]["ros__parameters"] == {"enable_button": 4, "scale_linear.x": 0.4}
     # The generated file stays untouched: Clearpath's joy_node keeps reading js0.
     assert generated["a200_0553"]["joy_node"]["ros__parameters"]["dev"] == "/dev/input/js0"
+
+
+def test_the_launch_gates_on_the_policy_the_installer_writes():
+    """The launch starts the agent only where the installer's D-Bus policy is; a path the two disagree on would turn
+    the pairing off on every robot, without an error."""
+    repo = Path(__file__).resolve().parents[2]
+    launch = (repo / "src/husky_bt_joy/launch/bt_joy.launch.py").read_text(encoding="utf-8")
+    installer = (repo / "setup/install-clearpath-custom-setup.sh").read_text(encoding="utf-8")
+    (gate,) = re.findall(r'^DBUS_POLICY = Path\("([^"]+)"\)$', launch, re.MULTILINE)
+    (written,) = re.findall(r'^BT_JOY_DBUS_POLICY="([^"]+)"$', installer, re.MULTILINE)
+    assert gate == written

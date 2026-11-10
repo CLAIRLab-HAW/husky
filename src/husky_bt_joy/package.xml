@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>husky_bt_joy</name>
+  <version>0.1.0</version>
+  <description>
+    The phone as the a200-0553's Bluetooth joystick: a BlueZ agent that pairs only inside a window
+    bt_joy/open_pairing opens and lets only HID through, and the phone's own joy_node and teleop_twist_joy.
+    Started by Clearpath's clearpath-platform-extras service through robot.yaml (platform.extras.launch).
+  </description>
+  <maintainer email="hannes.voss@haw-hamburg.de">Hannes Voss</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <!-- The phone's teleop chain, started as child processes beside Clearpath's own. -->
+  <exec_depend>joy_linux</exec_depend>
+  <exec_depend>teleop_twist_joy</exec_depend>
+  <!-- The agent's side of BlueZ: dbus-python on the GLib main loop. -->
+  <exec_depend>python3-dbus</exec_depend>
+  <exec_depend>python3-gi</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

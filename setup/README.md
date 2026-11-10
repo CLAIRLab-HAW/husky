@@ -416,10 +416,10 @@ generated file is recreated on every boot anyway, and a `.bak` sits next to it.
 Echo for Android can act as an HID gamepad whose reports land on the same `joy_linux` indices as the robot's own pad,
 so `joy_node` and `teleop_twist_joy` drive the base with the robot's speeds and deadman, without any network. The robot
 has Bluetooth (Intel AX200, `bluetooth.service` running) but no screen, so a pairing request waits for an agent that
-never answers. `scripts/bt_joy_pairing.py` (root-owned copy `/usr/local/bin/bt-joy-pairing`, running as the robot
-user) is that agent. `robot.yaml` starts it under `platform.extras.launch` (`husky_bringup`'s `bt_joy.launch.py`
-with the robot's `namespace`), in Clearpath's `clearpath-platform-extras` service, and it respawns there; where the
-installer's pairing step was skipped, the launch finds no program and starts nothing:
+never answers. The package [husky_bt_joy](../src/husky_bt_joy/README.md), built with the rest of `~/husky` and
+running as the robot user, is that agent. `robot.yaml` starts it under `platform.extras.launch` (its
+`bt_joy.launch.py` with the robot's `namespace`), in Clearpath's `clearpath-platform-extras` service, and it respawns
+there; where the installer's pairing step was skipped, the launch finds no D-Bus policy and starts nothing:
 
 * **`<ns>/bt_joy/open_pairing`** (`std_srvs/Trigger`) makes the adapter discoverable and pairable for 60 s and answers
   with flat JSON (`address`, `name`, `window_s`). The app calls it over the bridge and bonds to that address. Outside
@@ -428,8 +428,9 @@ installer's pairing step was skipped, the launch finds no program and starts not
 * **Paired once, trusted after.** The phone is marked `Trusted` once the bond stands, so it reconnects whenever the
   app offers the gamepad, with no window and no agent involved.
 
-The installer also writes `/etc/dbus-1/system.d/clearpath-custom-bt-joy.conf`, which lets the robot user talk to
-`org.bluez`, and takes out a `clearpath-custom-bt-joy` service it finds installed.
+The installer's step is the D-Bus policy `/etc/dbus-1/system.d/clearpath-custom-bt-joy.conf`, which lets the robot
+user talk to `org.bluez`; it also takes out the former copy `/usr/local/bin/bt-joy-pairing` and a
+`clearpath-custom-bt-joy` service it finds installed.
 
 **On the phone:** Drive → Bluetooth → *Pair with robot* (while connected to the robot over WiFi) and confirm Android's
 pairing dialog. After that, opening Drive → Bluetooth is enough.
@@ -446,8 +447,8 @@ agent starts a second `joy_node` on `/dev/input/bt_joy` (any Bluetooth joystick 
 pad, and its virtual pad took a joystick slot. It had been disabled once and ran again, hence masked. Undo:
 `sudo systemctl unmask ds4drv && sudo systemctl enable --now ds4drv`.
 
-**Rollback:** take the `bt_joy.launch.py` entry out of `robot.yaml`, delete `/usr/local/bin/bt-joy-pairing` and
-the D-Bus policy.
+**Rollback:** delete the D-Bus policy; the launch then starts nothing. Taking the `bt_joy.launch.py` entry out of
+`robot.yaml` removes the launch as well.
 
 ## Running Tests
 
