@@ -6,7 +6,7 @@
 
   Figures from the RS-LiDAR-16 user manual (RoboSense): 0.87 kg without cable and Ø109 x 80.7 mm (§3); the lidar's
   coordinate origin at the center, 39 mm above its bottom (§8.1, note 2); ROS +x is the 0° direction, opposite the
-  cable outlet (§8.1, Fig. 14 with note 1). The mesh is in the same frame (tools/rs16_mesh.py).
+  cable outlet (§8.1, Fig. 14 with note 1). The mesh is in the same frame (rs16_mesh.py, husky 1453d06).
 
   The collision is the housing's cylinder; the cable gland, 45 mm proud of it on -x, stays out.  The inertia is that
   of a homogeneous cylinder of the datasheet mass; the manual gives no center of gravity.

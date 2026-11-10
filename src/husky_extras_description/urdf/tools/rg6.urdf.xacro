@@ -30,23 +30,23 @@
   </joint>
 
   <!-- The 3D-printed L bracket between the RG6 and the D435 (the owner, 2026-10-10), silver-gray like the lidar spacer
-       on the arch (sensor_arch_profiles ARCH_LOOK). Its long leg lies flat on the RG6 body's +y face (y 21.5 mm),
-       screwed into the body's two front holes (M3, 3.2 mm, x +-10 mm at z 99.1 mm, read off body.stl), and runs back to
-       behind the camera; there its short leg rises at right angles and takes the D435's two rear M3 screws, so the
-       camera hangs on it with its underside at y 36.8 mm, where the hand-eye calibration put it. The short leg's height
-       sets the 15 mm robot.yaml's mount lies off the design values; the camera's pose is robot.yaml's and nothing here
-       moves it. The camera's extent is its VISUAL mesh's (d435.dae through camera_0_link, in this frame x -47.9 to
-       42.0, y 36.8 to 61.9, z 63.7 to 89.5 mm, 2026-10-10), not the collision box Clearpath draws, which sits 8 mm
-       further toward the fingers (z 71.7 to 97.9). The long leg is just wide enough for the two screws (28 mm, centered
-       on the holes: their M3 heads, 5.5 mm, and 1.25 mm of edge, the owner, 2026-10-10); the short leg stands on its
-       rear edge, 56 mm wide and centered on the camera (x -3 mm) so its rear screws, 45 mm apart, fit. Not measured:
-       both legs 4 mm thick; the long leg from the short one to 5 mm past the holes; the short leg up to y 55 mm, past
-       the rear screws at the camera's half height (y ~49 mm). A visual alone: it would touch the body's and the
-       camera's collision geometry, and a contact the SRDF does not disable makes every MoveIt state invalid
-       (ride_height_patch's lesson, 2026-09-01). -->
+       on the arch (ARCH_LOOK in sensor_arch_profiles.py, husky 1453d06). Its long leg lies flat on the RG6 body's +y
+       face (y 21.5 mm), screwed into the body's two front holes (M3, 3.2 mm, x +-10 mm at z 99.1 mm, read off
+       body.stl), and runs back to behind the camera; there its short leg rises at right angles and takes the D435's two
+       rear M3 screws, so the camera hangs on it with its underside at y 36.8 mm, where the hand-eye calibration put it.
+       The short leg's height sets the 15 mm robot.yaml's mount lies off the design values; the camera's pose is
+       robot.yaml's and nothing here moves it. The camera's extent is its VISUAL mesh's (d435.dae through camera_0_link,
+       in this frame x -47.9 to 42.0, y 36.8 to 61.9, z 63.7 to 89.5 mm, 2026-10-10), not the collision box Clearpath
+       draws, which sits 8 mm further toward the fingers (z 71.7 to 97.9). The long leg is just wide enough for the two
+       screws (28 mm, centered on the holes: their M3 heads, 5.5 mm, and 1.25 mm of edge, the owner, 2026-10-10); the
+       short leg stands on its rear edge, 56 mm wide and centered on the camera (x -3 mm) so its rear screws, 45 mm
+       apart, fit. Not measured: both legs 4 mm thick; the long leg from the short one to 5 mm past the holes; the short
+       leg up to y 55 mm, past the rear screws at the camera's half height (y ~49 mm). A visual alone: it would touch
+       the body's and the camera's collision geometry, and a contact the SRDF does not disable makes every MoveIt state
+       invalid (ride_height_patch's lesson, 2026-09-01). -->
   <link name="camera_0_bracket">
-    <!-- Both legs with their corners rounded by 3 mm, in this link's frame (tools/d435_bracket_mesh.py, which holds
-         the numbers above). No <material>: the DAE carries the silver-gray. -->
+    <!-- Both legs with their corners rounded by 3 mm, in this link's frame (d435_bracket_mesh.py, husky 1453d06, which
+         holds the numbers above). No <material>: the DAE carries the silver-gray. -->
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry><mesh filename="package://husky_extras_description/meshes/d435_bracket.dae"/></geometry>
@@ -58,12 +58,12 @@
   </joint>
 
   <!-- The RG6's M8 tool cable, from the outlet on its bracket to the UR5's tool connector on the wrist 3, black, with a
-       straight plug on the UR end (tools/rg6_cable_mesh.py, which holds the connectors' positions, the route and its
-       clearances, 2026-10-10). Both connectors ride on links joined rigidly to arm_0_tool0, so the cable is one static
-       mesh in that frame. Here and not in rg6.macro.xacro: it ends on the UR5's wrist, which MARWIN 5's tool changer
-       does not have. A visual alone: it runs a few millimeters off the wrist 3 and leaves the bracket's outlet face, so
-       a collision body would touch the arm's own and the bracket's, and every such contact the SRDF does not disable
-       makes every MoveIt state invalid (ride_height_patch's lesson, 2026-09-01). -->
+       straight plug on the UR end (rg6_cable_mesh.py, husky 1453d06, which holds the connectors' positions, the route
+       and its clearances, 2026-10-10). Both connectors ride on links joined rigidly to arm_0_tool0, so the cable is one
+       static mesh in that frame. Here and not in rg6.macro.xacro: it ends on the UR5's wrist, which MARWIN 5's tool
+       changer does not have. A visual alone: it runs a few millimeters off the wrist 3 and leaves the bracket's outlet
+       face, so a collision body would touch the arm's own and the bracket's, and every such contact the SRDF does not
+       disable makes every MoveIt state invalid (ride_height_patch's lesson, 2026-09-01). -->
   <link name="rg6_cable">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>

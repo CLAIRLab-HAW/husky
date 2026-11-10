@@ -6,7 +6,7 @@ name: ci
 #
 # Three jobs, by toolchain:
 #
-#   python              src/'s packages, setup/ and scripts/ -- their suites, `bash -n` over the installer scripts,
+#   python              src/'s packages and setup/ -- their suites, `bash -n` over the installer scripts,
 #                       ruff over everything but cockpit-diagnostics.
 #   cockpit-tools       the Cockpit page: `node --check`, `bash -n`, `npm test`.
 #   cockpit-diagnostics the upstream-derived plugin: `npm ci`, eslint, stylelint. The upstream's two bot

@@ -41,27 +41,27 @@ macro, the gripper package includes nothing from here.
   decides: a test holds it to `robot.yaml`'s `lidar_model`. The offboard mock passes `lidar_model:=` from its
   `robot.yaml`.
 - **The a200's top chassis in its real colors**, `meshes/a200_top_chassis.dae`: Clearpath's mesh split into its
-  parts by `tools/a200_chassis_mesh.py`: the chassis #E29000, the emergency stop red, the power button and the key
+  parts by `a200_chassis_mesh.py`: the chassis #E29000, the emergency stop red, the power button and the key
   lock metallic silver, the status LEDs black (Clearpath's mesh has one greenish-yellow material for all of it).
   `a200_look_patch` in [husky/setup](../setup/README.md) points the `top_chassis_link` visual here.
 - **The a200's indoor wheel with its real rims**, `meshes/a200_indoor_wheel.dae`, written by
-  `tools/a200_wheel_mesh.py`: Clearpath's indoor tire, shrunk radially to the measured rolling radius 0.1477 m (R58;
+  `a200_wheel_mesh.py`: Clearpath's indoor tire, shrunk radially to the measured rolling radius 0.1477 m (R58;
   Clearpath's reaches 0.1625 m) with its bead and width kept, on the a200-0553's rim from Clearpath's CAD (two
   pressed halves, the keyed hub and the hub plate), dark gray with a metallic sheen. The outer face lies on +y like
   Clearpath's mesh. `a200_look_patch` points the indoor wheel macro's visual here; the collision cylinder stays at
   the nominal 0.1651 m. The CAD export the rim comes from is not in the repo (see License).
 - **The charging connector on the rear slope**, `meshes/charging_connector.dae`, written by
-  `tools/charging_connector_mesh.py` from the vendor's STEP files: the panel-mount socket with its plug permanently in
+  `charging_connector_mesh.py` from the vendor's STEP files: the panel-mount socket with its plug permanently in
   it, both black, mated from the geometry (keyed turn, plug lowered until its insulator sits on the socket's contact
   floor). The link `charging_connector` hangs on `top_chassis_link` over the lid where Clearpath's right bump stood,
   moved down the slope clear of the top plate, along the slope's normal, as a visual alone. The STEP files are not in the repo (see License).
-- **The wrist D435 in its real materials**, `meshes/d435.dae`, written by `tools/d435_mesh.py`: MuJoCo Menagerie's
+- **The wrist D435 in its real materials**, `meshes/d435.dae`, written by `d435_mesh.py`: MuJoCo Menagerie's
   colored RealSense D435i (black acrylic front, gray camera modules, dark IR lenses in polished rims, the green IR
   emitter, the red-tinted RGB lens, the aluminum casing a light gray), registered onto `realsense2_description`'s
   `d435.dae` (one gray for the whole camera), so its frame and `clearpath_sensors_description`'s visual origin hold
   unchanged; decimated to 23326 triangles, 1.5 MB. `a200_look_patch` in [husky/setup](../setup/README.md)
   points the D435 macro's visual here.
-- **The RG6's tool cable**, `meshes/rg6_cable.dae`, written by `tools/rg6_cable_mesh.py`: a black M8 cable, 5.5 mm,
+- **The RG6's tool cable**, `meshes/rg6_cable.dae`, written by `rg6_cable_mesh.py`: a black M8 cable, 5.5 mm,
   from the outlet on the RG6's bracket round the wrist 3's -x side to the UR5's tool connector, with a straight plug
   on that end. The link `rg6_cable` hangs on `arm_0_tool0` in `tools/rg6.urdf.xacro`, as a visual alone; its route
   is drawn, not traced on the robot.
@@ -205,11 +205,12 @@ origin and the changes made to it are documented there
 clearpathrobotics; the notice is carried in full in the file's `<asset><contributor><copyright>`. The tire of
 `meshes/a200_indoor_wheel.dae` is derived from `clearpath_platform_description`'s `wheels/indoor.dae` under the same
 license and notice. Its rim comes from Clearpath Robotics' CAD "034991-MOBILITY_Simplified mCAD, STEP-Husky A200,
-Skid Steer", which comes without a BSD license: the owner's glTF export of it (`husky/cad/a200_rims.gltf`, untracked) is
-not redistributed, only the derived mesh, as with RoboSense's STEP behind `rs16.dae`. The same holds for
+Skid Steer", which comes without a BSD license: the owner's glTF export of it (`husky/.local/a200_rims.gltf`, untracked)
+is not redistributed, only the derived mesh, as with RoboSense's STEP behind `rs16.dae`. The same holds for
 `meshes/charging_connector.dae`: the vendor's STEP files of the socket and the plug come without a license for
-redistributing them, so the owner keeps them untracked at `husky/cad/SK2-076C04_mount.STEP` and
-`husky/cad/SK6-076C04_plug.STEP`. `meshes/d435.dae` is derived from MuJoCo Menagerie's `realsense_d435i`, itself
-derived from `realsense2_description`'s `d435.dae`, both under the Apache License 2.0 (the Menagerie model's notice:
-Copyright 2023 Intel Corporation). The notice and the changes are carried in the file's
+redistributing them, so the owner keeps them untracked at `husky/.local/SK2-076C04_mount.STEP` and
+`husky/.local/SK6-076C04_plug.STEP`. The scripts that wrote the meshes named above lie there too, out of the repo; their
+last versioned state is husky `1453d06` (`scripts/`). `meshes/d435.dae` is derived from MuJoCo Menagerie's
+`realsense_d435i`, itself derived from `realsense2_description`'s `d435.dae`, both under the Apache License 2.0 (the
+Menagerie model's notice: Copyright 2023 Intel Corporation). The notice and the changes are carried in the file's
 `<asset><contributor><copyright>`, the license text beside it as `meshes/d435.LICENSE`.

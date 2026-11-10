@@ -87,10 +87,11 @@ plus its file under the extras' `lidars/`. A model of another make adds a driver
 its name to `models.DRIVERS` and its start to the launch's `DRIVERS`, as the Qb2 did.
 
 To rewrite the RS16 mesh from RoboSense's CAD model (`RS16.stp`, robosense.ai → Downloads → "RS-LiDAR-16 3D Model",
-not in the repo):
+not in the repo, and neither is the script: the owner keeps it in `husky/.local/`, its last versioned state is
+husky `1453d06`):
 
 ```bash
-uv run husky/scripts/rs16_mesh.py RS16.stp husky/src/rs16_description/meshes/rs16.dae
+uv run husky/.local/rs16_mesh.py RS16.stp husky/src/rs16_description/meshes/rs16.dae
 ```
 
 ## Running Tests

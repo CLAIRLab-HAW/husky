@@ -16,7 +16,6 @@ ROS 2 Jazzy packages, configuration and installer for the Clearpath Husky A200 `
 | `setup/` | — | `config/robot.yaml`, UR5 calibration, installer, per-boot patchers, systemd units, operator tools |
 | `cockpit-diagnostics/` | npm | Cockpit plugin: ROS 2 diagnostics |
 | `cockpit-tools/` | npm | Cockpit page: offboard container control |
-| `scripts/` | — | Mesh generators (not installed) |
 | `tests/` | — | pytest suites of the packages (`setup/tests` for the installer and patchers) |
 
 ## Configuration

@@ -108,8 +108,8 @@
   <!-- The a200-0553's charging socket with its plug permanently in it, both black (the owner, 2026-10-10), next to
        where Clearpath's top chassis has its right bump: a200_chassis_mesh.py leaves that bump out (REMOVED
        bump_right) and draws the middle panel it stood in anew, in one piece. The DAE's frame is the socket's, origin
-       on the center of the flange's panel-facing face, +z out of the panel; tools/charging_connector_mesh.py says how
-       the plug was mated.
+       on the center of the flange's panel-facing face, +z out of the panel; charging_connector_mesh.py (husky 1453d06)
+       says how the plug was mated.
 
        ORIGIN, from Clearpath's top_chassis.dae on 2026-10-10 (charging_connector_mesh.py with chassis option), in
        top_chassis_link, whose visual has no offset, from the lid an earlier a200_top_chassis.dae laid over the bump's
