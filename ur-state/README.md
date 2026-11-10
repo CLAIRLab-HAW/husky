@@ -69,7 +69,7 @@ ExternalControl start → the driver syncs `Command=actual` → **no position ju
 stop**, unlike a mere `prepare`/`play` that resumes the paused state with a stale command.
 That restores the arm's motion link; the **gripper** is not part of it — the RG6 hangs off
 the OnRobot URCap, and no ROS service can power its tool connector (see
-[`onboard/gripper`](../gripper/README.md)). Only powered states are touched;
+[`tools/gripper`](../../tools/gripper/README.md)). Only powered states are touched;
 `POWER_OFF`/`BOOTING`/`BACKDRIVE` are left untouched. Disable with `auto_recover:=false`.
 
 > **CB3 special case:** `robot_state_helper` clears a protective stop *immediately*, but the
@@ -135,7 +135,7 @@ The complete safety handling now lives in `robot_state_helper` (called from
 ### Prerequisites
 
 - The `ur_robot_driver` is running and connected to the UR5.
-- The `io_and_status_controller` is loaded/active — needed by the `robot_state_helper`, not by the gripper: since the URCap switch the RG6 is commanded over XML-RPC and no longer rides on a tool digital output (see [`onboard/gripper`](../gripper/README.md)).
+- The `io_and_status_controller` is loaded/active — needed by the `robot_state_helper`, not by the gripper: since the URCap switch the RG6 is commanded over XML-RPC and no longer rides on a tool digital output (see [`tools/gripper`](../../tools/gripper/README.md)).
   The `robot_state_helper` subscribes to `robot_mode`/`safety_mode`/`robot_program_running`
   from it and calls `resend_robot_program`.
 - **The `robot_state_helper` node is running.** Clearpath does **not** start it; this launch
@@ -156,7 +156,7 @@ The complete safety handling now lives in `robot_state_helper` (called from
 
   Check with `ros2 service list | grep dashboard`.
 
-  > On a200-0553 the `onboard/setup` installer optionally starts the `dashboard_client`
+  > On a200-0553 the `husky/setup` installer optionally starts the `dashboard_client`
   > as its own boot service (`clearpath-custom-ur-dashboard.service`). If it is already running through that,
   > start this launch with `start_dashboard_client:=false` so that two dashboard clients do
   > not connect to port 29999 at the same time.
@@ -189,18 +189,18 @@ The complete safety handling now lives in `robot_state_helper` (called from
 
 ## Installation
 
-On the robot the [installer](../setup/README.md) builds it in the onboard clone and installs the boot service. By
+On the robot the [installer](../setup/README.md) builds it in the husky clone and installs the boot service. By
 hand:
 
 ```bash
-cd ~/onboard/ur-state
+cd ~/husky/ur-state
 colcon build --packages-select ur_state_manager
 source install/setup.bash
 ```
 
 `ur_dashboard_msgs` comes with the `ur_robot_driver` stack (present on the a200-0553).
 
-> On a200-0553 the `onboard/setup` installer optionally does this automatically:
+> On a200-0553 the `husky/setup` installer optionally does this automatically:
 > it builds this package and installs `clearpath-custom-ur-state-manager.service` (starts the
 > manager at boot, `start_dashboard_client:=false`, since the `dashboard_client`
 > runs via `clearpath-custom-ur-dashboard.service`).
@@ -255,7 +255,7 @@ next one comes on. They live in `readiness.py` and `switching.py`, which import 
 machine:
 
 ```bash
-uv run pytest onboard/ur-state        # from the workspace root
+uv run pytest ur-state                # from the husky root
 ```
 
 They also come along in the plain root run (`uv run pytest`), which collects them by path — this package is not a
@@ -266,7 +266,7 @@ workspace formats with black and runs no other linter.
 
 ## Related
 
-- [onboard/setup](../setup/README.md) — the installer that
+- [husky/setup](../setup/README.md) — the installer that
   ships this as `clearpath-custom-ur-state-manager`
 - [plan-bridge](../../robot/motion-server/README.md) — translates `/motion/arm_cmd`
   into these services

@@ -13,7 +13,7 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <!-- Run-time only: the launch includes onboard/navigation's scan.launch.py, which starts the lidar's driver
+  <!-- Run-time only: the launch includes husky/navigation's scan.launch.py, which starts the lidar's driver
        (rslidar_sdk for a RoboSense model), clair.lidar's self filter and pointcloud_to_laserscan.  clair.lidar and
        clair.navigation are no ament packages; the installer puts their source trees on the system Python's path. -->
   <exec_depend>launch</exec_depend>

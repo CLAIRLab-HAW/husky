@@ -13,8 +13,9 @@ in the `--verify` manifest it belongs in `scripts/`; if it is not, somebody star
 
 ## Features
 
-- **Two overlay workspaces come out of `robot.yaml`** — `onboard/gripper` (the gripper) and `onboard/extras` (this robot's
-  URDF extras). The installer clones and builds both; `system.ros2.workspaces` is what puts them on
+- **Four overlay workspaces come out of `robot.yaml`** — `tools/gripper` (the gripper), `tools/description` (the tool
+  macros), `husky/lidar` (the lidars' macros) and `husky/extras` (this robot's URDF extras). The installer clones
+  both repositories and builds all four; `system.ros2.workspaces` is what puts them on
   `AMENT_PREFIX_PATH` for the generator, RViz and the `foxglove_bridge` alike.
 - **`config/robot.yaml` is the single source of truth** — `/etc/clearpath/robot.yaml`
   is a symlink to the repo clone, so a `git pull` takes effect within seconds instead of only at the next boot. On a
@@ -24,9 +25,9 @@ in the `--verify` manifest it belongs in `scripts/`; if it is not, somebody star
 - **A watchdog for a late arm power-up** and for a motion link that died while ExternalControl kept reporting it was
   "running".
 - **The RG6 gripper service** — `clearpath-custom-rg6-grip-bridge`, unit and wrapper. The node itself
-  (`rg6_grip_bridge`, XML-RPC against the OnRobot URCap) belongs to [onboard/gripper](../gripper/README.md), where its
-  mock counterpart already sat; the installer rolls it out from that workspace as a root-owned copy, together with its
-  linkage table.
+  (`rg6_grip_bridge`, XML-RPC against the OnRobot URCap) belongs to
+  [tools/gripper](../../tools/gripper/README.md), where its mock counterpart already sat; the installer rolls it out
+  from that workspace as a root-owned copy, together with its linkage table.
 - **The phone as the robot's Bluetooth joystick** — a BlueZ agent that lets Echo for Android pair as an HID gamepad
   inside a window the app opens, and nothing else.
 - **Manipulator diagnostics in Cockpit**: arm mode, control, joints, controllers and gripper as `diagnostic_msgs`, with
@@ -62,18 +63,19 @@ After installing the Clearpath software stack
 in your own user directory:
 
 ```bash
-git clone https://github.com/CLAIRLab-HAW/onboard.git ~/onboard
-bash ~/onboard/setup/install-clearpath-custom-setup.sh
+git clone https://github.com/CLAIRLab-HAW/husky.git ~/husky
+git clone https://github.com/CLAIRLab-HAW/tools.git ~/tools   # or let the installer clone it
+bash ~/husky/setup/install-clearpath-custom-setup.sh
 ```
 
-Everything the installer builds or deploys comes out of that one clone: `robot.yaml` and the deployed scripts from
-`setup/`, the colcon workspaces `rg6/`, `extras/` and `ur-state/`, the Cockpit pages from `cockpit-diagnostics/` and
-`cockpit-tools/`. A later run pulls the clone (`--ff-only`, the branch that is checked out) before it builds.
+Everything the installer builds or deploys comes out of those two clones: `robot.yaml` and the deployed scripts from
+`setup/`, the colcon workspaces `lidar/`, `extras/` and `ur-state/`, the Cockpit pages from `cockpit-diagnostics/` and
+`cockpit-tools/`, and `~/tools`' `gripper/` and `description/`. A later run pulls both clones (`--ff-only`, the branch
+that is checked out) before it builds.
 
-**Coming from the single-repo layout** (`~/husky-custom-setup`, `~/onrobot-rg6`, `~/husky-extras`, …): the first
-run re-points the `/etc/clearpath/robot.yaml` symlink at `~/onboard/setup/config/robot.yaml`, and
-`clearpath-robot-check` restarts the stack on that change — arm driver included. After `--verify` is green the old
-clones are unused and can go.
+**Coming from `~/onboard`**: the first run clones `~/husky` and `~/tools`, re-points the `/etc/clearpath/robot.yaml`
+symlink at `~/husky/setup/config/robot.yaml` and drops `clair-onboard.pth`; `clearpath-robot-check` restarts the stack
+on that change — arm driver included. After `--verify` is green `~/onboard` is unused and can go.
 
 The installer is interactive and asks before every optional part (`[y/N]`, or
 `-y` to say yes to everything). `--verify` checks read-only whether the deployed copies still match the checkout, and
@@ -182,8 +184,8 @@ Three building blocks close the gap, all from the installer (optional steps):
 
 1. **`manipulator-diagnostics`** (`scripts/manipulator_diagnostics.py`, a root-owned copy under `/usr/local/bin`):
    publishes five statuses at 1 Hz on
-   `/a200_0553/diagnostics`. The wrapper needs no `onboard/gripper` overlay — the gripper state arrives as JSON, not as an
-   `rg6_msgs` type:
+   `/a200_0553/diagnostics`. The wrapper needs no `tools/gripper` overlay — the gripper state arrives as JSON, not as
+   an `rg6_msgs` type:
 
    | Status | Content |
       |---|---|
@@ -245,7 +247,7 @@ Three building blocks close the gap, all from the installer (optional steps):
 
 3. **Cockpit plugin fork**
    ([`CLAIRLab-HAW/cockpit-ros2-diagnostics`](https://github.com/CLAIRLab-HAW/cockpit-ros2-diagnostics), locally
-   `onboard/cockpit-diagnostics`): in addition to the generic tree, a **manipulator panel** (arm card with
+   `husky/cockpit-diagnostics`): in addition to the generic tree, a **manipulator panel** (arm card with
    mode/safety/ExternalControl/motion-link badges, joint table and controller chips; gripper card with an opening bar,
    `grip_detected`, tool power, last command). The panel reads the same
    `diagnostics_agg` stream the extension subscribes to anyway — no extra topic subscription, so pause, history and
@@ -276,9 +278,9 @@ Three building blocks close the gap, all from the installer (optional steps):
    (the robot stays toolchain-free):
 
    ```bash
-   git clone https://github.com/CLAIRLab-HAW/onboard.git
-   cd onboard/cockpit-diagnostics && npm ci --ignore-scripts && make
-   rsync -a dist/ robot@<robot>:~/onboard/cockpit-diagnostics/dist/
+   git clone https://github.com/CLAIRLab-HAW/husky.git
+   cd husky/cockpit-diagnostics && npm ci --ignore-scripts && make
+   rsync -a dist/ robot@<robot>:~/husky/cockpit-diagnostics/dist/
    ```
 
 **Verification after install + reboot (checklist):**
@@ -321,7 +323,7 @@ page's own `install.sh`, which is where the list of files belonging to the packa
 list and hashes the deployed directory file by file:
 
 ```
-  DEVIATION        /usr/local/share/cockpit/robot-tools    ◀─ /home/robot/onboard/cockpit-tools
+  DEVIATION        /usr/local/share/cockpit/robot-tools    ◀─ /home/robot/husky/cockpit-tools
                    └─ index.js status.js
 ```
 
@@ -331,14 +333,14 @@ commits behind the checkout and nothing said so. A `--verify` run needs no root.
 ### The lidar (no unit of its own)
 
 `robot.yaml` starts it under `platform.extras.launch`: Clearpath's own `clearpath-platform-extras` service runs
-`husky_extras_bringup`'s `lidar.launch.py` ([onboard/extras](../extras/README.md)) with `lidar_model: rs16` (or `qb2`,
-the Blickfeld Qb2 in its place), which includes [onboard/navigation](../navigation/README.md)'s scan and, through it,
-[onboard/lidar](../lidar/README.md)'s driver and self filter — `…/lidar3d_0/points`, `points_filtered` and `scan`,
+`husky_extras_bringup`'s `lidar.launch.py` ([husky/extras](../extras/README.md)) with `lidar_model: rs16` (or `qb2`,
+the Blickfeld Qb2 in its place), which includes [husky/navigation](../navigation/README.md)'s scan and, through it,
+[husky/lidar](../lidar/README.md)'s driver and self filter — `…/lidar3d_0/points`, `points_filtered` and `scan`,
 read-only. The installer brings what that service cannot: the apt packages `ros-jazzy-rslidar-sdk` and
-`ros-jazzy-pointcloud-to-laserscan`, and `clair-onboard.pth` in the system site-packages, which puts
-`~/onboard/lidar/src` and `~/onboard/navigation/src` on the Python path (the service sources
+`ros-jazzy-pointcloud-to-laserscan`, and `clair-husky.pth` in the system site-packages, which puts
+`~/husky/lidar/src` and `~/husky/navigation/src` on the Python path (the service sources
 `/etc/clearpath/setup.bash` and nothing else). Where `robot.yaml` names the `qb2`, it also builds Blickfeld's driver,
-`blickfeld_qb2_ros2_driver` `v2.1.0`, from source into `~/onboard/lidar` (no apt package; its build fetches
+`blickfeld_qb2_ros2_driver` `v2.1.0`, from source into `~/husky/lidar` (no apt package; its build fetches
 Blickfeld's protocol from GitHub). A `clearpath-custom-lidar` service found installed is taken out: next to the extras
 launch it would start a second driver on the same ports.
 
@@ -457,8 +459,8 @@ python3 scripts/octomap_feed.py --selftest
 ```
 
 The fourth, `rg6_grip_bridge --selftest`, moved with the node into
-[onboard/gripper](../gripper/README.md) and runs there; the installer still executes it against the copy it has just
-deployed.
+[tools/gripper](../../tools/gripper/README.md) and runs there; the installer still executes it against the copy it
+has just deployed.
 
 The patch tools have a dry run instead, which writes nothing —
 `urdf_physics_patch` reports every target still waiting for a measurement,
@@ -477,7 +479,7 @@ Off the robot they find no `/opt/ros/*/share` to work in and say so; point
 Its own suite runs from the workspace root, without a robot and without ROS:
 
 ```bash
-uv run pytest onboard/setup/tests
+uv run pytest setup/tests
 ```
 
 The installer runs the same self-test resp. dry run before deploying a file, and discards a source that does not even
@@ -486,13 +488,13 @@ compile.
 
 ## Related
 
-- [onboard/gripper](../gripper/README.md) — gripper model, MoveIt patch, and the gripper on both stages
+- [tools/gripper](../../tools/gripper/README.md) — gripper model, MoveIt patch, and the gripper on both stages
   (`rg6_grip_bridge`, `gripper_sim`); one of the two workspaces `robot.yaml` lists, and the source of three files
   this installer deploys
-- [onboard/extras](../extras/README.md) — the a200-0553's URDF extras (sensor arch, RG6 mounting), the
+- [husky/extras](../extras/README.md) — the a200-0553's URDF extras (sensor arch, RG6 mounting), the
   other one; `robot.yaml`
   addresses its file under `platform.extras.urdf` and its bringup under `platform.extras.launch`
-- [onboard/lidar](../lidar/README.md) — the lidar's models, driver and self filter, which that bringup starts
+- [husky/lidar](../lidar/README.md) — the lidar's models, driver and self filter, which that bringup starts
 - [ur-state-manager](../ur-state/README.md) — arm state and controller modes
 - [cockpit-ros2-diagnostics](../cockpit-diagnostics/README.md) — the panel that displays these diagnostics
 - [cockpit-robot-tools](../cockpit-tools/README.md) — the Cockpit page *Roboter-Werkzeuge*, deployed by the same

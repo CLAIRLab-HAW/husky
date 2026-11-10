@@ -1,15 +1,15 @@
-# onboard/navigation
+# husky/navigation
 
 Provides the mobile-base capability; locomotion remains outside the first manipulation milestone.
 See the [physical-intelligence architecture](../../docs/COGNITIVE-ARCHITECTURE.md).
 
 Navigation layer of the Husky **a200-0553**: the 2D scan on the RoboSense RS-LiDAR-16's points, and Nav2. Runs in
 the offboard container against the mock platform **and** onboard on the real robot — same configuration. The sensor
-itself — models, driver, self filter — is [onboard/lidar](../lidar/README.md).
+itself — models, driver, self filter — is [husky/lidar](../lidar/README.md).
 
 ## Features
 
-- **The scan on the lidar's points.** `launch/scan.launch.py` includes onboard/lidar's `lidar.launch.py` (driver
+- **The scan on the lidar's points.** `launch/scan.launch.py` includes husky/lidar's `lidar.launch.py` (driver
   and self filter, for `lidar_model:=`) and adds `pointcloud_to_laserscan` on `…/lidar3d_0/points_filtered`, the
   points without the robot's body: AMCL and slam_toolbox read nothing but a LaserScan. On the robot Clearpath's
   `clearpath-platform-extras` service starts this launch (robot.yaml, `platform.extras.launch`), so the scan is there
@@ -95,7 +95,7 @@ measured on the robot (R58): the LOADED one (0.134 m) between axle and `base_foo
 
 ## Tech Stack
 
-ROS 2 Jazzy · `nav2` · `slam_toolbox` · `pointcloud_to_laserscan` · [onboard/lidar](../lidar/README.md) ·
+ROS 2 Jazzy · `nav2` · `slam_toolbox` · `pointcloud_to_laserscan` · [husky/lidar](../lidar/README.md) ·
 Python 3.12+
 
 ## Installation
@@ -110,7 +110,7 @@ See `deploy/offboard/scripts/nav` in the container.
 ## Running Tests
 
 ```bash
-uv run pytest navigation/tests            # from the onboard root: without ROS, without container
+uv run pytest navigation/tests            # from the husky root: without ROS, without container
 ```
 
 The end-to-end tests against the driving base in the offboard container live in clearpath's `deploy/offboard/tests`

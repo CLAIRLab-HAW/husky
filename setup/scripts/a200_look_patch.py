@@ -33,19 +33,19 @@ THE CHASSIS: the ``top_chassis_link`` visual is pointed at ``husky_extras_descri
 ``meshes/a200_top_chassis.dae`` instead of the package's ``meshes/a200/top_chassis.dae``.  Clearpath's mesh is ONE
 geometry with ONE material, a greenish yellow (diffuse ``0.8 0.8 0 1``) -- the emergency stop, the power button and the
 key lock at the rear included.  The real a200-0553's chassis is #E29000, its emergency stop red, its power button and
-key lock metallic silver (the owner, 2026-10-09).  One material cannot carry that, so ``onboard/extras``' tool
+key lock metallic silver (the owner, 2026-10-09).  One material cannot carry that, so ``husky/extras``' tool
 ``a200_chassis_mesh.py`` splits Clearpath's mesh into its parts and writes one material per look; this tool only
 swaps the URI.  WHY THE URI AND NOT A URDF MATERIAL: the visual sets no ``<material>``, so the mesh's colors are what
 every viewer shows (Foxglove and RViz via the DAE, the MuJoCo twin via ``clair.twin.collada``), and a URDF material is
 one color for the whole link.  ``husky_extras_description`` is installed wherever the generator runs: on the robot the
-installer builds ``onboard/extras`` and robot.yaml lists its workspace, in the offboard images it is built into
+installer builds ``husky/extras`` and robot.yaml lists its workspace, in the offboard images it is built into
 ``/opt/husky-extras``.  ``ride_height_patch`` edits the same ``a200.urdf.xacro``; whichever of the two runs first
 takes the one ``.bak``, the pristine apt copy.
 
 THE INDOOR WHEELS: the visual mesh of ``urdf/a200/drivetrain/wheels/indoor.urdf.xacro`` is pointed at
 ``husky_extras_description``'s ``meshes/a200_indoor_wheel.dae`` instead of the package's
 ``meshes/a200/wheels/indoor.dae``.  Clearpath's mesh draws another rim than the a200-0553's, and a tire of r 0.1625 m
-where the real one rolls on 0.1477 m (R58).  ``onboard/extras``' tool ``a200_wheel_mesh.py`` keeps Clearpath's tire,
+where the real one rolls on 0.1477 m (R58).  ``husky/extras``' tool ``a200_wheel_mesh.py`` keeps Clearpath's tire,
 shrinks it radially to that tread radius, and seats the real rim in it, taken from Clearpath's own CAD; its outer face
 lies on +y like Clearpath's, so the turn of the right wheels above holds for it unchanged.  Only the indoor macro:
 robot.yaml fits indoor wheels on both axles (``drivetrain.wheels.front/rear: indoor``), and the outdoor wheel is
@@ -57,7 +57,7 @@ THE WRIST CAMERA: the visual of ``clearpath_sensors_description``'s D435 macro (
 ``d435i.urdf.xacro`` includes as well) is pointed at ``husky_extras_description``'s ``meshes/d435.dae`` instead of
 ``realsense2_description``'s ``meshes/d435.dae``.  realsense's mesh is one gray (diffuse 0.749) for the whole camera;
 the a200-0553's D435 has a black front, dark lenses in polished rims and an aluminum casing (the owner, 2026-10-10).
-``onboard/extras``' tool ``d435_mesh.py`` writes MuJoCo Menagerie's colored D435 in exactly the frame of realsense's
+``husky/extras``' tool ``d435_mesh.py`` writes MuJoCo Menagerie's colored D435 in exactly the frame of realsense's
 mesh, so the macro's visual origin stays as it is and only the URI changes.  ``sensor_mesh_uri_patch`` rewrites the
 same line's ``file://$(find realsense2_description)`` to ``package://realsense2_description``: the anchor here takes
 the line in either form, so the two compose in any order.  After this one, the line names no

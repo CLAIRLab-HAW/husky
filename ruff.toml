@@ -1,4 +1,4 @@
-# onboard's ruff configuration: clearpath's rules, kept here so that this repository lints on its own. It is this
+# husky's ruff configuration: clearpath's rules, kept here so that this repository lints on its own. It is this
 # repository's own and may drift from clearpath's; the reasons behind each code are written down there. Left out: TID251, whose bans point at clair.robot.contract and clair.log, neither of which runs here.
 # It stays in `external` so that its noqa still holds when clearpath's tooling lints these files with its ruff.toml.
 #

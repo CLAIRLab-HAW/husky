@@ -179,7 +179,7 @@ def run_sensor_mesh_uri_patch(label):
 def run_rg6_moveit_patch(label):
     """Hook the RG6 into the freshly generated MoveIt config.
 
-    The tool comes from the onboard/gripper workspace (rg6_moveit_patch: robot.srdf, idempotent).  It does NOT patch
+    The tool comes from the tools/gripper workspace (rg6_moveit_patch: robot.srdf, idempotent).  It does NOT patch
     moveit.yaml - gripper controller and joint_limits come from robot.yaml
     (manipulators.moveit.ros_parameters.move_group); the tool only checks that they arrived and exits with code 1
     if they did not.
@@ -190,7 +190,7 @@ def run_rg6_moveit_patch(label):
         label,
         "/usr/local/bin/rg6-moveit-patch",
         args=("--setup-path", "/etc/clearpath"),
-        missing="MoveIt without the gripper (is onboard/gripper built?).",
+        missing="MoveIt without the gripper (is tools/gripper built?).",
     )
 
 
@@ -198,7 +198,7 @@ def run_urdf_physics_patch(label):
     """Put physical properties into the apt descriptions, before the generator expands them.
 
     The tool is a script of this repo (``scripts/urdf_physics_patch.py``), unlike the SRDF patcher, which comes
-    from the onboard/gripper workspace: every target here is an arm, wheel or platform property, and none of them is a
+    from the tools/gripper workspace: every target here is an arm, wheel or platform property, and none of them is a
     gripper part.
 
     It and ``rg6_moveit_patch`` differ in WHEN they have to run, and it is worth being precise about it.
@@ -334,7 +334,7 @@ def main() -> int:
     #    window as steps 5 and 6.
     run_a200_look_patch("a200 look")
     # 4) RG6 into MoveIt: patch robot.srdf (group 'gripper' + EE)
-    #    (onboard/gripper tool).  For the SRDF there is no lever in robot.yaml --
+    #    (tools/gripper tool).  For the SRDF there is no lever in robot.yaml --
     #    clearpath_config does not know the word 'srdf', and the gripper enum
     #    (franka/kinova/robotiq) has no RG6.  The moveit.yaml values live in
     #    robot.yaml; the tool only checks them.

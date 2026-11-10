@@ -34,7 +34,7 @@ names from here, and neither from the other.
 - **The RS16 as a URDF macro** (`src/rs16_description`): `rs16(name, parent_link)` puts `${name}_link` on the
   mounting face — RoboSense's CAD model in its own colors, a collision cylinder Ø109 × 80.7 mm, 0.87 kg — and
   `${name}_laser` 39 mm above it, at the optical center. Where the sensor is mounted is the robot's: `robot.yaml`
-  places the frame `lidar3d_0_mount_link`, [onboard/extras](../extras/README.md) hangs the macro on it.
+  places the frame `lidar3d_0_mount_link`, [husky/extras](../extras/README.md) hangs the macro on it.
 - **The Qb2 as a URDF macro** (`src/qb2_description`): `qb2(name, parent_link)` puts `${name}_link` on the back
   face, where the M4 threads are, a box 53 × 111 × 75 mm of 0.40 kg (the ST housing), and `${name}_laser` about
   20 mm ahead of it in the device's own frame — x right, y ahead, z up, as the driver hands the points on.
@@ -58,9 +58,9 @@ ROS 2 Jazzy · `rslidar_sdk` 1.5.16 · `blickfeld_qb2_ros2_driver` 2.1.0 (Qb2 on
 ## Installation
 
 Part of the clearpath uv workspace (`uv sync` at the root). The offboard image takes the directory as the build
-context `onboard-lidar`: `rs16_description` and `qb2_description` are built with colcon, the Python source and
-`config/`, `launch/` go to `/opt/clair/lidar`. On the robot the installer builds `~/onboard/lidar` with colcon
-(`robot.yaml` lists the workspace, so the generator finds the macros) and puts `~/onboard/lidar/src` on the system
+context `husky-lidar`: `rs16_description` and `qb2_description` are built with colcon, the Python source and
+`config/`, `launch/` go to `/opt/clair/lidar`. On the robot the installer builds `~/husky/lidar` with colcon
+(`robot.yaml` lists the workspace, so the generator finds the macros) and puts `~/husky/lidar/src` on the system
 Python's path with a `.pth`, as the image does. Where `robot.yaml` names the `qb2`, it also clones
 `blickfeld_qb2_ros2_driver` at `v2.1.0` into `src/` (untracked) and builds it there: Blickfeld ships no apt package and
 names Foxy and Humble, not Jazzy, so that build is the first test of it (R88).
@@ -69,8 +69,8 @@ names Foxy and Humble, not Jazzy, so that build is the first test of it (R88).
 
 ```bash
 ros2 launch /opt/clair/lidar/launch/lidar.launch.py pcap:=/data/recordings/rs16_labor.pcap   # container
-ros2 launch ~/onboard/lidar/launch/lidar.launch.py model:=rs16                                # robot, by hand
-ros2 launch ~/onboard/lidar/launch/lidar.launch.py model:=qb2                                 # the Qb2 instead
+ros2 launch ~/husky/lidar/launch/lidar.launch.py model:=rs16                                # robot, by hand
+ros2 launch ~/husky/lidar/launch/lidar.launch.py model:=qb2                                 # the Qb2 instead
 ```
 
 To put the Qb2 in the RS16's place: `lidar_model: qb2` in `robot.yaml` and in the extras file's `lidar_model` default
@@ -88,13 +88,13 @@ To rewrite the RS16 mesh from RoboSense's CAD model (`RS16.stp`, robosense.ai �
 not in the repo):
 
 ```bash
-uv run onboard/lidar/tools/rs16_mesh.py RS16.stp onboard/lidar/src/rs16_description/meshes/rs16.dae
+uv run husky/lidar/tools/rs16_mesh.py RS16.stp husky/lidar/src/rs16_description/meshes/rs16.dae
 ```
 
 ## Running Tests
 
 ```bash
-uv run pytest lidar/tests                 # from the onboard root: no ROS, no container
+uv run pytest lidar/tests                 # from the husky root: no ROS, no container
 ```
 
 The driver replaying the RS16 recording in the offboard container is clearpath's

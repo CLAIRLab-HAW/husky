@@ -57,14 +57,14 @@ per corner by :func:`corner_normals`.
 SOURCES AND LICENSES. Clearpath's ``indoor.dae`` is BSD-3-Clause (``LICENSE`` of ``clearpath_common``, "Copyright (c)
 2023, clearpathrobotics"); the DAE's first ``<asset><contributor>`` carries the notice in full (:data:`NOTICE`). The
 rim's CAD comes from Clearpath's download without a BSD license, so the glTF is NOT in the repo -- the same practice as
-``onboard/lidar/tools/rs16_mesh.py`` with RoboSense's STEP: the owner keeps it at ``onboard/a200_rims.gltf`` (untracked,
+``husky/lidar/tools/rs16_mesh.py`` with RoboSense's STEP: the owner keeps it at ``husky/a200_rims.gltf`` (untracked,
 4.8 MB, 2026-10-10), and the derived, decimated DAE is committed, like ``rs16.dae``. The second
 contributor names the CAD.
 
     docker cp offboard-plant-mock-1:/opt/ros/jazzy/share/clearpath_platform_description/meshes/a200/wheels/indoor.dae \\
         /tmp/indoor.dae
-    uv run onboard/extras/tools/a200_wheel_mesh.py /tmp/indoor.dae onboard/a200_rims.gltf \\
-        onboard/extras/src/husky_extras_description/meshes/a200_indoor_wheel.dae
+    uv run husky/extras/tools/a200_wheel_mesh.py /tmp/indoor.dae husky/a200_rims.gltf \\
+        husky/extras/src/husky_extras_description/meshes/a200_indoor_wheel.dae
 
 ``indoor.dae`` is not patched by anything here, so the apt copy is the source.
 """
@@ -104,7 +104,7 @@ DEVIATION_SAMPLES = 20000
 #: is shaded sharp, as the CAD's faces meet.
 CREASE_RAD = np.radians(60.0)
 #: The tire's tread radius [m]: the a200-0553's ROLLING radius, ``platform_velocity_controller.wheel_radius`` in
-#: ``onboard/setup/config/robot.yaml`` -- a straight run of 2.515 m on a folding rule turned the wheels by 17.026 rad
+#: ``husky/setup/config/robot.yaml`` -- a straight run of 2.515 m on a folding rule turned the wheels by 17.026 rad
 #: (2026-10-07, R58), and the odometry agrees to 0.1 % since; by tape 29-30 cm across unloaded. Clearpath's tire
 #: reaches 162.5 mm (the macro's nominal 0.1651 m, 13 inch).
 TREAD_RADIUS_M = 0.1477
@@ -130,7 +130,7 @@ STAMP = datetime.datetime(2026, 10, 10)
 CAD = "034991-MOBILITY_Simplified mCAD, STEP-Husky A200, Skid Steer"
 #: The tire's license, kept with the derived file as its clause 2 asks.
 NOTICE = """Tire derived from clearpath_platform_description/meshes/a200/wheels/indoor.dae (clearpath_common 2.9.15):
-its tire geometry (Shape_IndexedFaceSet_313) taken as is by onboard/extras/tools/a200_wheel_mesh.py.
+its tire geometry (Shape_IndexedFaceSet_313) taken as is by husky/extras/tools/a200_wheel_mesh.py.
 
 BSD 3-Clause License
 
@@ -163,7 +163,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."""
 #: Where the rim comes from: Clearpath's CAD, not BSD-licensed, so not redistributed as a source.
 RIM_NOTE = f"""Rim (two halves, hub, hub plate) from Clearpath Robotics' CAD "{CAD}", exported by the owner
 as a glTF (Onshape, 2026-10-10), decimated per body, recentered on the wheel axis and turned by pi about z by
-onboard/extras/tools/a200_wheel_mesh.py. The CAD itself is not redistributed."""
+husky/extras/tools/a200_wheel_mesh.py. The CAD itself is not redistributed."""
 
 
 Part = tuple[np.ndarray, np.ndarray]
@@ -408,7 +408,7 @@ def write(parts: dict[str, tuple[Part, dict]], dae_path: str) -> None:
     dae.assetInfo.contributors.append(
         asset.Contributor(
             author="Clearpath Robotics (tire); a200_wheel_mesh.py (rim placed in it)",
-            authoring_tool="onboard/extras/tools/a200_wheel_mesh.py",
+            authoring_tool="husky/extras/tools/a200_wheel_mesh.py",
             copyright=NOTICE,
             source_data="package://clearpath_platform_description/meshes/a200/wheels/indoor.dae",
         )
@@ -416,7 +416,7 @@ def write(parts: dict[str, tuple[Part, dict]], dae_path: str) -> None:
     dae.assetInfo.contributors.append(
         asset.Contributor(
             author="Clearpath Robotics (rim CAD)",
-            authoring_tool="onboard/extras/tools/a200_wheel_mesh.py",
+            authoring_tool="husky/extras/tools/a200_wheel_mesh.py",
             copyright=RIM_NOTE,
             source_data=CAD,
         )
@@ -462,7 +462,7 @@ def write(parts: dict[str, tuple[Part, dict]], dae_path: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("source", help="Clearpath's meshes/a200/wheels/indoor.dae")
-    parser.add_argument("rims", help="the owner's glTF of the front-right rim (onboard/a200_rims.gltf)")
+    parser.add_argument("rims", help="the owner's glTF of the front-right rim (husky/a200_rims.gltf)")
     parser.add_argument("dae", help="where to write a200_indoor_wheel.dae")
     args = parser.parse_args()
     tire, tire_look = read_tire(args.source)

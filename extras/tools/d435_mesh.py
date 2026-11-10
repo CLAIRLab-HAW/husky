@@ -12,7 +12,7 @@ description into Blender and assigned colors", by Binit Shah (its README, read 2
 places nine OBJ parts (``d435i_0..8``, 208463 triangles) under seven materials. This script assembles them by the
 MJCF's geom poses, registers them onto realsense's mesh, decimates them and writes one geometry and one material per
 Menagerie material, so ``clearpath_sensors_description``'s visual origin for ``d435.dae`` holds for this file
-unchanged. ``a200_look_patch`` in ``onboard/setup`` points the camera's visual here.
+unchanged. ``a200_look_patch`` in ``husky/setup`` points the camera's visual here.
 
 THE FRAME is realsense's, not the Menagerie's: :func:`register` centers the parts' bounding box on realsense's,
 tries the four proper sign flips of the principal axes and refines the best by rigid point-to-plane ICP (no scale, no
@@ -48,8 +48,8 @@ of the Menagerie model is ``~/Desktop/Projekte/mujoco-mia/assets/realsense`` (th
 camera element; the OBJ parts upstream's).
 
     docker cp offboard-plant-mock-1:/opt/ros/jazzy/share/realsense2_description/meshes/d435.dae /tmp/d435.dae
-    uv run onboard/extras/tools/d435_mesh.py /tmp/d435.dae ~/Desktop/Projekte/mujoco-mia/assets/realsense/d435i.xml \\
-        onboard/extras/src/husky_extras_description/meshes/d435.dae
+    uv run husky/extras/tools/d435_mesh.py /tmp/d435.dae ~/Desktop/Projekte/mujoco-mia/assets/realsense/d435i.xml \\
+        husky/extras/src/husky_extras_description/meshes/d435.dae
 """
 
 from __future__ import annotations
@@ -120,7 +120,7 @@ STAMP = datetime.datetime(2026, 10, 10)
 #: The sources' license, kept with the derived file as its section 4 asks: the notice and what was changed.
 NOTICE = """Derived from MuJoCo Menagerie's realsense_d435i (google-deepmind/mujoco_menagerie, d435i.xml and
 assets/d435i_0..8.obj), itself derived from realsense2_description/meshes/d435.dae (IntelRealSense/realsense-ros)
-with colors assigned by Binit Shah. Changed by onboard/extras/tools/d435_mesh.py (2026-10-10): the parts registered
+with colors assigned by Binit Shah. Changed by husky/extras/tools/d435_mesh.py (2026-10-10): the parts registered
 onto realsense2_description's d435.dae (4.58.4), the large ones decimated, written as one COLLADA geometry and
 material per Menagerie material, the Metal_Casing's white darkened to a light aluminum gray.
 
@@ -318,7 +318,7 @@ def write(looks: dict[str, Part], dae_path: str) -> None:
     dae.assetInfo.contributors.append(
         asset.Contributor(
             author="Intel Corporation; Binit Shah (colors, MuJoCo Menagerie); d435_mesh.py (registration, decimation)",
-            authoring_tool="onboard/extras/tools/d435_mesh.py",
+            authoring_tool="husky/extras/tools/d435_mesh.py",
             copyright=NOTICE,
             source_data="https://github.com/google-deepmind/mujoco_menagerie/tree/main/realsense_d435i",
         )

@@ -1,13 +1,13 @@
-# onboard on its own: one uv workspace over the two Python distributions, and the tooling every package's tests run
+# husky on its own: one uv workspace over the two Python distributions, and the tooling every package's tests run
 # with.  `uv sync && uv run ruff check . && uv run pytest` in a fresh clone of this repository is the whole check --
-# it needs no clearpath checkout around it.  Inside one, uv still takes this file for anything below onboard/, and
+# it needs no clearpath checkout around it.  Inside one, uv still takes this file for anything below husky/, and
 # clearpath's root keeps lidar and navigation as members of its own workspace until it lets go of them.
 #
-# setup, extras, gripper and ur-state carry no pyproject.toml of their own: they are ROS packages and scripts, and
+# setup, extras and ur-state carry no pyproject.toml of their own: they are ROS packages and scripts, and
 # their tests import the scripts beside them through their conftest.py.
 
 [project]
-name = "onboard"
+name = "husky"
 version = "0.0.0"
 requires-python = ">=3.12"
 dependencies = ["clair-lidar", "clair-navigation"]
@@ -37,7 +37,6 @@ addopts = "--import-mode=importlib"
 testpaths = [
     "setup/tests",
     "extras/tests",
-    "gripper/tests",
     "ur-state/tests",
     "lidar/tests",
     "navigation/tests",

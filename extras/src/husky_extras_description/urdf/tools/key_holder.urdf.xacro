@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <!--
-  The key holder (key_holder.macro.xacro) on the UR5's flange, for opening control cabinets: end_effector:=key_holder.
+  The key holder (tool_description's key_holder.macro.xacro) on the UR5's flange, for opening control cabinets:
+  end_effector:=key_holder.
 
   rg6_onrobot_rg6_base_link keeps the name robot.yaml hangs the wrist camera on, and stands where that puts the camera
   on THIS tool: on the RG6 the D435 sits 136 mm out along the flange axis, past this key's tip, and would meet a door
@@ -11,7 +12,7 @@
 -->
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
-  <xacro:include filename="../key_holder.macro.xacro"/>
+  <xacro:include filename="$(find tool_description)/urdf/key_holder.macro.xacro"/>
   <xacro:key_holder parent="arm_0_tool0"/>
 
   <link name="rg6_onrobot_rg6_base_link"/>

@@ -21,8 +21,8 @@ that read as an X, and a 4.2 mm core bore. It is a visual; the mass stays R47's 
 Run it again on its output and it writes the same file: the cut boxes (:data:`CUTS`) hold the Onshape bars, the
 profiles of every earlier run and these alike.
 
-    uv run onboard/extras/tools/sensor_arch_profiles.py \\
-        onboard/extras/src/husky_extras_description/meshes/husky_sensor_arch.dae
+    uv run husky/extras/tools/sensor_arch_profiles.py \\
+        husky/extras/src/husky_extras_description/meshes/husky_sensor_arch.dae
 """
 
 from __future__ import annotations

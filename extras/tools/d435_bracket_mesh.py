@@ -12,7 +12,7 @@ past the holes, and an upright on the base's rear edge, 56 mm wide for the D435'
 (:data:`CORNER_RADIUS_M`; the owner asked for slightly rounded corners, 2026-10-10). The frame is
 ``rg6_gripper_body``'s, which ``camera_0_bracket`` hangs on unmoved.
 
-    uv run onboard/extras/tools/d435_bracket_mesh.py
+    uv run husky/extras/tools/d435_bracket_mesh.py
 """
 
 from __future__ import annotations

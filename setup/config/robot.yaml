@@ -14,16 +14,18 @@ system:
     # EVERYTHING that follows: the generator's own $(find ...), RViz and the foxglove_bridge resolving
     # package:// meshes, and every helper that sources the chain.
     #
-    # THREE of them, all directories of the one onboard clone the installer builds: rg6 and lidar describe a
-    # COMPONENT each (the RG6 model, its macro and the measured rg6_v2.yaml; the RS16's macro and mesh), extras
-    # describes THIS ROBOT's assembly (sensor arch, where the hand is bolted onto the UR5 flange, the RS16 on its
-    # mount) and what it starts beyond Clearpath's services (husky_extras_bringup).  platform.extras.urdf.path below
-    # names a file from extras, which includes a macro from each of the others -- so all three have to be listed, and
-    # a missing build is not a mesh that fails to draw but a generator run that dies on the include.
+    # FOUR of them, from the two clones the installer builds, ~/husky and ~/tools: gripper, description and lidar
+    # describe a COMPONENT each (the RG6 model and the measured rg6_v2.yaml; the tool macros; the RS16's macro and
+    # mesh), extras describes THIS ROBOT's assembly (sensor arch, where the hand is bolted onto the UR5 flange, the
+    # RS16 on its mount) and what it starts beyond Clearpath's services (husky_extras_bringup).
+    # platform.extras.urdf.path below names a file from extras, which includes a macro from each of the others -- so
+    # all four have to be listed, and a missing build is not a mesh that fails to draw but a generator run that dies
+    # on the include.
     workspaces:
-      - /home/robot/onboard/gripper/install/setup.bash    # rg6_description, rg6_control
-      - /home/robot/onboard/lidar/install/setup.bash  # rs16_description
-      - /home/robot/onboard/extras/install/setup.bash # husky_extras_description (the file under extras.urdf below)
+      - /home/robot/tools/gripper/install/setup.bash      # rg6_description, rg6_control
+      - /home/robot/tools/description/install/setup.bash  # tool_description: the RG6 and key holder macros
+      - /home/robot/husky/lidar/install/setup.bash        # rs16_description
+      - /home/robot/husky/extras/install/setup.bash       # husky_extras_description (the file under extras.urdf below)
 platform:
   mcu:
     protocol: proton
@@ -37,14 +39,14 @@ platform:
       # The SOURCE tree, not the install space: the generator reads this file as a path and expands it, while the
       # package:// meshes inside it resolve through the workspaces above.  Both halves of the pair have to move
       # together when this path does.
-      path: /home/robot/onboard/extras/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
+      path: /home/robot/husky/extras/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
     # What the robot starts beyond Clearpath's services, run by its clearpath-platform-extras service: the lidar's
-    # driver and self filter (onboard/lidar) and the scan on them (onboard/navigation), read-only, and the Bluetooth
+    # driver and self filter (husky/lidar) and the scan on them (husky/navigation), read-only, and the Bluetooth
     # joystick pairing.  A list in clearpath_config 2.9.x (Clearpath's docs still say one file).  It names a PACKAGE
     # and a path in its share, not an absolute path: clearpath_generator_robot 2.9.3 builds Package(launch.package)
     # unconditionally and dies on 'pkg_' + None.
     # lidar_model names the robot's ONE lidar in the slot lidar3d_0: rs16, or qb2 (the lab's Blickfeld Qb2) in its
-    # place (onboard/lidar, clair.lidar.models).  The container's sim plants read it here; the extras file's
+    # place (husky/lidar, clair.lidar.models).  The container's sim plants read it here; the extras file's
     # lidar_model default has to say the same, which its tests hold, since the generator passes it no arguments.  A
     # switch to qb2 also wants the mount pose below measured again, and a rerun of the installer (R88).
     launch:
@@ -52,7 +54,7 @@ platform:
         path: launch/lidar.launch.py
         args:
           lidar_model: rs16
-      # The Bluetooth joystick pairing (onboard/setup's scripts/bt_joy_pairing.py, installed as bt-joy-pairing): the
+      # The Bluetooth joystick pairing (husky/setup's scripts/bt_joy_pairing.py, installed as bt-joy-pairing): the
       # BlueZ agent and bt_joy/open_pairing.  namespace is system.ros2.namespace's; the generator gives an extras
       # launch none, and a test holds the two equal.
       - package: husky_extras_bringup
@@ -210,7 +212,7 @@ platform:
 # any other), so sensors.lidar3d cannot carry it.  This file places the FRAME the sensor stands on, and
 # husky_extras_description hangs rs16_description's macro there: lidar3d_0_link on the mounting face, lidar3d_0_laser
 # 39 mm above it, the frame rslidar_sdk writes into every PointCloud2.  The driver starts through
-# platform.extras.launch above (onboard/lidar, config/rslidar.yaml, the same file for container and robot).
+# platform.extras.launch above (husky/lidar, config/rslidar.yaml, the same file for container and robot).
 links:
   frame:
     - name: lidar3d_0_mount            # Clearpath appends _link
@@ -330,7 +332,7 @@ manipulators:
       # checkout like the recipe below. The UR xacro loads it whenever the description is expanded, so a missing
       # file is no model at all, not a nominal one; the nominal values are
       # "$(find ur_description)/config/ur5/default_kinematics.yaml".
-      kinematics_parameters_file: "/home/robot/onboard/setup/config/ur5_a200_0553_calibration.yaml"
+      kinematics_parameters_file: "/home/robot/husky/setup/config/ur5_a200_0553_calibration.yaml"
       # RTDE input recipe without tool_digital_output_mask/tool_digital_output.
       # The OnRobot URCap is an RTDE client itself and occupies these two input
       # variables; RTDE allows only ONE writing client per input variable. With
@@ -341,7 +343,7 @@ manipulators:
       # Consequence of this line: ROS can no longer set a tool DO or the tool
       # voltage -- the tool I/O belongs to the URCap, the arm belongs to ROS.
       # To go back to a tool-DO driver: remove the line AND disable the URCap.
-      input_recipe_filename: "/home/robot/onboard/setup/config/rtde_input_recipe_no_tool.txt"
+      input_recipe_filename: "/home/robot/husky/setup/config/rtde_input_recipe_no_tool.txt"
       poses:
         - name: packed
           joints: [-0.000695530568258107, -3.1283000151263636, 2.8355469703674316, -3.193974320088522, 1.5455983877182007, -8.374849428349762e-05]

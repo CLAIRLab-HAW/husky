@@ -1,14 +1,14 @@
 name: ci
 
-# onboard on its own: no other repository is checked out, and the Python job runs from this repository's
+# husky on its own: no other repository is checked out, and the Python job runs from this repository's
 # pyproject.toml, uv.lock and ruff.toml.  The tests that need clearpath live there (deploy/offboard/tests,
 # robot/contract/tests, twin/twinlink/tests), and clearpath's own CI runs them.
 #
 # Three jobs, by toolchain:
 #
-#   python              setup, extras, gripper, ur-state, lidar, navigation -- their own suites, `bash -n` over
+#   python              setup, extras, ur-state, lidar, navigation -- their own suites, `bash -n` over
 #                       the installer scripts, ruff: full rules on lidar, navigation and cockpit-tools, syntax-level
-#                       on the four packages that are ROS packages and scripts rather than distributions.
+#                       on the three packages that are ROS packages and scripts rather than distributions.
 #   cockpit-tools       the Cockpit page: `node --check`, `bash -n`, `npm test`.
 #   cockpit-diagnostics the upstream-derived plugin: `npm ci`, eslint, stylelint. The upstream's two bot
 #                       workflows (cockpit-lib-update, tasks-container-update) are NOT carried over: they open
@@ -44,7 +44,7 @@ jobs:
         working-directory: setup
         run: find . -name '*.sh' -print0 | xargs -0 -n1 bash -n
 
-      - run: uv run ruff check --select E9,F63,F7,F82 setup extras gripper ur-state
+      - run: uv run ruff check --select E9,F63,F7,F82 setup extras ur-state
       - run: uv run ruff check lidar navigation cockpit-tools
       # cockpit-diagnostics is upstream code with a [tool.ruff] of its own, formatted to its own rules.
       - run: uv run ruff format --check --extend-exclude cockpit-diagnostics .

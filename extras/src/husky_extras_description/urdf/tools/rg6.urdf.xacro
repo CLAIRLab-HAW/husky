@@ -18,7 +18,7 @@
 -->
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
-  <xacro:include filename="../rg6.macro.xacro"/>
+  <xacro:include filename="$(find tool_description)/urdf/rg6.macro.xacro"/>
   <xacro:rg6_tool parent="arm_0_tool0"/>
 
   <!-- robot.yaml mounts the camera on this frame. Keep it directly on the flange so changes to the

@@ -229,7 +229,7 @@ a node toolchain on the robot: it prefers a prebuilt `dist/` in the checkout and
 `npm` and `make` happen to be present. The recommended flow is to build on a workstation and copy the result over:
 
 ```bash
-npm ci --ignore-scripts && make && rsync -a dist/ robot@<robot>:~/onboard/cockpit-diagnostics/dist/
+npm ci --ignore-scripts && make && rsync -a dist/ robot@<robot>:~/husky/cockpit-diagnostics/dist/
 ```
 
 (`dist/` is gitignored upstream. If you would rather have fully offline robot installs, drop that line from `.gitignore`
@@ -365,7 +365,7 @@ You can also run the test against a different Cockpit image, for example:
 
 ## Related
 
-- [onboard/setup](../setup/README.md) — the node that publishes the manipulator diagnostics this panel
+- [husky/setup](../setup/README.md) — the node that publishes the manipulator diagnostics this panel
   renders
 
 ## Versioning

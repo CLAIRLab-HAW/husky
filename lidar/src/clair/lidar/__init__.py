@@ -10,7 +10,7 @@ from pathlib import Path
 __version__ = "0.1.0"
 
 #: The launch that starts a model's driver and the self filter, beside the source tree wherever that lies
-#: (``/opt/clair/lidar`` in the container, ``~/onboard/lidar`` on the robot).
+#: (``/opt/clair/lidar`` in the container, ``~/husky/lidar`` on the robot).
 LAUNCH_PATH = Path(__file__).resolve().parents[3] / "launch" / "lidar.launch.py"
 
 #: How long a crashed driver, filter or scan waits before it comes back [s].  On the robot the launches run under

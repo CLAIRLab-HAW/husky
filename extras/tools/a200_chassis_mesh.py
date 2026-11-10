@@ -37,8 +37,8 @@ source file (:data:`NOTICE`).
 
     docker cp offboard-plant-mock-1:/opt/ros/jazzy/share/clearpath_platform_description/meshes/a200/top_chassis.dae \\
         /tmp/top_chassis.dae
-    uv run onboard/extras/tools/a200_chassis_mesh.py /tmp/top_chassis.dae \\
-        onboard/extras/src/husky_extras_description/meshes/a200_top_chassis.dae
+    uv run husky/extras/tools/a200_chassis_mesh.py /tmp/top_chassis.dae \\
+        husky/extras/src/husky_extras_description/meshes/a200_top_chassis.dae
 
 The script colors by geometry, not by the source's material, so any copy of the source does: the apt file, its
 ``.bak`` or a copy a patcher has already recolored.
@@ -112,7 +112,7 @@ LOOK = {
 STAMP = datetime.datetime(2026, 10, 9)
 #: The source's license, kept with the derived file as its clause 2 asks.
 NOTICE = """Derived from clearpath_platform_description/meshes/a200/top_chassis.dae (clearpath_common 2.9.15):
-split into components and recolored by onboard/extras/tools/a200_chassis_mesh.py.
+split into components and recolored by husky/extras/tools/a200_chassis_mesh.py.
 
 BSD 3-Clause License
 
@@ -338,7 +338,7 @@ def write(parts: dict[str, tuple[np.ndarray, np.ndarray]], dae_path: str) -> Non
     dae.assetInfo.contributors.append(
         asset.Contributor(
             author="Clearpath Robotics (source); a200_chassis_mesh.py (split and recolor)",
-            authoring_tool="onboard/extras/tools/a200_chassis_mesh.py",
+            authoring_tool="husky/extras/tools/a200_chassis_mesh.py",
             copyright=NOTICE,
             source_data="package://clearpath_platform_description/meshes/a200/top_chassis.dae",
         )

@@ -18,7 +18,7 @@ WRAPPED = re.compile(r"\btimeout\s+(?P<args>[^|;&]*?)\bros2\s")
 
 def test_every_timeout_around_ros2_kills_after_a_grace():
     scripts = sorted(SETUP.rglob("*.sh"))
-    assert scripts, "no shell scripts found under onboard/setup"
+    assert scripts, "no shell scripts found under husky/setup"
     offenders = []
     for script in scripts:
         for number, line in enumerate(script.read_text().splitlines(), 1):

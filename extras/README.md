@@ -1,4 +1,4 @@
-# onboard/extras
+# husky/extras
 
 The URDF extras of the **a200-0553**: everything this particular robot has that
 neither Clearpath's own description nor a component package knows about — the
@@ -14,7 +14,7 @@ Clearpath generator pulls it in through `robot.yaml`:
 platform:
   extras:
     urdf:
-      path: /home/robot/onboard/extras/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
+      path: /home/robot/husky/extras/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
 ```
 
 **Why this is a package of its own.** Every link here hangs on a frame that only
@@ -43,7 +43,7 @@ macro, the gripper package includes nothing from here.
 - **The a200's top chassis in its real colors**, `meshes/a200_top_chassis.dae`: Clearpath's mesh split into its
   parts by `tools/a200_chassis_mesh.py`: the chassis #E29000, the emergency stop red, the power button and the key
   lock metallic silver, the status LEDs black (Clearpath's mesh has one greenish-yellow material for all of it).
-  `a200_look_patch` in [onboard/setup](../setup/README.md) points the `top_chassis_link` visual here.
+  `a200_look_patch` in [husky/setup](../setup/README.md) points the `top_chassis_link` visual here.
 - **The a200's indoor wheel with its real rims**, `meshes/a200_indoor_wheel.dae`, written by
   `tools/a200_wheel_mesh.py`: Clearpath's indoor tire, shrunk radially to the measured rolling radius 0.1477 m (R58;
   Clearpath's reaches 0.1625 m) with its bead and width kept, on the a200-0553's rim from Clearpath's CAD (two
@@ -59,7 +59,7 @@ macro, the gripper package includes nothing from here.
   colored RealSense D435i (black acrylic front, gray camera modules, dark IR lenses in polished rims, the green IR
   emitter, the red-tinted RGB lens, the aluminum casing a light gray), registered onto `realsense2_description`'s
   `d435.dae` (one gray for the whole camera), so its frame and `clearpath_sensors_description`'s visual origin hold
-  unchanged; decimated to 23326 triangles, 1.5 MB. `a200_look_patch` in [onboard/setup](../setup/README.md)
+  unchanged; decimated to 23326 triangles, 1.5 MB. `a200_look_patch` in [husky/setup](../setup/README.md)
   points the D435 macro's visual here.
 - **The RG6's tool cable**, `meshes/rg6_cable.dae`, written by `tools/rg6_cable_mesh.py`: a black M8 cable, 5.5 mm,
   from the outlet on the RG6's bracket round the wrist 3's -x side to the UR5's tool connector, with a straight plug
@@ -92,13 +92,13 @@ macro, the gripper package includes nothing from here.
   files call them on `arm_0_tool0`; MARWIN 5 calls them behind its tool changer.
 - **The lidar, started by `robot.yaml`**, a package of its own, `husky_extras_bringup`: its `launch/lidar.launch.py`
   is what `platform.extras.launch` names, with `lidar_model`, and Clearpath's `clearpath-platform-extras` service runs
-  it. It includes [onboard/navigation](../navigation/README.md)'s scan, which includes
-  [onboard/lidar](../lidar/README.md)'s driver and self filter. `lidar_model` has no default, so `robot.yaml` is the
+  it. It includes [husky/navigation](../navigation/README.md)'s scan, which includes
+  [husky/lidar](../lidar/README.md)'s driver and self filter. `lidar_model` has no default, so `robot.yaml` is the
   one place the model is named. A package and not a path, because Clearpath's generator (2.9.3) dies on an
   `extras.launch` entry without one; it is the bringup half of the description/bringup pair Clearpath's
   customization docs describe.
 - **The Bluetooth joystick pairing, started by `robot.yaml`**: `husky_extras_bringup`'s `launch/bt_joy.launch.py`
-  starts onboard/setup's `bt-joy-pairing` with the robot's `namespace`, the second `platform.extras.launch` entry. A
+  starts husky/setup's `bt-joy-pairing` with the robot's `namespace`, the second `platform.extras.launch` entry. A
   program the launch cannot find would end the whole extras launch, the lidar with it, so where the installer left
   the pairing out it starts nothing and says so.
 - **MARWIN 5's tooled arm**, a third package, `marwin_extras_description`:
@@ -121,21 +121,21 @@ macro, the gripper package includes nothing from here.
 
 ## Installation
 
-The robot builds it in its onboard clone like the gripper workspace; the
+The robot builds it in its husky clone like the gripper workspace; the
 [installer](../setup/README.md) does that, and `robot.yaml` lists the result
 under `system.ros2.workspaces`.
 
 ```bash
-cd ~/onboard/extras && colcon build --packages-select husky_extras_description husky_extras_bringup
+cd ~/husky/extras && colcon build --packages-select husky_extras_description husky_extras_bringup
 ```
 
 `husky_extras_bringup`'s launch imports `clair.navigation` and through it `clair.lidar`, no ament packages: the
-installer puts their source trees on the system Python's path (`clair-onboard.pth`).
+installer puts their source trees on the system Python's path (`clair-husky.pth`).
 
 In the offboard container the package comes out of the build context and is
-built into `/opt/onboard/extras` (the `extras-build` stage), so the image tag is
+built into `/opt/husky/extras` (the `extras-build` stage), so the image tag is
 the state of the checkout it was built from; the entrypoint symlinks
-`/home/robot/onboard/extras` onto it, so the absolute paths from `robot.yaml`
+`/home/robot/husky/extras` onto it, so the absolute paths from `robot.yaml`
 resolve there as well.
 
 ## Usage
@@ -153,7 +153,7 @@ Nothing else here is started. The description file is read by
   in the `plant-mock` container),
 - RViz and the `foxglove_bridge`, which resolve the arch mesh through the
   ament index of their own container,
-- and `tools/derive_link_inertia.py` in `onboard/gripper`, whose box mode recomputes
+- and `tools/derive_link_inertia.py` in `tools/gripper`, whose box mode recomputes
   the arch inertia from its collision boxes:
 
 ```bash
@@ -164,7 +164,7 @@ python3 ../gripper/tools/derive_link_inertia.py --box-link \
 ## Running Tests
 
 ```bash
-uv run pytest onboard/extras/tests
+uv run pytest extras/tests
 ```
 
 Sixteen checks, from the workspace root and without ROS: that every file is
@@ -172,7 +172,7 @@ well-formed XML (an XML comment cannot contain `--`, and a malformed extras file
 takes `move_group` down with it), that every `package://` URI names a package
 that really ships the file, that `end_effector` defaults to the RG6, that the
 addressed link names survived (the camera's parent in every tool), and that
-`robot.yaml` in `onboard/setup` still points at this path and lists this
+`robot.yaml` in `husky/setup` still points at this path and lists this
 workspace.
 
 `.github/workflows/ci.yml` runs the same suite on every push and pull request.
@@ -183,10 +183,10 @@ compared nothing.
 
 ## Related
 
-- [onboard/gripper](../gripper/README.md) — the RG6 model whose macro this file
+- [tools/gripper](../../tools/gripper/README.md) — the RG6 model whose macro this file
   instantiates, and `rg6_moveit_patch`, which puts the gripper into the
   generated SRDF
-- [onboard/setup](../setup/README.md) — `robot.yaml` (SSOT),
+- [husky/setup](../setup/README.md) — `robot.yaml` (SSOT),
   the boot patcher and the installer that rolls this workspace out
 - [offboard](../../deploy/offboard/README.md) — the container that
   reconstructs the same setup without a robot
@@ -198,18 +198,18 @@ compared nothing.
 
 ## License
 
-MIT. The RG6 model this file instantiates is vendored in `onboard/gripper`; its
+MIT. The RG6 model this file instantiates is vendored in `tools/gripper`; its
 origin and the changes made to it are documented there
 (`LICENSE-THIRD-PARTY.md`). `meshes/a200_top_chassis.dae` is derived from
 `clearpath_platform_description`'s `top_chassis.dae` and stays under its BSD-3-Clause license, Copyright (c) 2023
 clearpathrobotics; the notice is carried in full in the file's `<asset><contributor><copyright>`. The tire of
 `meshes/a200_indoor_wheel.dae` is derived from `clearpath_platform_description`'s `wheels/indoor.dae` under the same
 license and notice. Its rim comes from Clearpath Robotics' CAD "034991-MOBILITY_Simplified mCAD, STEP-Husky A200,
-Skid Steer", which comes without a BSD license: the owner's glTF export of it (`onboard/a200_rims.gltf`, untracked) is
+Skid Steer", which comes without a BSD license: the owner's glTF export of it (`husky/a200_rims.gltf`, untracked) is
 not redistributed, only the derived mesh, as with RoboSense's STEP behind `rs16.dae`. The same holds for
 `meshes/charging_connector.dae`: the vendor's STEP files of the socket and the plug come without a license for
-redistributing them, so the owner keeps them untracked at `onboard/SK2-076C04_mount.STEP` and
-`onboard/SK6-076C04_plug.STEP`. `meshes/d435.dae` is derived from MuJoCo Menagerie's `realsense_d435i`, itself
+redistributing them, so the owner keeps them untracked at `husky/SK2-076C04_mount.STEP` and
+`husky/SK6-076C04_plug.STEP`. `meshes/d435.dae` is derived from MuJoCo Menagerie's `realsense_d435i`, itself
 derived from `realsense2_description`'s `d435.dae`, both under the Apache License 2.0 (the Menagerie model's notice:
 Copyright 2023 Intel Corporation). The notice and the changes are carried in the file's
 `<asset><contributor><copyright>`, the license text beside it as `meshes/d435.LICENSE`.

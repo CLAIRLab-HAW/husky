@@ -10,7 +10,7 @@ but a default color: ``SK2-076C04_mount.STEP``, the panel-mount SOCKET -- a squa
 body through the panel along -z, four power contacts and two rows of four signal pins facing +z inside a keyed hood --
 and ``SK6-076C04_plug.STEP``, the cable PLUG with its gland, mating face at z = 0 facing +z, cable toward -z. They are
 NOT in the repo: the vendor states no license for redistributing them. The owner keeps them at
-``onboard/SK2-076C04_mount.STEP`` and ``onboard/SK6-076C04_plug.STEP`` (untracked, 2026-10-10), and the derived DAE is
+``husky/SK2-076C04_mount.STEP`` and ``husky/SK6-076C04_plug.STEP`` (untracked, 2026-10-10), and the derived DAE is
 committed, like ``rs16.dae`` from RoboSense's STEP. On the robot both sit at the rear, the plug permanently in the
 socket, both black (the owner, 2026-10-10): the DAE holds the two MATED.
 
@@ -42,8 +42,8 @@ smoothed within each CAD face only, so the edges stay sharp. Positions and norma
 ``a200_chassis_mesh.py``. The DAE is written with pycollada directly (``rs16_mesh.py`` says why), dated
 :data:`STAMP`, so a second run writes the same bytes.
 
-    uv run onboard/extras/tools/charging_connector_mesh.py onboard/SK2-076C04_mount.STEP \\
-        onboard/SK6-076C04_plug.STEP onboard/extras/src/husky_extras_description/meshes/charging_connector.dae
+    uv run husky/extras/tools/charging_connector_mesh.py husky/SK2-076C04_mount.STEP \\
+        husky/SK6-076C04_plug.STEP husky/extras/src/husky_extras_description/meshes/charging_connector.dae
 
 ``--chassis`` prints the joint origin ``clearpath_extras.urdf.xacro`` hangs the DAE on: the socket over the lid
 ``hole_caps()`` puts where the right bump of Clearpath's top chassis stood (``REMOVED["bump_right"]`` in
@@ -256,7 +256,7 @@ def write(parts: dict[str, tuple[np.ndarray, np.ndarray]], dae_path: str) -> Non
     dae.assetInfo.created = dae.assetInfo.modified = STAMP
     dae.assetInfo.contributors.append(
         asset.Contributor(
-            authoring_tool="onboard/extras/tools/charging_connector_mesh.py",
+            authoring_tool="husky/extras/tools/charging_connector_mesh.py",
             source_data="SK2-076C04_mount.STEP, SK6-076C04_plug.STEP",
         )
     )

@@ -29,7 +29,7 @@ the D435 and its bracket, and against the wrist 2 at every wrist 3 angle in 5 de
 end: the tube comes closest to the wrist 3 housing, 4.75 mm (4.85 to its collision mesh), along its run at x -45;
 3.6 mm to the bracket where it leaves the outlet's face; 19.4 mm to the wrist 2.
 
-    uv run onboard/extras/tools/rg6_cable_mesh.py
+    uv run husky/extras/tools/rg6_cable_mesh.py
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """The a200-0553's lidar and its scan, as robot.yaml starts them.
 
 robot.yaml's ``platform.extras.launch`` names this file with ``lidar_model``; Clearpath's clearpath-platform-extras
-service runs it.  It includes onboard/navigation's ``scan.launch.py``, which includes onboard/lidar's sensor path --
+service runs it.  It includes husky/navigation's ``scan.launch.py``, which includes husky/lidar's sensor path --
 READ-ONLY all of it: nothing commands the base or the arm.  ``lidar_model`` has no default here, so robot.yaml has to
 name the model and is the only place that does.
 """

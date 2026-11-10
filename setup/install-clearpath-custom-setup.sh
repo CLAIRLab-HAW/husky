@@ -3,7 +3,7 @@
 # All-in-one installer for the Clearpath a200-0553 custom setup + OnRobot RG6.
 #
 # Does all of this in one go, in this order ("optional" = it asks first):
-#   - clone the onboard repo to ~/onboard (or pull it) and point
+#   - clone the husky repo to ~/husky and the tools repo to ~/tools (or pull them) and point
 #     /etc/clearpath/robot.yaml at its setup/config/robot.yaml as a SYMLINK (the
 #     official Clearpath way). FIRST, because everything this installer builds or
 #     deploys is resolved against that one checkout. No network dependency in the
@@ -18,12 +18,12 @@
 #   - sysctl 10-ur-reserved-ports.conf: takes the UR driver ports 50001-50004 out
 #     of the ephemeral range, so nothing else can occupy them before the driver
 #   - optional: speed up the GRUB boot (hide the menu, GRUB_TIMEOUT=0)
-#   - build ~/onboard/gripper (colcon), plus root-owned copies of
+#   - build ~/tools/gripper and ~/tools/description (colcon), plus root-owned copies of
 #     rg6_moveit_patch (boot service) and rg6_grip_bridge.py + its linkage
 #     table (the gripper service) under /usr/local/bin
-#   - build ~/onboard/lidar (colcon): rs16_description, the RS16's macro the
+#   - build ~/husky/lidar (colcon): rs16_description, the RS16's macro the
 #     extras file includes, a workspace robot.yaml lists
-#   - build ~/onboard/extras (colcon): the URDF extras robot.yaml
+#   - build ~/husky/extras (colcon): the URDF extras robot.yaml
 #     addresses under platform.extras.urdf and lists as a workspace, and
 #     husky_extras_bringup, the launch robot.yaml starts under platform.extras.launch
 #   - root-owned copies of urdf_physics_patch, sensor_mesh_uri_patch,
@@ -33,7 +33,7 @@
 #     dashboard_client (power_on/brake_release/unlock_protective_stop/restart_safety)
 #     at boot
 #   - optional: clearpath-custom-ur-state-manager.service: builds
-#     ~/onboard/ur-state and starts the state manager
+#     ~/husky/ur-state and starts the state manager
 #     (prepare/recover/ensure_ready/power_off) at boot
 #     (including the extra controller --inactive + ur_controller_mode_manager --
 #     part of the same launch, no separate arm-controllers unit)
@@ -48,7 +48,7 @@
 #   - optional: clearpath-custom-octomap-feed.service: throttled depth ->
 #     PointCloud2 for MoveIt's occupancy map monitor
 #   - optional: the lidar's apt packages (rslidar_sdk, pointcloud_to_laserscan) and a .pth that puts
-#     ~/onboard/lidar/src and ~/onboard/navigation/src on the system Python's path.  Clearpath's
+#     ~/husky/lidar/src and ~/husky/navigation/src on the system Python's path.  Clearpath's
 #     clearpath-platform-extras service starts the chain itself, from robot.yaml's platform.extras.launch; a
 #     clearpath-custom-lidar.service found installed is taken out, it would start a second driver
 #   - optional: clearpath-custom-manipulator-diagnostics.service: UR5 + RG6 as
@@ -83,7 +83,7 @@
 #                                                     the checkout, changes
 #                                                     nothing, needs no root
 #
-# The repo URL (ONBOARD_REPO_URL) sits in the configuration block below; a fork
+# The repo URL (HUSKY_REPO_URL) sits in the configuration block below; a fork
 # changes it there.
 #
 # Idempotent: runnable any number of times.  The only packages it installs are
@@ -95,10 +95,11 @@
 set -euo pipefail
 
 # ---- configuration ---------------------------------------------------------
-# ONE clone carries everything this installer builds or deploys: setup/ (this installer, robot.yaml, the
-# deployed scripts), rg6/, extras/, ur-state/, cockpit-diagnostics/ and cockpit-tools/.  Until 2026-09-03 these
-# were six repos, each cloned on its own under ~/ (R57).
-ONBOARD_REPO_URL="https://github.com/CLAIRLab-HAW/onboard.git"
+# TWO clones carry everything this installer builds or deploys: husky (setup/ with this installer, robot.yaml and
+# the deployed scripts; extras/, lidar/, navigation/, ur-state/, cockpit-diagnostics/, cockpit-tools/) and tools
+# (gripper/ and description/, the hands and tool macros MARWIN 5 carries as well).
+HUSKY_REPO_URL="https://github.com/CLAIRLab-HAW/husky.git"
+TOOLS_REPO_URL="https://github.com/CLAIRLab-HAW/tools.git"
 # UR control box + manipulators namespace: ONE source for dashboard, watchdog
 # and calibration (the section variables below derive from these).
 ARM_ROBOT_IP="192.168.131.40"
@@ -355,20 +356,22 @@ prune_backups() {
 # The real user (for the workspace build), not root:
 REAL_USER="${SUDO_USER:-robot}"
 USER_HOME="$(getent passwd "$REAL_USER" | cut -d: -f6)"
-# Every workspace is a directory of the one clone.  Up here and NOT next to their blocks further down, because
-# --verify reads SETUP_WS, RG6_WS and CRT_WS and exits long before those blocks.
-ONBOARD_WS="${USER_HOME}/onboard"
-SETUP_WS="${ONBOARD_WS}/setup"   # versioned robot.yaml (symlink target)
-RG6_WS="${ONBOARD_WS}/rg6"
-EXTRAS_WS="${ONBOARD_WS}/extras"   # the path robot.yaml names; do not move without moving it there
-LIDAR_WS="${ONBOARD_WS}/lidar"     # likewise
-USM_WS="${ONBOARD_WS}/ur-state"
-CKPT_WS="${ONBOARD_WS}/cockpit-diagnostics"
-CRT_WS="${ONBOARD_WS}/cockpit-tools"   # the Cockpit page "Roboter-Werkzeuge"
-NAV_WS="${ONBOARD_WS}/navigation"
+# Every workspace is a directory of one of the two clones.  Up here and NOT next to their blocks further down,
+# because --verify reads SETUP_WS, RG6_WS and CRT_WS and exits long before those blocks.
+HUSKY_WS="${USER_HOME}/husky"
+TOOLS_WS="${USER_HOME}/tools"
+SETUP_WS="${HUSKY_WS}/setup"   # versioned robot.yaml (symlink target)
+RG6_WS="${TOOLS_WS}/gripper"   # the paths robot.yaml lists; do not move without moving them there
+TOOL_DESC_WS="${TOOLS_WS}/description"
+EXTRAS_WS="${HUSKY_WS}/extras"   # the path robot.yaml names; do not move without moving it there
+LIDAR_WS="${HUSKY_WS}/lidar"     # likewise
+USM_WS="${HUSKY_WS}/ur-state"
+CKPT_WS="${HUSKY_WS}/cockpit-diagnostics"
+CRT_WS="${HUSKY_WS}/cockpit-tools"   # the Cockpit page "Roboter-Werkzeuge"
+NAV_WS="${HUSKY_WS}/navigation"
 # The colcon builds see ROS and nothing else.  /etc/clearpath/setup.bash also sources the workspaces robot.yaml
 # lists, and colcon writes every workspace sourced at build time into the new install/setup.sh as an underlay: on
-# 2026-09-29 ~/onboard/gripper chained itself and the retired ~/onrobot-rg6 that way, both on AMENT_PREFIX_PATH.
+# 2026-09-29 the gripper workspace chained itself and the retired ~/onrobot-rg6 that way, both on AMENT_PREFIX_PATH.
 ROS_SETUP="/opt/ros/jazzy/setup.bash"
 
 # Find a file of THIS repo.  The installer does NOT necessarily run out of the
@@ -396,7 +399,7 @@ repo_file() {
     # a machine that has wget but no curl is exactly the machine that gets here.
     # Insisting on curl made repo_file fail silently there.
     tmp="$(mktemp)"
-    url="https://raw.githubusercontent.com/CLAIRLab-HAW/onboard/refs/heads/main/setup/${rel}"
+    url="https://raw.githubusercontent.com/CLAIRLab-HAW/husky/refs/heads/main/setup/${rel}"
     if command -v curl >/dev/null 2>&1; then
         curl -fsSL --connect-timeout 5 --max-time 30 "$url" -o "$tmp" && {
             printf '%s\n' "$tmp"; return 0; }
@@ -424,7 +427,7 @@ require_repo_file() {
         echo "ERROR: ${rel} is required, and none of the three sources had it:" >&2
         echo "       - not next to this script ($(dirname "$0"))" >&2
         echo "       - not in the checkout (${SETUP_WS})" >&2
-        echo "       - and github.com/CLAIRLab-HAW/onboard (main, setup/) did" >&2
+        echo "       - and github.com/CLAIRLab-HAW/husky (main, setup/) did" >&2
         echo "         not serve it -- unreachable, or the file is not on main yet." >&2
         echo "       Clone the repo and run the installer out of it, or push the" >&2
         echo "       file to main first." >&2
@@ -586,7 +589,7 @@ if [ "$DO_VERIFY" -eq 1 ]; then
     verify_deployments && exit 0 || exit 1
 fi
 
-# --- clone onboard + robot.yaml symlink -- FIRST -----------------------------
+# --- clone husky and tools + robot.yaml symlink -- FIRST ---------------------
 # FIRST, because every block below resolves against this checkout: repo_file
 # reads ${SETUP_WS}, the colcon builds run in ${RG6_WS}, ${EXTRAS_WS} and
 # ${USM_WS}, the Cockpit blocks install out of it.  Ahead of it, only "next to
@@ -599,13 +602,15 @@ fi
 # /etc/clearpath/robot.yaml every second and restarts the stack on a change
 # (md5sum follows the symlink).
 ROBOT_YAML_SRC="${SETUP_WS}/${ROBOT_YAML_REL}"
-echo ">>> onboard to ${ONBOARD_WS} (user ${REAL_USER})"
-if [ -d "${ONBOARD_WS}/.git" ]; then
-    sudo -u "$REAL_USER" git -C "$ONBOARD_WS" pull --ff-only \
-        || echo "    WARN: git pull failed, using the existing state"
-else
-    sudo -u "$REAL_USER" git clone "$ONBOARD_REPO_URL" "$ONBOARD_WS" || echo "    WARN: git clone failed"
-fi
+for clone in "${HUSKY_WS}|${HUSKY_REPO_URL}" "${TOOLS_WS}|${TOOLS_REPO_URL}"; do
+    ws="${clone%%|*}"; url="${clone#*|}"
+    echo ">>> $(basename "$ws") to ${ws} (user ${REAL_USER})"
+    if [ -d "${ws}/.git" ]; then
+        sudo -u "$REAL_USER" git -C "$ws" pull --ff-only || echo "    WARN: git pull failed, using the existing state"
+    else
+        sudo -u "$REAL_USER" git clone "$url" "$ws" || echo "    WARN: git clone failed"
+    fi
+done
 echo ">>> robot.yaml: symlink (${ROBOT_YAML_SRC} ─▶ ${ROBOT_YAML_PATH})"
 if [ -f "${ROBOT_YAML_SRC}" ]; then
     if [ -L "$ROBOT_YAML_PATH" ] && [ "$(readlink -f "$ROBOT_YAML_PATH")" = "$(readlink -f "${ROBOT_YAML_SRC}")" ]; then
@@ -1014,6 +1019,22 @@ else
     echo ">>> rg6: skipped (the existing build stays)."
 fi
 
+# --- build the tool macros (as the real user, not root) ---------------------
+# tool_description: the RG6 and key holder macros the extras' tool files include with $(find ...), so it is built
+# after rg6_description and before extras.  A data package.
+DO_TOOL_DESC=1
+if [ -d "${TOOL_DESC_WS}/install" ]; then
+    confirm ">>> the tool macros are built in ${TOOL_DESC_WS}. Rebuild?" || DO_TOOL_DESC=0
+fi
+if [ "$DO_TOOL_DESC" -eq 1 ]; then
+    echo ">>> Building ${TOOL_DESC_WS} (colcon, user ${REAL_USER})"
+    sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
+        "source '$ROS_SETUP' && cd '$TOOL_DESC_WS' && colcon build --packages-select tool_description" \
+        || echo "    WARN: colcon build failed - the generator cannot expand the extras' tool file."
+else
+    echo ">>> tool macros: skipped (the existing build stays)."
+fi
+
 # --- build lidar (as the real user, not root) -------------------------------
 # rs16_description and qb2_description, the two lidars' macros: the extras file includes the one robot.yaml's model
 # names with $(find ...), so the generator dies on that include while the workspace robot.yaml lists is unbuilt.
@@ -1032,8 +1053,8 @@ else
 fi
 
 # --- build extras (as the real user, not root) ------------------------------
-# The last workspace robot.yaml lists, and it hangs on the others: the extras file instantiates the RG6 macro out
-# of rg6_description and the RS16's out of rs16_description, so it is built after them.  Two data packages
+# The last workspace robot.yaml lists, and it hangs on the others: the extras file instantiates the tool macros out
+# of tool_description and the RS16's out of rs16_description, so it is built after them.  Two data packages
 # (husky_extras_description's urdf/ + meshes/, husky_extras_bringup's launch/), so the build is a copy into install/
 # and takes no measurable time.
 DO_EXTRAS=1
@@ -1493,8 +1514,8 @@ fi
 
 # --- lidar (optional) --------------------------------------------------------
 # robot.yaml's platform.extras.launch starts the chain: Clearpath's clearpath-platform-extras service runs
-# husky_extras_bringup's lidar.launch.py with lidar_model, which includes onboard/navigation's scan.launch.py and with
-# it onboard/lidar's driver and self filter.  Two things that service cannot bring along are done here:
+# husky_extras_bringup's lidar.launch.py with lidar_model, which includes husky/navigation's scan.launch.py and with
+# it husky/lidar's driver and self filter.  Two things that service cannot bring along are done here:
 #   - rslidar_sdk and pointcloud_to_laserscan come from apt.  They are installed only while a simulation shows
 #     nothing but new packages: on 2026-09-29 that was 3 new (both plus ros-jazzy-rslidar-msg), 0 upgraded,
 #     0 removed, all from the pinned ROS snapshot.  Without them the extras launch dies at its start.
@@ -1503,7 +1524,7 @@ fi
 #     image does with its own.
 # The self filter runs without clair-twin[body] on the robot and passes the points through (R63).
 LIDAR_APT=(ros-jazzy-rslidar-sdk ros-jazzy-pointcloud-to-laserscan)
-LIDAR_PTH="$(python3 -c 'import site; print(site.getsitepackages()[0])')/clair-onboard.pth"
+LIDAR_PTH="$(python3 -c 'import site; print(site.getsitepackages()[0])')/clair-husky.pth"
 # The Qb2's driver, built only where robot.yaml names the Qb2: Blickfeld ships no apt package (none in rosdistro's
 # jazzy or humble, 2026-11-07) and claims Foxy and Humble, not Jazzy -- so it is built from its tag here, and a failed
 # build says so instead of stopping the installer (R88).  Its CMake fetches Blickfeld's protocol
@@ -1511,7 +1532,7 @@ LIDAR_PTH="$(python3 -c 'import site; print(site.getsitepackages()[0])')/clair-o
 # README's, from apt.
 QB2_DRIVER_URL="https://github.com/Blickfeld/blickfeld_qb2_ros2_driver.git"
 QB2_DRIVER_TAG="v2.1.0"
-QB2_DRIVER_DIR="${LIDAR_WS}/src/blickfeld_qb2_ros2_driver"   # untracked (onboard/lidar/.gitignore)
+QB2_DRIVER_DIR="${LIDAR_WS}/src/blickfeld_qb2_ros2_driver"   # untracked (husky/lidar/.gitignore)
 QB2_APT=(libgrpc++-dev protobuf-compiler-grpc libprotobuf-dev ros-jazzy-diagnostic-updater)
 # apt-get install of "$@", but only while a simulation shows nothing but new packages.
 apt_add_only() {
@@ -1545,11 +1566,14 @@ if [ "$DO_LIDAR" -eq 1 ]; then
     [ -n "$LIDAR_MISSING" ] && \
         echo "    WARN: not installed:${LIDAR_MISSING} - clearpath-platform-extras cannot start the lidar."
     if [ ! -d "${LIDAR_WS}/src/clair" ] || [ ! -d "${NAV_WS}/src/clair" ]; then
-        echo "    WARN: ${LIDAR_WS}/src or ${NAV_WS}/src is missing (onboard not cloned?) - ${LIDAR_PTH} not written."
+        echo "    WARN: ${LIDAR_WS}/src or ${NAV_WS}/src is missing (husky not cloned?) - ${LIDAR_PTH} not written."
     else
         echo ">>> Writing ${LIDAR_PTH}"
         printf '%s\n' "${LIDAR_WS}/src" "${NAV_WS}/src" > "$LIDAR_PTH"
         chmod 0644 "$LIDAR_PTH"
+        # The .pth of the clone at ~/husky, before it was ~/husky: left in place, its clair.lidar would stand on
+        # the path beside this one's.
+        rm -f "$(dirname "$LIDAR_PTH")/clair-onboard.pth"
     fi
     # Read through clair.lidar itself, which the .pth just put on the path: the one place robot.yaml is parsed.
     _read_model='import sys; from clair.lidar import models; print(models.robot_model(sys.argv[1]).name)'
@@ -1834,7 +1858,7 @@ if [ "$DO_CKPT" -eq 1 ]; then
     fi
     CKPT_OK=1
     if [ ! -d "$CKPT_WS" ]; then
-        echo "    WARN: ${CKPT_WS} is missing (onboard not cloned?)."
+        echo "    WARN: ${CKPT_WS} is missing (husky not cloned?)."
         CKPT_OK=0
     fi
     if [ "$CKPT_OK" -eq 1 ]; then
@@ -1851,7 +1875,7 @@ if [ "$DO_CKPT" -eq 1 ]; then
             else
                 echo "    WARN: neither dist/ nor npm/make present."
                 echo "          Build it on a machine WITH the toolchain and bring the result over:"
-                echo "            git clone ${ONBOARD_REPO_URL} && cd onboard/cockpit-diagnostics && npm ci --ignore-scripts && make"
+                echo "            git clone ${HUSKY_REPO_URL} && cd husky/cockpit-diagnostics && npm ci --ignore-scripts && make"
                 echo "            rsync -a dist/ ${REAL_USER}@<robot>:${CKPT_WS}/dist/"
                 echo "          Then run this installer again."
                 CKPT_OK=0

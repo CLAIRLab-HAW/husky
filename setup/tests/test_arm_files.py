@@ -1,7 +1,7 @@
 """The files ``robot.yaml``'s arm names by path are in this checkout, where the robot's clone has them.
 
 The UR driver reads the kinematics calibration and the RTDE input recipe straight out of the clone
-(``/home/robot/onboard``); nothing copies them anywhere.  The installer's ``arm_files`` reads both paths out of
+(``/home/robot/husky``); nothing copies them anywhere.  The installer's ``arm_files`` reads both paths out of
 ``robot.yaml`` for its rollout check and for ``--verify``, so this runs that very function: a path it cannot parse,
 or one outside the clone, fails here instead of as a robot without a model.
 """
@@ -13,8 +13,8 @@ from pathlib import Path
 
 SETUP = Path(__file__).resolve().parents[1]
 INSTALLER = SETUP / "install-clearpath-custom-setup.sh"
-#: Where the installer clones the repo on the robot (``ONBOARD_WS``), as ``robot.yaml`` spells it.
-ROBOT_SETUP = "/home/robot/onboard/setup/"
+#: Where the installer clones the repo on the robot (``HUSKY_WS``), as ``robot.yaml`` spells it.
+ROBOT_SETUP = "/home/robot/husky/setup/"
 
 
 def arm_files() -> list[str]:

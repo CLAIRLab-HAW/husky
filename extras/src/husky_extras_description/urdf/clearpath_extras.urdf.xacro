@@ -5,7 +5,7 @@
       platform:
         extras:
           urdf:
-            path: /home/robot/onboard/extras/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
+            path: /home/robot/husky/extras/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
 
   Hangs ONLY new links/joints onto frames the generator has already produced:
     - arm_0_tool0          = UR5 tool frame (ROS-Industrial all-zeros)  -> the end effector (tools/, RG6 by default)
@@ -18,7 +18,7 @@
   built an a200 with a UR5 on it.  The gripper package must not know any of
   them; it describes an RG6, which is the same hand on any arm.  The
   dependency therefore runs one way only: this package includes
-  rg6_description's macro, and rg6_description includes nothing from here.
+  tool_description's macros (the tools repository), which include nothing from here.
   The same holds for the lidars and rs16_description / qb2_description.
 
   END EFFECTOR: tools/<end_effector>.urdf.xacro; tools/rg6.urdf.xacro says how the RG6 is modelled.
@@ -26,7 +26,7 @@
 
   PRECONDITION: the packages have to be installed in a workspace listed in
   robot.yaml under 'system.ros2.workspaces': 'husky_extras_description' for
-  the arch mesh and this file itself, 'rg6_description' for the gripper macro
+  the arch mesh and this file itself, 'tool_description' and 'rg6_description' for the tool macros
   and 'rs16_description' or 'qb2_description' for the lidar's, each with its meshes.  Without one of
   them the generator dies on an include, or RViz and the foxglove_bridge draw a
   robot with holes in it where the package:// meshes belong.

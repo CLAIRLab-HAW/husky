@@ -8,12 +8,8 @@ what a move breaks:
   ``onrobot-rg6`` on 2026-08-30, and it stayed invisible until an image rebuild;
 * every ``package://`` URI has to name the package that actually ships the file, otherwise RViz and the
   foxglove_bridge draw a robot with holes in it and nothing errors;
-* ``robot.yaml`` addresses this file by ABSOLUTE path and lists the workspace it is installed from.  Two numbers
-  in a foreign repo, and if either stops matching, the next boot generates a robot without extras.
-
-The last one reaches into ``setup/``.  That is deliberate and follows the workspace convention: a repo
-checked out on its own cannot know where its siblings are and skips, but inside a workspace a missing file FAILS rather
-than skipping quietly.
+* ``robot.yaml`` (``setup/``) addresses this file by ABSOLUTE path and lists the workspaces it is installed from.
+  If either stops matching, the next boot generates a robot without extras.
 """
 
 from __future__ import annotations
@@ -36,29 +32,13 @@ LIDARS = sorted((EXTRAS.parent / "lidars").glob("*.urdf.xacro"))
 #: Every xacro file of every package here -- tools, the macros they call, the other robots' descriptions.
 XACROS = sorted((REPO / "src").rglob("*.xacro"))
 
-#: The absolute path robot.yaml addresses this file by, and the workspace it sources.  The robot's own layout
-#: (/home/robot/onboard/<dir>), which the offboard container reproduces with a symlink.
-ROBOT_EXTRAS_PATH = f"/home/robot/onboard/extras/src/{PACKAGE}/urdf/clearpath_extras.urdf.xacro"
-ROBOT_WORKSPACE = "/home/robot/onboard/extras/install/setup.bash"
-
-
-def _workspace_root() -> Path | None:
-    for candidate in REPO.parents:
-        if (candidate / "workspace.repos").is_file():
-            return candidate
-    return None
-
-
-def _sibling(relpath: str) -> Path:
-    root = _workspace_root()
-    if root is None:
-        pytest.skip("not inside the clearpath workspace (no workspace.repos above this repo)")
-    path = root / relpath
-    if not path.is_file():
-        pytest.fail(
-            f"{relpath} is missing although the workspace root {root} is right there -- vcs import, or the file moved."
-        )
-    return path
+#: The absolute path robot.yaml addresses this file by, and the workspaces it sources: this one and the tools
+#: repository's, whose macros the tool files include.  The robot's own layout (/home/robot/husky/<dir>,
+#: /home/robot/tools/<dir>), which the offboard container reproduces with a symlink.
+ROBOT_EXTRAS_PATH = f"/home/robot/husky/extras/src/{PACKAGE}/urdf/clearpath_extras.urdf.xacro"
+ROBOT_WORKSPACES = ("/home/robot/husky/extras/install/setup.bash", "/home/robot/tools/description/install/setup.bash")
+#: robot.yaml, in this repository's setup/.
+ROBOT_YAML = REPO.parent / "setup" / "config" / "robot.yaml"
 
 
 @pytest.fixture(scope="session")
@@ -68,11 +48,6 @@ def extras_text() -> str:
 
 def _tool(name: str) -> str:
     return (EXTRAS.parent / "tools" / f"{name}.urdf.xacro").read_text(encoding="utf-8")
-
-
-def _macro(name: str) -> str:
-    """The tool itself, hung on a parent: what the a200's tool file and MARWIN 5's changer both call."""
-    return (EXTRAS.parent / f"{name}.macro.xacro").read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize("path", XACROS, ids=lambda p: p.name)
@@ -97,11 +72,12 @@ def test_the_end_effector_is_an_argument_whose_default_is_the_rg6(extras_text):
     assert {p.name for p in TOOLS} >= {"rg6.urdf.xacro", "key_holder.urdf.xacro"}
 
 
-def test_the_gripper_macro_is_included_from_the_package_that_owns_it():
-    """The one cross-package dependency, and it must run this way round: assembly includes component."""
-    assert "$(find rg6_description)/urdf/onrobot_rg_upstream.urdf.xacro" in _macro("rg6")
+@pytest.mark.parametrize("tool", ["rg6", "key_holder"])
+def test_the_tool_macros_are_included_from_the_package_that_owns_them(tool):
+    """The tools repository's macros, and it must run this way round: assembly includes component."""
+    assert f"$(find tool_description)/urdf/{tool}.macro.xacro" in _tool(tool)
     manifest = (REPO / "src" / PACKAGE / "package.xml").read_text(encoding="utf-8")
-    assert "<exec_depend>rg6_description</exec_depend>" in manifest, (
+    assert "<exec_depend>tool_description</exec_depend>" in manifest, (
         "the include is there but the dependency is not declared -- colcon and rosdep cannot see it"
     )
 
@@ -119,11 +95,6 @@ def test_the_platform_carries_no_aruco_marker(extras_text):
 def test_every_tool_carries_the_link_robot_yaml_hangs_the_camera_on(path):
     """robot.yaml names one camera parent for every tool; a tool without it leaves the camera unattached."""
     assert '<link name="rg6_onrobot_rg6_base_link"' in path.read_text(encoding="utf-8")
-
-
-def test_the_rg6_keeps_its_tcp():
-    """The TCP every calibrated quantity is expressed against, and the MTC grasp planner's frame."""
-    assert '<link name="rg6_hand_tcp"' in _macro("rg6")
 
 
 def test_the_arch_carries_collision_geometry_and_a_mass(extras_text):
@@ -163,12 +134,13 @@ def test_robot_yaml_addresses_this_file_and_sources_this_workspace():
     """The SSOT in setup/, and the seam this move actually turns on."""
     import yaml
 
-    robot_yaml = yaml.safe_load(_sibling("onboard/setup/config/robot.yaml").read_text(encoding="utf-8"))
+    robot_yaml = yaml.safe_load(ROBOT_YAML.read_text(encoding="utf-8"))
     assert robot_yaml["platform"]["extras"]["urdf"]["path"] == ROBOT_EXTRAS_PATH
     workspaces = robot_yaml["system"]["ros2"]["workspaces"]
-    assert ROBOT_WORKSPACE in workspaces, (
-        f"{ROBOT_WORKSPACE} is not in system.ros2.workspaces -- the generator would find the file and then fail "
-        f"on $(find rg6_description) resp. leave package://{PACKAGE} unresolvable"
+    missing = [w for w in ROBOT_WORKSPACES if w not in workspaces]
+    assert not missing, (
+        f"{missing} not in system.ros2.workspaces -- the generator would find the file and then fail "
+        f"on $(find tool_description) resp. leave package://{PACKAGE} unresolvable"
     )
 
 
@@ -182,7 +154,7 @@ def test_the_lidar_is_an_argument_whose_default_is_robot_yamls(extras_text):
     default = re.search(r'<xacro:arg name="lidar_model" default="([^"]+)"/>', extras_text)
     assert default, "lidar_model is no argument with a default"
     assert '<xacro:include filename="lidars/$(arg lidar_model).urdf.xacro"/>' in extras_text
-    robot_yaml = yaml.safe_load(_sibling("onboard/setup/config/robot.yaml").read_text(encoding="utf-8"))
+    robot_yaml = yaml.safe_load(ROBOT_YAML.read_text(encoding="utf-8"))
     named = [
         launch["args"]["lidar_model"]
         for launch in robot_yaml["platform"]["extras"]["launch"]
@@ -219,7 +191,7 @@ def test_robot_yaml_starts_a_launch_file_the_bringup_ships():
     in clearpath-platform-extras, and nowhere before."""
     import yaml
 
-    robot_yaml = yaml.safe_load(_sibling("onboard/setup/config/robot.yaml").read_text(encoding="utf-8"))
+    robot_yaml = yaml.safe_load(ROBOT_YAML.read_text(encoding="utf-8"))
     launches = robot_yaml["platform"]["extras"]["launch"]
     assert all(launch.get("package") for launch in launches), launches
     ours = [launch for launch in launches if launch["package"] == BRINGUP.name]
@@ -233,7 +205,7 @@ def test_robot_yaml_hands_its_own_namespace_to_the_bringup():
     one the rest of the robot runs under, or bt_joy/open_pairing appears where Echo does not look."""
     import yaml
 
-    robot_yaml = yaml.safe_load(_sibling("onboard/setup/config/robot.yaml").read_text(encoding="utf-8"))
+    robot_yaml = yaml.safe_load(ROBOT_YAML.read_text(encoding="utf-8"))
     stated = [
         launch["args"]["namespace"]
         for launch in robot_yaml["platform"]["extras"]["launch"]
@@ -243,19 +215,7 @@ def test_robot_yaml_hands_its_own_namespace_to_the_bringup():
     assert set(stated) == {robot_yaml["system"]["ros2"]["namespace"]}
 
 
-MARWIN_TOOLED = REPO / "src" / "marwin_extras_description" / "urdf" / "marwin5_tooled.urdf.xacro"
-
-
-@pytest.mark.parametrize(("tool", "tcp"), [("rg6", "rg6_hand_tcp"), ("key_holder", "key_tip")])
-def test_every_tool_the_changer_offers_is_a_macro_with_its_tcp(tool, tcp):
-    """MARWIN 5's changer calls the same macro the a200 does, and names the TCP that macro defines."""
-    tooled = MARWIN_TOOLED.read_text(encoding="utf-8")
-    assert f"$(find {PACKAGE})/urdf/{tool}.macro.xacro" in tooled
-    assert f"{tool}='{tcp}'" in tooled, f"the tool map names another TCP for {tool}"
-    assert f'<link name="{tcp}"' in _macro(tool)
-
-
-@pytest.mark.skipif(not GRIPPER_MODELS.is_dir(), reason="robot/contract is not checked out beside onboard/")
+@pytest.mark.skipif(not GRIPPER_MODELS.is_dir(), reason="robot/contract is not checked out beside husky/")
 def test_every_gripper_model_has_the_tool_file_of_its_name():
     """A tool named after a model is that hand: the mock, the SRDF and the stack's logic find the model by the tool's
     name, so a model without its tool file could never be put on the flange."""

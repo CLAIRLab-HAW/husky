@@ -2,7 +2,7 @@
 
 robot.yaml's ``platform.extras.launch`` names this file with the robot's ``namespace``; Clearpath's
 clearpath-platform-extras service runs it.  The program is the installer's root-owned copy of
-onboard/setup's ``scripts/bt_joy_pairing.py``, ``bt-joy-pairing`` on the PATH -- the installer smoke-tests it and
+husky/setup's ``scripts/bt_joy_pairing.py``, ``bt-joy-pairing`` on the PATH -- the installer smoke-tests it and
 ``--verify`` measures it against the checkout.  It respawns: that service's unit carries no Restart=, and an agent
 started before bluetoothd is up exits and comes back.
 
@@ -16,7 +16,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, LogInfo, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 
-#: The program, as the installer puts it on the PATH (onboard/setup/install-clearpath-custom-setup.sh, BT_JOY_BIN).
+#: The program, as the installer puts it on the PATH (husky/setup/install-clearpath-custom-setup.sh, BT_JOY_BIN).
 PROGRAM = "bt-joy-pairing"
 #: How long a crashed agent waits before it comes back [s] -- the 5 s its own systemd unit gave it.
 RESPAWN_DELAY_S = 5.0

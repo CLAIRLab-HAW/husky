@@ -1,4 +1,4 @@
-"""The lidar's 2D scan, on top of its sensor path: onboard/lidar's lidar.launch.py plus pointcloud_to_laserscan.
+"""The lidar's 2D scan, on top of its sensor path: husky/lidar's lidar.launch.py plus pointcloud_to_laserscan.
 
 READ-ONLY, like the launch it includes: nothing here commands the base or the arm, so it may run on the graph of the
 real robot -- what is barred is navigation.launch.py, because its controller_server writes to cmd_vel.  AMCL,

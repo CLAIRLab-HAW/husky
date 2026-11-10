@@ -10,5 +10,5 @@ from pathlib import Path
 __version__ = "0.1.0"
 
 #: The scan on the lidar's sensor path, beside the source tree wherever that lies (``/opt/clair/navigation`` in the
-#: container, ``~/onboard/navigation`` on the robot).  husky_extras_bringup includes it on the robot.
+#: container, ``~/husky/navigation`` on the robot).  husky_extras_bringup includes it on the robot.
 SCAN_LAUNCH_PATH = Path(__file__).resolve().parents[3] / "launch" / "scan.launch.py"
