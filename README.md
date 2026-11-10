@@ -34,7 +34,7 @@ ROS 2 Jazzy packages, configuration and installer for the Clearpath Husky A200 `
 
 Run time, not in this repository: `rg6_description`, `rg6_control`, `gripper_control`, `tool_description`
 (workspace `/home/robot/tools`); `rslidar_sdk`, `pointcloud_to_laserscan`, `nav2_bringup`, `slam_toolbox`,
-`ur_robot_driver`, `python3-scipy`, `python3-trimesh` (apt).
+`ur_robot_driver`, `geometric_shapes` (apt).
 
 ## Installation
 

@@ -46,8 +46,8 @@
 #     (/a200_0553/joint_states) plus the relays back onto the platform bus
 #   - optional: clearpath-custom-octomap-feed.service: throttled depth ->
 #     PointCloud2 for MoveIt's occupancy map monitor
-#   - optional: the lidar's apt packages (rslidar_sdk, pointcloud_to_laserscan, and scipy + trimesh for the self
-#     filter's hulls).  Clearpath's
+#   - optional: the lidar's apt packages (rslidar_sdk, pointcloud_to_laserscan, and geometric_shapes for the self
+#     filter's bodies).  Clearpath's
 #     clearpath-platform-extras service starts the chain itself, from robot.yaml's platform.extras.launch; a
 #     clearpath-custom-lidar.service found installed is taken out, it would start a second driver
 #   - optional: clearpath-custom-manipulator-diagnostics.service: UR5 + RG6 as
@@ -1476,10 +1476,10 @@ fi
 #   - rslidar_sdk and pointcloud_to_laserscan come from apt.  They are installed only while a simulation shows
 #     nothing but new packages: on 2026-09-29 that was 3 new (both plus ros-jazzy-rslidar-msg), 0 upgraded,
 #     0 removed, all from the pinned ROS snapshot.  Without them the extras launch dies at its start.
-#   - the self filter's hulls read the meshes with trimesh and hull them with scipy, both from apt as well.
+#   - the self filter (C++) builds against geometric_shapes, from apt as well; the colcon build below needs it.
 # husky_lidar and husky_navigation are ament packages of the husky workspace, which robot.yaml lists, so the service
 # finds them by sourcing /etc/clearpath/setup.bash.
-LIDAR_APT=(ros-jazzy-rslidar-sdk ros-jazzy-pointcloud-to-laserscan python3-scipy python3-trimesh)
+LIDAR_APT=(ros-jazzy-rslidar-sdk ros-jazzy-pointcloud-to-laserscan ros-jazzy-geometric-shapes)
 # The Qb2's driver, built only where robot.yaml names the Qb2: Blickfeld ships no apt package (none in rosdistro's
 # jazzy or humble, 2026-11-07) and claims Foxy and Humble, not Jazzy -- so it is built from its tag here, and a failed
 # build says so instead of stopping the installer (R88).  Its CMake fetches Blickfeld's protocol
@@ -1504,10 +1504,9 @@ apt_add_only() {
 }
 lidar_missing() {
     local pkg missing=""
-    for pkg in rslidar_sdk pointcloud_to_laserscan; do
+    for pkg in rslidar_sdk pointcloud_to_laserscan geometric_shapes; do
         ls -d /opt/ros/*/share/"$pkg" >/dev/null 2>&1 || missing="${missing} ${pkg}"
     done
-    python3 -c 'import scipy, trimesh' 2>/dev/null || missing="${missing} python3-scipy/python3-trimesh"
     printf '%s' "$missing"
 }
 DO_LIDAR=1
@@ -1521,6 +1520,15 @@ if [ "$DO_LIDAR" -eq 1 ]; then
     LIDAR_MISSING="$(lidar_missing)"
     [ -n "$LIDAR_MISSING" ] && \
         echo "    WARN: not installed:${LIDAR_MISSING} - clearpath-platform-extras cannot start the lidar."
+    # The self filter builds against geometric_shapes, which arrives only here, after the husky build above: a first
+    # run builds husky_lidar, and what depends on it, once more.
+    if [ ! -x "${HUSKY_WS}/install/husky_lidar/lib/husky_lidar/self_filter" ] \
+        && ls -d /opt/ros/*/share/geometric_shapes >/dev/null 2>&1; then
+        echo ">>> Building husky_lidar and its dependents in ${HUSKY_WS} (colcon, user ${REAL_USER})"
+        sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
+            "source '$ROS_SETUP' && cd '$HUSKY_WS' && colcon build --packages-above husky_lidar" \
+            || echo "    WARN: husky_lidar did not build - the lidar runs without its self filter."
+    fi
     # The .pth files that put the lidar's source trees on the system Python's path before it was an ament package
     # (~/onboard's, then ~/husky's): left in place, they would put a second husky_lidar beside the workspace's.
     rm -f "$(python3 -c 'import site; print(site.getsitepackages()[0])')"/clair-{onboard,husky}.pth
@@ -1961,7 +1969,7 @@ echo "  ${A200_LOOK_PATCH_BIN}   : root-owned copy of scripts/a200_look_patch.py
 [ -f "$OCTO_UNIT_PATH" ] && \
 echo "  ${OCTO_UNIT}   : depth─▶PointCloud2 for MoveIt's octomap (the move_group sensor parameters come from robot.yaml)"
 [ -z "$(lidar_missing)" ] && \
-echo "  lidar apt packages : rslidar_sdk, pointcloud_to_laserscan, scipy + trimesh for the self filter's hulls"
+echo "  lidar apt packages : rslidar_sdk, pointcloud_to_laserscan, geometric_shapes for the self filter"
 [ -f "$MD_UNIT_PATH" ] && \
 echo "  ${MD_UNIT} : UR5 + RG6 ─▶ diagnostic_msgs (the analyzers come from robot.yaml)"
 [ -f "$BT_JOY_BIN" ] && \

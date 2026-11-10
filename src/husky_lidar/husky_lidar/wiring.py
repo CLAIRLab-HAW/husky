@@ -28,8 +28,8 @@ def points_topic() -> str:
 
 
 def filtered_points_topic() -> str:
-    """The lidar's points without the robot's own body (:mod:`husky_lidar.self_filter`): what the costmaps and the scan
-    read, so neither takes the sensor arch or an arm reaching out for an obstacle."""
+    """The lidar's points without the robot's own body (the self filter, ``launch/self_filter.launch.py``): what the
+    costmaps and the scan read, so neither takes the sensor arch or an arm reaching out for an obstacle."""
     return f"/{NAMESPACE}/sensors/lidar3d_0/points_filtered"
 
 

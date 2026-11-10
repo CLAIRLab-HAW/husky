@@ -8,24 +8,28 @@
   <maintainer email="hannes.voss@haw-hamburg.de">Hannes Voss</maintainer>
   <license>MIT</license>
 
-  <buildtool_depend>ament_python</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
 
-  <exec_depend>python3-numpy</exec_depend>
+  <!-- the self filter (C++): the description's collision bodies, meshes through resource_retriever -->
+  <depend>geometric_shapes</depend>
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2_eigen</depend>
+  <depend>tf2_ros</depend>
+  <depend>urdf</depend>
+
   <exec_depend>python3-yaml</exec_depend>
-  <exec_depend>rclpy</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>sensor_msgs_py</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <!-- the drivers the launch starts, by model: rslidar_sdk from apt, Blickfeld's built from source (setup/'s installer) -->
   <exec_depend>rslidar_sdk</exec_depend>
   <exec_depend>rs16_description</exec_depend>
   <exec_depend>qb2_description</exec_depend>
 
-  <test_depend>python3-pytest</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
 
   <export>
-    <build_type>ament_python</build_type>
+    <build_type>ament_cmake</build_type>
   </export>
 </package>

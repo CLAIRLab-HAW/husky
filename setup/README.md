@@ -337,7 +337,7 @@ commits behind the checkout and nothing said so. A `--verify` run needs no root.
 includes [husky_navigation](../src/husky_navigation/README.md)'s scan and, through it,
 [husky_lidar](../src/husky_lidar/README.md)'s driver and self filter — `…/lidar3d_0/points`, `points_filtered` and
 `scan`, read-only. The installer brings what that service cannot: the apt packages `ros-jazzy-rslidar-sdk`,
-`ros-jazzy-pointcloud-to-laserscan`, `python3-scipy` and `python3-trimesh` (the self filter's hulls). Where
+`ros-jazzy-pointcloud-to-laserscan` and `ros-jazzy-geometric-shapes` (the self filter's bodies). Where
 `robot.yaml` names the `qb2`, it also builds Blickfeld's driver, `blickfeld_qb2_ros2_driver` `v2.1.0`, from source
 into `~/husky/src` (no apt package; its build fetches
 Blickfeld's protocol from GitHub). A `clearpath-custom-lidar` service found installed is taken out: next to the extras

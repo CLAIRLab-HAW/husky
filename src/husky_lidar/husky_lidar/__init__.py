@@ -2,7 +2,7 @@
 
 The sensor path and nothing that consumes it.  Navigation derives its 2D scan from these points, perception reads them
 as they are; both import from here, and neither from the other.  The modules hold the decisions ROS-free, so that they
-can be checked on the Mac; ``self_filter`` imports rclpy inside its ``main`` only.
+can be checked on the Mac.  The self filter is the package's C++ node, ``launch/self_filter.launch.py`` starts it.
 """
 
 from pathlib import Path
@@ -25,6 +25,8 @@ def share() -> Path:
 
 #: The launch that starts a model's driver and the self filter.
 LAUNCH_PATH = share() / "launch" / "lidar.launch.py"
+#: The launch that starts the self filter alone, the one place its names are mapped onto :mod:`husky_lidar.wiring`.
+SELF_FILTER_LAUNCH_PATH = share() / "launch" / "self_filter.launch.py"
 
 #: How long a crashed driver, filter or scan waits before it comes back [s].  On the robot the launches run under
 #: Clearpath's clearpath-platform-extras service, whose unit restarts nothing, so the nodes respawn themselves; 5 s

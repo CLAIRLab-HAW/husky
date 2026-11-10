@@ -20,12 +20,13 @@ Every name comes from husky_lidar.wiring -- none of them is stated a second time
 """
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 
-from husky_lidar import RESPAWN_DELAY_S, blickfeld_qb2, models, rslidar, wiring
+from husky_lidar import RESPAWN_DELAY_S, SELF_FILTER_LAUNCH_PATH, blickfeld_qb2, models, rslidar, wiring
 
 
 def _rslidar(model: models.LidarModel, pcap: str | None) -> Node:
@@ -79,13 +80,8 @@ def _setup(context, *args, **kwargs):
     return [
         DRIVERS[model.driver](model, pcap),
         # The points without the robot's own body (the arch beside the sensor, the arm reaching out): what navigation's
-        # scan and costmaps read.  A python module, not an ament package -- hence ExecuteProcess.
-        ExecuteProcess(
-            cmd=["python3", "-m", "husky_lidar.self_filter"],
-            respawn=True,
-            respawn_delay=RESPAWN_DELAY_S,
-            output="screen",
-        ),
+        # scan and costmaps read.
+        IncludeLaunchDescription(PythonLaunchDescriptionSource(str(SELF_FILTER_LAUNCH_PATH))),
     ]
 
 

@@ -44,22 +44,26 @@ names from here, and neither from the other.
   The Qb2's driver takes `config/blickfeld_qb2.yaml` (the device's address) plus the wiring's frame and topic; it
   replays nothing, so the Qb2 has only a live device or a sim plant. A sim plant (ManiSkill, MuJoCo) casts the
   model's sweep in its world and publishes on the same topic.
-- **The robot's own body out of the points.** `self_filter` (`python3 -m husky_lidar.self_filter`) drops the points
-  inside the robot's collision hulls — the sensor arch beside it, an arm reaching out — and publishes the rest on
-  `…/lidar3d_0/points_filtered`. It needs `clair-twin[body]`; without it, the points pass through unfiltered.
+- **The robot's own body out of the points.** `self_filter`, a C++ node (`ros2 launch husky_lidar
+  self_filter.launch.py`), drops the points inside the robot's collision bodies — the sensor arch beside it, an arm
+  reaching out — and publishes the rest on `…/lidar3d_0/points_filtered`. The bodies are `geometric_shapes`', built
+  from the live `robot_description`: primitives as they are, meshes as their convex hulls, grown by 5 cm. Until the
+  description has come, the points pass through unfiltered.
 - **Names by slot, not by model** (`husky_lidar.wiring`): `lidar3d_0`, Clearpath's convention.
 - **ROS-free core.** Names, models and the driver configuration are testable without ROS; the launch file imports
   them.
 
 ## Tech Stack
 
-ROS 2 Jazzy · `rslidar_sdk` 1.5.16 · `blickfeld_qb2_ros2_driver` 2.1.0 (Qb2 only) · xacro · Python 3.12+
+ROS 2 Jazzy · `rslidar_sdk` 1.5.16 · `blickfeld_qb2_ros2_driver` 2.1.0 (Qb2 only) · `geometric_shapes` 2.3 ·
+xacro · C++17 · Python 3.12+
 
 ## Installation
 
-An ament_python package of husky's colcon workspace: the installer builds it in `~/husky` with the rest (`robot.yaml`
-lists the install space), and the offboard image builds it into `/opt/husky` from the build context `husky-src`.
-The self filter's hulls want `python3-scipy` and `python3-trimesh`. Where `robot.yaml` names the `qb2`, the installer
+An ament_cmake package with its Python modules beside the C++ node (`ament_cmake_python`) in husky's colcon workspace:
+the installer builds it in `~/husky` with the rest (`robot.yaml` lists the install space), and the offboard image
+builds it into `/opt/husky` from the build context `husky-src`. The self filter builds against
+`ros-jazzy-geometric-shapes`. Where `robot.yaml` names the `qb2`, the installer
 also clones `blickfeld_qb2_ros2_driver` at `v2.1.0` into husky's `src/` (untracked) and builds it there: Blickfeld ships no apt package and
 names Foxy and Humble, not Jazzy, so that build is the first test of it (R88).
 
@@ -93,6 +97,7 @@ uv run husky/scripts/rs16_mesh.py RS16.stp husky/src/rs16_description/meshes/rs1
 
 ```bash
 uv run pytest tests/lidar                 # from the husky root: no ROS, no container
+colcon test --packages-select husky_lidar # the self filter's bodies (gtest), in a ROS workspace
 ```
 
 The driver replaying the RS16 recording in the offboard container is clearpath's
