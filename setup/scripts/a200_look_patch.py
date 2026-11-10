@@ -248,113 +248,55 @@ def _well_formed(content, patched):
     return patched, "changed"
 
 
-def patch_wheel_text(content):
-    """Turn the visual origin of one wheel macro.
+def _swap(content, rx, new, what):
+    """Put ``new`` and the marker above it where ``rx`` matches exactly once.
 
     String surgery rather than an XML round trip, for the reason ``urdf_physics_patch.element_spans`` gives: this is
     a file the workspace does not own, and ElementTree would reformat every untouched line and drop the upstream
-    comments.  Well-formedness is checked on the result instead.
+    comments.  Well-formedness is checked on the result instead.  ``rx`` keeps everything up to the rewritten line in
+    group 1 and that line's indentation in group 2.
 
-    :returns: ``(content, status)`` -- status is ``"changed"``, ``"clean"`` (already turned) or a reason string
+    :returns: ``(content, status)`` -- status is ``"changed"``, ``"clean"`` (already rewritten) or a reason string
         for a failure (anchor missing or ambiguous, result not well-formed); ``content`` is unchanged unless the
         status is ``"changed"``.
     """
-    if MARKER in content and ORIGIN_NEW in content:
+    if MARKER in content and new in content:
         return content, "clean"
-    hits = len(VISUAL_ORIGIN_RX.findall(content))
+    hits = len(rx.findall(content))
     if hits != 1:
         # Zero is an upstream rewrite of the line (or upstream fixed it itself); more than one is a macro shape this
         # tool was not written against.  Either way nothing is guessed.
-        return content, f"{hits} visual origin(s) of the shipped form found, expected exactly 1 -- upstream changed?"
-    patched = VISUAL_ORIGIN_RX.sub(lambda m: f"{m.group(1)}{m.group(2)}{MARKER}\n{m.group(2)}{ORIGIN_NEW}", content)
-    return _well_formed(content, patched)
+        return content, f"{hits} {what} of the shipped form found, expected exactly 1 -- upstream changed?"
+    return _well_formed(content, rx.sub(lambda m: f"{m.group(1)}{m.group(2)}{MARKER}\n{m.group(2)}{new}", content))
+
+
+def patch_wheel_text(content):
+    """Turn the visual origin of one wheel macro (:func:`_swap`)."""
+    return _swap(content, VISUAL_ORIGIN_RX, ORIGIN_NEW, "visual origin(s)")
 
 
 def patch_chassis_text(content):
-    """Point the ``top_chassis_link`` visual of ``a200.urdf.xacro`` at the recolored chassis mesh.
-
-    String surgery for the same reason as :func:`patch_wheel_text`, with the same marker above the rewritten line.
-
-    :returns: ``(content, status)`` as :func:`patch_wheel_text` returns it.
-    """
-    if MARKER in content and CHASSIS_MESH_NEW in content:
-        return content, "clean"
-    hits = len(CHASSIS_VISUAL_RX.findall(content))
-    if hits != 1:
-        # Zero is an upstream rewrite of the chassis visual or its mesh; nothing is guessed.
-        return (
-            content,
-            f"{hits} chassis visual mesh(es) of the shipped form found, expected exactly 1 -- upstream changed?",
-        )
-    patched = CHASSIS_VISUAL_RX.sub(
-        lambda m: f"{m.group(1)}{m.group(2)}{MARKER}\n{m.group(2)}{CHASSIS_MESH_NEW}", content
-    )
-    return _well_formed(content, patched)
+    """Point the ``top_chassis_link`` visual of ``a200.urdf.xacro`` at the recolored chassis mesh (:func:`_swap`)."""
+    return _swap(content, CHASSIS_VISUAL_RX, CHASSIS_MESH_NEW, "chassis visual mesh(es)")
 
 
 def patch_wheel_mesh_text(content):
-    """Point the visual of the indoor wheel macro at the a200-0553's wheel mesh.
-
-    String surgery for the same reason as :func:`patch_wheel_text`, with the same marker above the rewritten line;
-    it matches with the visual origin turned or not, so the order of the two does not matter.
-
-    :returns: ``(content, status)`` as :func:`patch_wheel_text` returns it.
-    """
-    if MARKER in content and WHEEL_MESH_NEW in content:
-        return content, "clean"
-    hits = len(WHEEL_VISUAL_RX.findall(content))
-    if hits != 1:
-        # Zero is an upstream rewrite of the wheel visual or its mesh; nothing is guessed.
-        return (
-            content,
-            f"{hits} wheel visual mesh(es) of the shipped form found, expected exactly 1 -- upstream changed?",
-        )
-    patched = WHEEL_VISUAL_RX.sub(lambda m: f"{m.group(1)}{m.group(2)}{MARKER}\n{m.group(2)}{WHEEL_MESH_NEW}", content)
-    return _well_formed(content, patched)
+    """Point the visual of the indoor wheel macro at the a200-0553's wheel mesh (:func:`_swap`); it matches with the
+    visual origin turned or not, so the order of the two does not matter."""
+    return _swap(content, WHEEL_VISUAL_RX, WHEEL_MESH_NEW, "wheel visual mesh(es)")
 
 
 def patch_d435_text(content):
-    """Point the camera link's visual of the D435 macro at the a200-0553's colored D435 mesh.
-
-    String surgery for the same reason as :func:`patch_wheel_text`, with the same marker above the rewritten line; it
-    matches the mesh line with ``sensor_mesh_uri_patch`` applied or not, so the order of the two does not matter.
-
-    :returns: ``(content, status)`` as :func:`patch_wheel_text` returns it.
-    """
-    if MARKER in content and D435_MESH_NEW in content:
-        return content, "clean"
-    hits = len(D435_VISUAL_RX.findall(content))
-    if hits != 1:
-        # Zero is an upstream rewrite of the camera visual or its mesh; nothing is guessed.
-        return (
-            content,
-            f"{hits} D435 visual mesh(es) of the shipped form found, expected exactly 1 -- upstream changed?",
-        )
-    patched = D435_VISUAL_RX.sub(lambda m: f"{m.group(1)}{m.group(2)}{MARKER}\n{m.group(2)}{D435_MESH_NEW}", content)
-    return _well_formed(content, patched)
+    """Point the camera link's visual of the D435 macro at the a200-0553's colored D435 mesh (:func:`_swap`); it
+    matches the mesh line with ``sensor_mesh_uri_patch`` applied or not, so the order of the two does not matter."""
+    return _swap(content, D435_VISUAL_RX, D435_MESH_NEW, "D435 visual mesh(es)")
 
 
 def patch_d435_collision_text(content):
-    """Move the D435 macro's collision box back by 8.225 mm along x, onto the camera's visual body.
-
-    String surgery for the same reason as :func:`patch_wheel_text`, with the same marker above the rewritten line; it
-    matches with the visual's mesh swapped by :func:`patch_d435_text` or not, so the order of the two does not matter.
-
-    :returns: ``(content, status)`` as :func:`patch_wheel_text` returns it.
-    """
-    if MARKER in content and D435_COLLISION_ORIGIN_NEW in content:
-        return content, "clean"
-    hits = len(D435_COLLISION_RX.findall(content))
-    if hits != 1:
-        # Zero is an upstream rewrite of the collision origin (or upstream moved the box itself); nothing is guessed.
-        return (
-            content,
-            f"{hits} D435 collision origin(s) of the shipped form found, expected exactly 1 -- upstream changed?",
-        )
-    patched = D435_COLLISION_RX.sub(
-        lambda m: f"{m.group(1)}{m.group(2)}{MARKER}\n{m.group(2)}{D435_COLLISION_ORIGIN_NEW}", content
-    )
-    return _well_formed(content, patched)
+    """Move the D435 macro's collision box back by 8.225 mm along x, onto the camera's visual body (:func:`_swap`); it
+    matches with the visual's mesh swapped by :func:`patch_d435_text` or not, so the order of the two does not
+    matter."""
+    return _swap(content, D435_COLLISION_RX, D435_COLLISION_ORIGIN_NEW, "D435 collision origin(s)")
 
 
 def patch_file(path, patcher, dry_run):
