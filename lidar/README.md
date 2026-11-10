@@ -104,8 +104,8 @@ uv run pytest -c pyproject.toml -m e2e_container_nav onboard/lidar  # the driver
 - [qb2_description](src/qb2_description/README.md) — the Qb2's macro
 - [navigation](../navigation/README.md) — the scan and Nav2 on these points
 - [extras](../extras/README.md) — `husky_extras_bringup`, what robot.yaml starts
-- [robot-contract profile](../../robot/contract/src/clair/robot/contract/profiles/a200_0553.yaml) — the topics as
-  clients see them
+- [robot-contract profile](../../robot/contract/src/clair/robot/contract/profiles/bindings/a200_0553.ros2.yaml) —
+  the topics as clients see them
 
 ## Versioning
 

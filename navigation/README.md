@@ -118,7 +118,7 @@ uv run pytest -m e2e_container_nav                      # needs a running contai
 
 - [lidar](../lidar/README.md) — the sensor the scan is derived from
 - [Design spec](../../docs/superpowers/specs/2026-08-22-nav2-rs16-design.md)
-- [robot-contract profile](../../robot/contract/src/clair/robot/contract/profiles/a200_0553.yaml)
+- [robot-contract profile](../../robot/contract/src/clair/robot/contract/profiles/bindings/a200_0553.ros2.yaml)
 
 ## Versioning
 
