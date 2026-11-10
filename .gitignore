@@ -25,3 +25,8 @@ install/
 log/
 # Blickfeld's Qb2 driver, cloned and built here by the installer where robot.yaml names the Qb2
 src/blickfeld_qb2_ros2_driver/
+
+# Vendor CAD the meshes under src/husky_extras_description are derived from (the rims' glTF, the charging connector's
+# two STEPs).  Their licenses do not allow redistributing them, so they stay on the owner's machine; the derived meshes
+# are committed.  The scripts under scripts/ read them from here.
+/cad/

@@ -205,11 +205,11 @@ origin and the changes made to it are documented there
 clearpathrobotics; the notice is carried in full in the file's `<asset><contributor><copyright>`. The tire of
 `meshes/a200_indoor_wheel.dae` is derived from `clearpath_platform_description`'s `wheels/indoor.dae` under the same
 license and notice. Its rim comes from Clearpath Robotics' CAD "034991-MOBILITY_Simplified mCAD, STEP-Husky A200,
-Skid Steer", which comes without a BSD license: the owner's glTF export of it (`husky/a200_rims.gltf`, untracked) is
+Skid Steer", which comes without a BSD license: the owner's glTF export of it (`husky/cad/a200_rims.gltf`, untracked) is
 not redistributed, only the derived mesh, as with RoboSense's STEP behind `rs16.dae`. The same holds for
 `meshes/charging_connector.dae`: the vendor's STEP files of the socket and the plug come without a license for
-redistributing them, so the owner keeps them untracked at `husky/SK2-076C04_mount.STEP` and
-`husky/SK6-076C04_plug.STEP`. `meshes/d435.dae` is derived from MuJoCo Menagerie's `realsense_d435i`, itself
+redistributing them, so the owner keeps them untracked at `husky/cad/SK2-076C04_mount.STEP` and
+`husky/cad/SK6-076C04_plug.STEP`. `meshes/d435.dae` is derived from MuJoCo Menagerie's `realsense_d435i`, itself
 derived from `realsense2_description`'s `d435.dae`, both under the Apache License 2.0 (the Menagerie model's notice:
 Copyright 2023 Intel Corporation). The notice and the changes are carried in the file's
 `<asset><contributor><copyright>`, the license text beside it as `meshes/d435.LICENSE`.

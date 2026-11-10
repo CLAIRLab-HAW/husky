@@ -57,13 +57,13 @@ per corner by :func:`corner_normals`.
 SOURCES AND LICENSES. Clearpath's ``indoor.dae`` is BSD-3-Clause (``LICENSE`` of ``clearpath_common``, "Copyright (c)
 2023, clearpathrobotics"); the DAE's first ``<asset><contributor>`` carries the notice in full (:data:`NOTICE`). The
 rim's CAD comes from Clearpath's download without a BSD license, so the glTF is NOT in the repo -- the same practice as
-``husky/scripts/rs16_mesh.py`` with RoboSense's STEP: the owner keeps it at ``husky/a200_rims.gltf`` (untracked,
+``husky/scripts/rs16_mesh.py`` with RoboSense's STEP: the owner keeps it at ``husky/cad/a200_rims.gltf`` (untracked,
 4.8 MB, 2026-10-10), and the derived, decimated DAE is committed, like ``rs16.dae``. The second
 contributor names the CAD.
 
     docker cp offboard-plant-mock-1:/opt/ros/jazzy/share/clearpath_platform_description/meshes/a200/wheels/indoor.dae \\
         /tmp/indoor.dae
-    uv run husky/scripts/a200_wheel_mesh.py /tmp/indoor.dae husky/a200_rims.gltf \\
+    uv run husky/scripts/a200_wheel_mesh.py /tmp/indoor.dae husky/cad/a200_rims.gltf \\
         husky/src/husky_extras_description/meshes/a200_indoor_wheel.dae
 
 ``indoor.dae`` is not patched by anything here, so the apt copy is the source.
@@ -462,7 +462,7 @@ def write(parts: dict[str, tuple[Part, dict]], dae_path: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("source", help="Clearpath's meshes/a200/wheels/indoor.dae")
-    parser.add_argument("rims", help="the owner's glTF of the front-right rim (husky/a200_rims.gltf)")
+    parser.add_argument("rims", help="the owner's glTF of the front-right rim (husky/cad/a200_rims.gltf)")
     parser.add_argument("dae", help="where to write a200_indoor_wheel.dae")
     args = parser.parse_args()
     tire, tire_look = read_tire(args.source)
