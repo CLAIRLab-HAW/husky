@@ -456,7 +456,7 @@ pad, and its virtual pad took a joystick slot. It had been disabled once and ran
 Two of the Python scripts carry a ROS-free self-test:
 
 ```bash
-python3 scripts/clearpath_custom_setup.py --selftest
+python3 scripts/boot_patches.py --selftest
 python3 scripts/octomap_feed.py --selftest
 ```
 

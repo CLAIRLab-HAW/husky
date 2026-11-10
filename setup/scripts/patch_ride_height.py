@@ -44,7 +44,7 @@ untouched.  That is also the expectation: how far THIS vehicle's tyres deflect u
 our build, not of the product, so upstream has no reason to ever carry it.
 
 Invocations:
-  Robot:    from clearpath_custom_setup.py (per boot, before clearpath-robot-generate)
+  Robot:    from boot_patches.py (per boot, before clearpath-robot-generate)
   Offboard: offboard entrypoint.sh, before the generate_* runs
   Manual:   ride-height-patch --dry-run
 

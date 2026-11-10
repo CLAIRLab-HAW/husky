@@ -482,7 +482,7 @@ install_template() {
 verify_deployments() {
     local rc=0 entry dst rel src candidate h_dst h_src status
     local -a MANIFEST=(
-        "${PY_PATH}|scripts/clearpath_custom_setup.py"
+        "${PY_PATH}|scripts/boot_patches.py"
         "${WD_WRAPPER}|scripts/manipulators_watchdog.sh"
         "${BIN_DIR}/octomap-feed|scripts/octomap_feed.py"
         "${URDF_PHYSICS_PATCH_BIN}|scripts/patch_urdf_physics.py"
@@ -700,13 +700,13 @@ fi
 if [ "$DO_BOOT" -eq 1 ]; then
 echo ">>> Installing ${PY_PATH}"
 install -d -m 0755 "$BIN_DIR"
-# The patcher is a FILE in this repo (scripts/clearpath_custom_setup.py), not a
+# The patcher is a FILE in this repo (scripts/boot_patches.py), not a
 # heredoc: 249 lines of Python inside a string are invisible to every editor,
 # syntax check and test.  It takes the same route as the four other deployed
 # scripts -- repo_file, compile check, self-test, root-owned copy -- and it is
 # hashed by --verify like them.  require_repo_file, not repo_file: without it
 # the boot service would have no ExecStart.
-PY_SRC="$(require_repo_file scripts/clearpath_custom_setup.py)"
+PY_SRC="$(require_repo_file scripts/boot_patches.py)"
 python3 -c "import sys; compile(open(sys.argv[1]).read(), sys.argv[1], 'exec')" "$PY_SRC" \
     || { echo "ERROR: $PY_SRC is not valid Python - refusing to deploy the patcher." >&2; exit 1; }
 install -m 0755 -o root -g root "$PY_SRC" "$PY_PATH"

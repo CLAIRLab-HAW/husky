@@ -280,7 +280,7 @@ def selftest():
     # Double quotes and loose spacing are the same line to the pattern.
     assert ARM_JS_RX.subn(ARM_JS_SUB, '["platform" ,  "joint_states"]')[1] == 1, "quoting/spacing"
 
-    print("clearpath_custom_setup selftest: OK (arm joint_states remap)")
+    print("boot_patches selftest: OK (arm joint_states remap)")
     return 0
 
 

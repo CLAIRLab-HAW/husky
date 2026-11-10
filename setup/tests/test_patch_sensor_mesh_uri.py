@@ -177,8 +177,8 @@ def test_the_boot_service_delegates_instead_of_restating_the_swap():
     """
     from pathlib import Path
 
-    boot = Path(__file__).resolve().parents[1] / "scripts" / "clearpath_custom_setup.py"
+    boot = Path(__file__).resolve().parents[1] / "scripts" / "boot_patches.py"
     code = "\n".join(line for line in boot.read_text().splitlines() if not line.lstrip().startswith("#"))
     restated = sorted(t for t in (patch.MESH_URI_OLD, patch.MESH_URI_NEW) if t in code)
-    assert not restated, f"clearpath_custom_setup states the mesh URI swap itself again: {restated}"
+    assert not restated, f"boot_patches states the mesh URI swap itself again: {restated}"
     assert "sensor-mesh-uri-patch" in code, "the boot service no longer calls the patcher -- step 2 does nothing."

@@ -102,7 +102,7 @@ will not make this unnecessary by itself -- when upstream changes any of them, i
 the tool says so instead of patching twice.
 
 Invocations:
-  Robot:    from clearpath_custom_setup.py (per boot, before clearpath-robot-generate)
+  Robot:    from boot_patches.py (per boot, before clearpath-robot-generate)
   Offboard: offboard entrypoint.sh, before the generate_* runs
   Manual:   a200-look-patch --dry-run
 

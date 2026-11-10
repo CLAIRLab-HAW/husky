@@ -18,15 +18,15 @@ WHAT IS DIFFERENT FROM THE SRDF PATCH, and it decides the whole design: the SRDF
 be appended before ``</robot>``.  The URDF is not.  There is no ``/clearpath/robot.urdf``; there is a 2,5 kB
 ``robot.urdf.xacro`` wrapper that pulls in the package macros and is expanded at launch.  Appending is therefore
 useless -- you cannot override an existing joint's dynamics by declaring it twice.  The edit has to land IN the
-package macro, which is what ``clearpath_custom_setup.py`` already does for the sensor mesh URIs and the arm
+package macro, which is what ``boot_patches.py`` already does for the sensor mesh URIs and the arm
 joint_states remap.
 
-WHY IT LIVES IN THIS REPO, next to ``clearpath_custom_setup.py`` and not next to ``rg6_moveit_patch``: not one of
+WHY IT LIVES IN THIS REPO, next to ``boot_patches.py`` and not next to ``rg6_moveit_patch``: not one of
 its targets is a gripper part.  It edits the six UR joints, the four wheel joints and the a200 top plate -- the arm
 and the platform, whose setup this repo owns.  ``rg6_moveit_patch`` writes a foreign file about ITS OWN subject (the
 RG6's planning group and named postures); this one is a foreign subject as well, and the marker it leaves in an
 apt-owned file names the repo that has to answer for the line.  The kinship is with the two package edits
-``clearpath_custom_setup.py`` already makes -- the sensor mesh URIs and the arm joint_states remap -- so this is the
+``boot_patches.py`` already makes -- the sensor mesh URIs and the arm joint_states remap -- so this is the
 third of THAT family, not the second of the SRDF's.
 
 THE VALUES ARE DELIBERATELY MISSING.  Every target below stands with ``fragment=None``, which means the tool reports
@@ -44,7 +44,7 @@ all.  The only URDF-shaped pair over there, ``PassiveControllerConfig(damping=0.
 confirms the state below rather than changing it.  R47 carries the measurement.
 
 Invocations:
-  Robot:    from clearpath_custom_setup.py (per boot, before clearpath-robot-generate)
+  Robot:    from boot_patches.py (per boot, before clearpath-robot-generate)
   Offboard: offboard entrypoint.sh, before the generate_* runs
   Manual:   patch_urdf_physics --dry-run
 
