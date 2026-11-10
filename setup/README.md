@@ -4,12 +4,14 @@ The custom setup of the Clearpath a200-0553: an installer that sets up the boot 
 the OnRobot RG6, plus the nodes Clearpath does not ship itself. `config/robot.yaml` is the single source of truth in all
 of this — `/etc/clearpath/robot.yaml` is a symlink to the repo clone.
 
-The repo splits into five, and the boundary is mechanical: `config/` holds the data this robot runs on (`robot.yaml`,
-the UR5 kinematics calibration, the RTDE input recipe), `scripts/` the code the installer deploys — exactly what
-`--verify` hashes —, `tools/` what a human runs by hand against the robot (`wakeup.sh`, `shutdown.sh`,
-`ur-calibrate.sh`, `rg6_stroke_survey.py`),
-`tests/` the pytest suite that runs without a robot, and the installer at the top level ties them together. If a file is
-in the `--verify` manifest it belongs in `scripts/`; if it is not, somebody starts it.
+The repo splits into six, and the boundary is mechanical: `config/` holds the data this robot runs on (`robot.yaml`,
+the UR5 kinematics calibration, the RTDE input recipe), `scripts/` the code the installer deploys, `systemd/` the
+units, the drop-in and the service wrappers it writes — templates whose `@NAME@` placeholders it fills from its own
+variables (`@REAL_USER@`, `@ARM_ROBOT_IP@`, the paths) —, `tools/` what a human runs by hand against the robot
+(`wakeup.sh`, `shutdown.sh`, `ur-calibrate.sh`, `rg6_stroke_survey.py`),
+`tests/` the pytest suite that runs without a robot, and the installer at the top level ties them together. `--verify`
+hashes everything in `scripts/` and `systemd/`, the templates as this run renders them. If a file is in the `--verify`
+manifest it belongs in one of those two; if it is not, somebody starts it.
 
 ## Features
 

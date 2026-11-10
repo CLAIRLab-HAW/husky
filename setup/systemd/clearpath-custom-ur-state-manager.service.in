@@ -1,0 +1,24 @@
+[Unit]
+Description=UR state manager (prepare/recover/ensure_ready/power_off for the UR5)
+# Start after the dashboard_client (which provides the dashboard services). If
+# clearpath-custom-ur-dashboard.service is not installed, this After= is a no-op.
+After=clearpath-manipulators.service clearpath-custom-ur-dashboard.service
+Wants=clearpath-manipulators.service
+# Restart along: when clearpath-manipulators (driver/controller_manager)
+# restarts, this node must restart too - otherwise the robot_state_helper and the
+# adapter point at stale io_and_status_controller topics/services.
+# PartOf propagates stop/restart only one hop and only on a DIRECT job on the
+# target unit. A stack restart via 'systemctl restart clearpath-robot' starts
+# clearpath-manipulators only indirectly -> without PartOf=clearpath-robot this
+# service would not restart along. Hence against BOTH roots (robot +
+# manipulators); stopping clearpath-robot then stops it too.
+PartOf=clearpath-robot.service clearpath-manipulators.service
+
+[Service]
+User=@REAL_USER@
+ExecStart=@USM_WRAPPER@
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

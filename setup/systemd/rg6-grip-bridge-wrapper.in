@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# RG6 gripper over XML-RPC to the OnRobot URCap (rg6_grip_bridge).
+source /etc/clearpath/setup.bash
+exec python3 @RG6_BRIDGE_BIN@

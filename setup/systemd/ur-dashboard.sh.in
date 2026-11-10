@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Starts the ur_robot_driver dashboard_client in the manipulators namespace.
+# Connects to the UR dashboard server (@ARM_ROBOT_IP@:29999) and creates the
+# services @MANIP_NS@/dashboard_client/*.
+source /etc/clearpath/setup.bash
+exec ros2 run ur_robot_driver dashboard_client --ros-args \
+    -r __ns:=@MANIP_NS@ \
+    -r __node:=dashboard_client \
+    -p robot_ip:=@ARM_ROBOT_IP@

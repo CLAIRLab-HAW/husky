@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# UR5 + OnRobot RG6 as diagnostic_msgs for the Clearpath diagnostic_aggregator.
+# No rg6 overlay needed: the gripper state arrives as JSON from the
+# bridge (rg6/bridge_state), so std_msgs is enough -- rg6 ships no
+# interface package at all.
+source /etc/clearpath/setup.bash
+exec python3 @MD_BIN@ --ros-args \
+    -p manipulator_ns:=@MANIP_NS@ \
+    -p robot_ip:=@ARM_ROBOT_IP@

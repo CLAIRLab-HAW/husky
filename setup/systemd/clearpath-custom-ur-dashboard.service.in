@@ -1,0 +1,24 @@
+[Unit]
+Description=UR dashboard_client (power_on/brake_release/unlock_protective_stop/restart_safety)
+# NO coupling to clearpath-manipulators. The dashboard_client speaks solely
+# TCP:29999 with the UR control box and does not need the ROS driver. The
+# watchdog restarts clearpath-manipulators and needs the dashboard services
+# throughout exactly that recovery (get_robot_mode, get_safety_mode,
+# resend_robot_program) - with PartOf it would tear them down itself.
+# The ordering against clearpath-robot stays: only after it does
+# /etc/clearpath/setup.bash exist.
+After=clearpath-robot.service
+# PartOf only against clearpath-robot: a stack stop/restart takes it along, a
+# pure driver restart (clearpath-manipulators) does not.
+PartOf=clearpath-robot.service
+
+[Service]
+User=@REAL_USER@
+ExecStart=@UR_DASH_WRAPPER@
+# dashboard_client exits when the control box (29999) is not ready yet ->
+# retry automatically.
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

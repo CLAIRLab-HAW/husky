@@ -100,7 +100,8 @@ set -euo pipefail
 HUSKY_REPO_URL="https://github.com/CLAIRLab-HAW/husky.git"
 TOOLS_REPO_URL="https://github.com/CLAIRLab-HAW/tools.git"
 # UR control box + manipulators namespace: ONE source for dashboard, watchdog
-# and calibration (the section variables below derive from these).
+# and calibration -- the templates under systemd/ name them as @ARM_ROBOT_IP@ and @MANIP_NS@.
+# shellcheck disable=SC2034  # read only through render_template's ${!var}, which shellcheck cannot follow
 ARM_ROBOT_IP="192.168.131.40"
 MANIP_NS="/a200_0553/manipulators"
 BIN_DIR="/usr/local/bin"
@@ -240,8 +241,6 @@ CRT_PKG_DIR="${CRT_PREFIX}/share/cockpit/robot-tools"
 UR_DASH_WRAPPER="${BIN_DIR}/ur-dashboard.sh"
 UR_DASH_UNIT="clearpath-custom-ur-dashboard.service"
 UR_DASH_UNIT_PATH="/etc/systemd/system/${UR_DASH_UNIT}"
-UR_DASH_NS="${MANIP_NS}"
-UR_DASH_ROBOT_IP="${ARM_ROBOT_IP}"
 
 # ur-state-manager: prepare/recover/ensure_ready/power_off services for the arm.
 # Built (like rg6) and started by a boot service. Needs the
@@ -278,8 +277,6 @@ WD_UNIT="clearpath-custom-manipulators-watchdog.service"
 WD_UNIT_PATH="/etc/systemd/system/${WD_UNIT}"
 WD_TIMER="clearpath-custom-manipulators-watchdog.timer"
 WD_TIMER_PATH="/etc/systemd/system/${WD_TIMER}"
-WD_ROBOT_IP="${ARM_ROBOT_IP}"
-WD_PROGRAM_TOPIC="${MANIP_NS}/io_and_status_controller/robot_program_running"
 # SIGINT stop drop-in for clearpath-manipulators.service (a clean driver
 # shutdown, see the script comment). The drop-in survives Clearpath package
 # updates (it layers over /usr/lib/systemd/system/clearpath-manipulators.service).
@@ -432,6 +429,37 @@ require_repo_file() {
     printf '%s\n' "$path"
 }
 
+# The units, the drop-in and the wrappers are templates of this repo (systemd/*.in), not heredocs: a unit inside a
+# string is invisible to every editor and to systemd-analyze, and --verify could only hash what is a file.  Every
+# @NAME@ becomes the value of the variable NAME of this run (REAL_USER, the IPs, the paths above), so the template
+# holds no second copy of them.  A @NAME@ without a variable is fatal: a unit with a literal @REAL_USER@ in User=
+# fails at its start, long after this run said "OK".
+render_template() {
+    local src="$1" text var
+    text="$(cat "$src")"
+    for var in $(grep -o '@[A-Z_][A-Z0-9_]*@' "$src" | tr -d @ | sort -u); do
+        if [ -z "${!var+set}" ]; then
+            echo "ERROR: ${src} names @${var}@, and this installer has no variable ${var}." >&2
+            return 1
+        fi
+        # Only the inner quotes: since bash 5.2 an unquoted & in the replacement stands for the match, and inside
+        # outer quotes the inner ones land in the unit as literal characters (User="robot"; 3.2 and 5.3 measured).
+        text=${text//"@${var}@"/"${!var}"}
+    done
+    printf '%s\n' "$text"
+}
+
+# install_template REL DST MODE: renders systemd/<REL> to DST, root-owned.  Call it plainly, not in a condition:
+# the abort of require_repo_file and render_template reaches the installer only through 'set -e'.
+install_template() {
+    local src tmp
+    src="$(require_repo_file "$1")"
+    tmp="$(mktemp)"
+    render_template "$src" > "$tmp"
+    install -m "$3" -o root -g root "$tmp" "$2"
+    rm -f "$tmp"
+}
+
 # ---------------------------------------------------------------------------
 # --verify: checks whether the rolled-out copies still match what is in the
 # checkout.  These artefacts hang off NO git -- under /usr/local/bin sit
@@ -460,6 +488,23 @@ verify_deployments() {
         "${SENSOR_MESH_URI_PATCH_BIN}|scripts/sensor_mesh_uri_patch.py"
         "${RIDE_HEIGHT_PATCH_BIN}|scripts/ride_height_patch.py"
         "${A200_LOOK_PATCH_BIN}|scripts/a200_look_patch.py"
+        # Templates: hashed as this run renders them.
+        "${UNIT_PATH}|systemd/clearpath-custom-setup.service.in"
+        "${UR_DASH_WRAPPER}|systemd/ur-dashboard.sh.in"
+        "${UR_DASH_UNIT_PATH}|systemd/clearpath-custom-ur-dashboard.service.in"
+        "${USM_WRAPPER}|systemd/ur-state-manager.sh.in"
+        "${USM_UNIT_PATH}|systemd/clearpath-custom-ur-state-manager.service.in"
+        "${WD_UNIT_PATH}|systemd/clearpath-custom-manipulators-watchdog.service.in"
+        "${WD_TIMER_PATH}|systemd/clearpath-custom-manipulators-watchdog.timer.in"
+        "${WD_MANIP_DROPIN}|systemd/clearpath-manipulators.service.d/override.conf.in"
+        "${JS_WRAPPER}|systemd/joint-states.sh.in"
+        "${JS_UNIT_PATH}|systemd/clearpath-custom-joint-states.service.in"
+        "${OCTO_WRAPPER}|systemd/octomap-feed.sh.in"
+        "${OCTO_UNIT_PATH}|systemd/clearpath-custom-octomap-feed.service.in"
+        "${MD_WRAPPER}|systemd/manipulator-diagnostics.sh.in"
+        "${MD_UNIT_PATH}|systemd/clearpath-custom-manipulator-diagnostics.service.in"
+        "${RG6_BRIDGE_WRAPPER}|systemd/rg6-grip-bridge-wrapper.in"
+        "${RG6_BRIDGE_UNIT_PATH}|systemd/clearpath-custom-rg6-grip-bridge.service.in"
     )
     echo "=== --verify: rolled-out copies against the checkout ==="
     for entry in "${MANIFEST[@]}"; do
@@ -475,7 +520,10 @@ verify_deployments() {
             status="SOURCE-MISSING"; rc=1
         else
             h_dst="$(sha256sum "$dst" | cut -d" " -f1)"
-            h_src="$(sha256sum "$src" | cut -d" " -f1)"
+            case "$rel" in
+                *.in) h_src="$(render_template "$src" | sha256sum | cut -d" " -f1)" ;;
+                *) h_src="$(sha256sum "$src" | cut -d" " -f1)" ;;
+            esac
             if [ "$h_dst" = "$h_src" ]; then status="OK"; else status="DEVIATION"; rc=1; fi
         fi
         printf "  %-16s %-46s ◀─ %s\n" "$status" "$dst" "${src:-${rel} (not found)}"
@@ -664,41 +712,7 @@ install -m 0755 -o root -g root "$PY_SRC" "$PY_PATH"
 python3 "$PY_PATH" --selftest || echo "    WARN: selftest failed - installed anyway (check the logs)."
 
 echo ">>> Installing ${UNIT_PATH}"
-cat > "$UNIT_PATH" <<'UNIT_EOF'
-[Unit]
-Description=Custom Clearpath setup: patch generated configs before the sub-services start
-# AFTER the generation: control.yaml and foxglove_bridge.yaml are created in
-# clearpath-robot.service ExecStartPre (/usr/sbin/clearpath-robot-generate).
-After=clearpath-robot.service
-Wants=clearpath-robot.service
-# Restart along: clearpath-robot.service regenerates the configs in
-# ExecStartPre (clearpath-robot-generate) -> the patches get overwritten.
-# PartOf makes this service run again on EVERY restart of
-# clearpath-robot.service (not only at boot) and patch the configs anew.
-# Propagates stop AND restart.
-PartOf=clearpath-robot.service
-# BEFORE the consumers of the patched files:
-#   - clearpath-platform.service starts the foxglove_bridge, which serves the
-#     patched sensor meshes (its asset_uri_allowlist comes from robot.yaml and
-#     needs no ordering).
-#   - clearpath-manipulators.service reads control.launch.py -> the arm JSB
-#     joint_states patch (move_arm_joint_states) MUST take effect
-#     before that.
-Before=clearpath-platform.service clearpath-manipulators.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-# A clean journal identity:  journalctl -t clearpath-custom-setup -b
-SyslogIdentifier=clearpath-custom-setup
-StandardOutput=journal
-StandardError=journal
-ExecStart=/usr/local/bin/clearpath-custom-setup.py
-
-[Install]
-WantedBy=multi-user.target
-UNIT_EOF
-chmod 0644 "$UNIT_PATH"
+install_template systemd/clearpath-custom-setup.service.in "$UNIT_PATH" 0644
 else
     echo ">>> clearpath-custom-setup: skipped (the existing installation stays)."
 fi
@@ -1130,7 +1144,7 @@ install_repo_tool scripts/a200_look_patch.py "$A200_LOOK_PATCH_BIN" \
 # restart_safety/get_robot_mode/get_safety_mode). Its own service, no build:
 # 'ros2 run ur_robot_driver dashboard_client' connects to <ip>:29999.
 # __node:=dashboard_client is pinned -> the services land deterministically under
-# ${UR_DASH_NS}/dashboard_client/* (matching the ur_state_manager node's default).
+# ${MANIP_NS}/dashboard_client/* (matching the ur_state_manager node's default).
 DO_DASH=1
 if [ -f "$UR_DASH_UNIT_PATH" ]; then
     confirm ">>> ${UR_DASH_UNIT} is already installed. Update?" || DO_DASH=0
@@ -1139,46 +1153,9 @@ else
 fi
 if [ "$DO_DASH" -eq 1 ]; then
     echo ">>> Installing ${UR_DASH_WRAPPER} + ${UR_DASH_UNIT}"
-    cat > "$UR_DASH_WRAPPER" <<EOF
-#!/usr/bin/env bash
-# Starts the ur_robot_driver dashboard_client in the manipulators namespace.
-# Connects to the UR dashboard server (${UR_DASH_ROBOT_IP}:29999) and creates the
-# services ${UR_DASH_NS}/dashboard_client/*.
-source /etc/clearpath/setup.bash
-exec ros2 run ur_robot_driver dashboard_client --ros-args \\
-    -r __ns:=${UR_DASH_NS} \\
-    -r __node:=dashboard_client \\
-    -p robot_ip:=${UR_DASH_ROBOT_IP}
-EOF
-    chmod 0755 "$UR_DASH_WRAPPER"
+    install_template systemd/ur-dashboard.sh.in "$UR_DASH_WRAPPER" 0755
 
-    cat > "$UR_DASH_UNIT_PATH" <<EOF
-[Unit]
-Description=UR dashboard_client (power_on/brake_release/unlock_protective_stop/restart_safety)
-# NO coupling to clearpath-manipulators. The dashboard_client speaks solely
-# TCP:29999 with the UR control box and does not need the ROS driver. The
-# watchdog restarts clearpath-manipulators and needs the dashboard services
-# throughout exactly that recovery (get_robot_mode, get_safety_mode,
-# resend_robot_program) - with PartOf it would tear them down itself.
-# The ordering against clearpath-robot stays: only after it does
-# /etc/clearpath/setup.bash exist.
-After=clearpath-robot.service
-# PartOf only against clearpath-robot: a stack stop/restart takes it along, a
-# pure driver restart (clearpath-manipulators) does not.
-PartOf=clearpath-robot.service
-
-[Service]
-User=${REAL_USER}
-ExecStart=${UR_DASH_WRAPPER}
-# dashboard_client exits when the control box (29999) is not ready yet ->
-# retry automatically.
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    chmod 0644 "$UR_DASH_UNIT_PATH"
+    install_template systemd/clearpath-custom-ur-dashboard.service.in "$UR_DASH_UNIT_PATH" 0644
 else
     echo ">>> UR dashboard_client: skipped."
 fi
@@ -1195,49 +1172,9 @@ else
 fi
 if [ "$DO_USM" -eq 1 ]; then
     echo ">>> Installing ${USM_WRAPPER} + ${USM_UNIT}"
-    cat > "$USM_WRAPPER" <<EOF
-#!/usr/bin/env bash
-# Starts the ur_state_manager node (prepare/recover/ensure_ready/power_off).
-# start_dashboard_client:=false -> the dashboard_client runs via clearpath-custom-ur-dashboard.service.
-# auto_recover:=false -> the auto_recover watcher is OFF: it would release the
-#   brakes and start external control via 'recover' (arm -> RUNNING). After a
-#   restart we want ONLY 'driver connected' (the arm stays IDLE, brakes engaged,
-#   no automatic brake release or powering). To move it, the operator calls
-#   'prepare' by hand. The driver connect happens on its own (JSC); the watchdog
-#   is the emergency brake (driver restart only, no brakes/powering).
-source /etc/clearpath/setup.bash
-source ${HUSKY_WS}/install/setup.bash
-exec ros2 launch husky_ur_state husky_ur_state.launch.py start_dashboard_client:=false auto_recover:=false
-EOF
-    chmod 0755 "$USM_WRAPPER"
+    install_template systemd/ur-state-manager.sh.in "$USM_WRAPPER" 0755
 
-    cat > "$USM_UNIT_PATH" <<EOF
-[Unit]
-Description=UR state manager (prepare/recover/ensure_ready/power_off for the UR5)
-# Start after the dashboard_client (which provides the dashboard services). If
-# clearpath-custom-ur-dashboard.service is not installed, this After= is a no-op.
-After=clearpath-manipulators.service clearpath-custom-ur-dashboard.service
-Wants=clearpath-manipulators.service
-# Restart along: when clearpath-manipulators (driver/controller_manager)
-# restarts, this node must restart too - otherwise the robot_state_helper and the
-# adapter point at stale io_and_status_controller topics/services.
-# PartOf propagates stop/restart only one hop and only on a DIRECT job on the
-# target unit. A stack restart via 'systemctl restart clearpath-robot' starts
-# clearpath-manipulators only indirectly -> without PartOf=clearpath-robot this
-# service would not restart along. Hence against BOTH roots (robot +
-# manipulators); stopping clearpath-robot then stops it too.
-PartOf=clearpath-robot.service clearpath-manipulators.service
-
-[Service]
-User=${REAL_USER}
-ExecStart=${USM_WRAPPER}
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    chmod 0644 "$USM_UNIT_PATH"
+    install_template systemd/clearpath-custom-ur-state-manager.service.in "$USM_UNIT_PATH" 0644
 else
     echo ">>> ur-state-manager: skipped."
 fi
@@ -1272,48 +1209,9 @@ if [ "$DO_WD" -eq 1 ]; then
         || { echo "ERROR: $WD_SRC is not valid bash - refusing to deploy the watchdog." >&2; exit 1; }
     install -m 0755 -o root -g root "$WD_SRC" "$WD_WRAPPER"
 
-    cat > "$WD_UNIT_PATH" <<EOF
-[Unit]
-Description=Watchdog check: restart clearpath-manipulators when the arm is reachable but the UR driver is not connected
-# Only check after the driver; NO Wants/PartOf (a purely periodic check, it must
-# not start or stop the driver along with it).
-After=clearpath-manipulators.service
+    install_template systemd/clearpath-custom-manipulators-watchdog.service.in "$WD_UNIT_PATH" 0644
 
-[Service]
-Type=oneshot
-# Runs as root (the default) -> may systemctl restart. The ROS check in the
-# wrapper switches to ${REAL_USER} itself via 'sudo -u'.
-ExecStart=${WD_WRAPPER} ${WD_ROBOT_IP} ${WD_PROGRAM_TOPIC} ${REAL_USER} ${USER_HOME}
-# The recovery blocks on the systemctl restart plus dashboard calls and polls.
-# With the SIGINT stop drop-in (WD_MANIP_DROPIN) the driver stops in ~1-3s;
-# without the drop-in SIGTERM can take up to 90s until SIGKILL. The systemd
-# default timeout (90s) would kill the oneshot midway -> generous (headroom for a
-# slow stop plus the recovery).
-TimeoutStartSec=300
-# The script's echo lines are collectable under journalctl -t manipulators-watchdog.
-SyslogIdentifier=manipulators-watchdog
-EOF
-    chmod 0644 "$WD_UNIT_PATH"
-
-    cat > "$WD_TIMER_PATH" <<EOF
-[Unit]
-Description=Periodic manipulators-watchdog check (driver reconnect on a late arm power-up OR a stuck reconnect after a service restart)
-
-[Timer]
-# Start only after the normal boot ramp-up time (give the driver time), then
-# regularly. A cadence of 10s (instead of 30s): that way the watchdog also fires
-# within ~10s after a clearpath-robot.service restart with the arm already
-# powered, as soon as the JSC stream (the health signal) stops. The grace timeout
-# in the script (JS_TIMEOUT=25s) prevents false alarms during the ~15s
-# manipulators ramp-up.
-OnBootSec=90
-OnUnitActiveSec=10
-AccuracySec=2
-
-[Install]
-WantedBy=timers.target
-EOF
-    chmod 0644 "$WD_TIMER_PATH"
+    install_template systemd/clearpath-custom-manipulators-watchdog.timer.in "$WD_TIMER_PATH" 0644
 
     # --- SIGINT stop drop-in for clearpath-manipulators.service -------------
     # ROS nodes (ros2_control_node, move_group, robot_state_pub) react to SIGINT
@@ -1325,23 +1223,7 @@ EOF
     # layers over the Clearpath unit (/usr/lib/systemd/system/...) and survives
     # package updates.
     install -d -m 0755 "$WD_MANIP_DROPIN_DIR"
-    cat > "$WD_MANIP_DROPIN" <<'DROPEOF'
-[Unit]
-Description=Hard stop parameters for clearpath-manipulators (a clean driver shutdown)
-
-[Service]
-KillSignal=SIGINT
-TimeoutStopSec=95
-KillMode=control-group
-SendSIGKILL=yes
-# ros2_control_node puts its control thread on SCHED_FIFO via
-# configure_sched_fifo() (default priority 50). Systemd units do NOT read
-# /etc/security/limits.conf (pam_limits only applies to login sessions) -> without
-# LimitRTPRIO that fails with EPERM and the loop runs SCHED_OTHER.
-# Measured 2026-07-29: overruns at 125 Hz (cycles up to 18.5 ms).
-LimitRTPRIO=99
-DROPEOF
-    chmod 0644 "$WD_MANIP_DROPIN"
+    install_template systemd/clearpath-manipulators.service.d/override.conf.in "$WD_MANIP_DROPIN" 0644
 else
     echo ">>> manipulators-watchdog: skipped."
 fi
@@ -1358,53 +1240,9 @@ fi
 # move_arm_joint_states in clearpath-custom-setup.py) and the gripper publishes on
 # manipulators/endeffectors/joint_states -- which rg6_grip_bridge does (5 Hz).
 echo ">>> Installing ${JS_WRAPPER} + ${JS_UNIT}"
-cat > "$JS_WRAPPER" <<EOF
-#!/usr/bin/env bash
-# Robot-wide joint_states aggregation + legacy bus relays (see joint_states.launch.py).
-source /etc/clearpath/setup.bash
-source ${RG6_WS}/install/setup.bash
-exec ros2 launch gripper_control joint_states.launch.py
-EOF
-chmod 0755 "$JS_WRAPPER"
+install_template systemd/joint-states.sh.in "$JS_WRAPPER" 0755
 
-cat > "$JS_UNIT_PATH" <<EOF
-[Unit]
-Description=Robot-wide joint_states aggregation + legacy bus relays
-# Needs the source topics: wheels (clearpath-platform) + arm
-# (clearpath-manipulators) + gripper (${RG6_BRIDGE_UNIT}). The gripper source is
-# the bridge. An After= on a name that does not exist orders against nothing:
-# systemd carries it without complaint, and the ordering this is about would be
-# gone unnoticed.
-# PartOf: the relay/aggregator (the custom gripper_control nodes joint_state_relay/
-# joint_state_aggregator) does NOT resubscribe reliably under rmw_zenoh when the
-# source publishes anew after a restart -> without restarting along, the rg6
-# joints drop out of the TF feed and the gripper TF goes flat. That is why the
-# unit also hangs off the bridge: a mere bridge restart is exactly that case.
-# The arm relay is unaffected (the arm JSC goes straight into
-# manipulators/joint_states).
-After=clearpath-platform.service clearpath-manipulators.service ${RG6_BRIDGE_UNIT}
-Wants=clearpath-platform.service
-# Restart along against BOTH roots (robot + manipulators): PartOf propagates
-# stop/restart only one hop and only on a DIRECT job. A stack restart via
-# 'systemctl restart clearpath-robot' starts clearpath-manipulators only
-# indirectly -> without PartOf=clearpath-robot the rg6 joint relays/aggregators
-# would not restart along -> the gripper TF goes flat. Stopping clearpath-robot
-# stops it too.
-# ${RG6_BRIDGE_UNIT} is in the list because the bridge is the gripper source and
-# restarts on its own (Restart=on-failure, or by hand) -- without this entry the
-# relay survives the change but does not resubscribe.
-PartOf=clearpath-robot.service clearpath-manipulators.service ${RG6_BRIDGE_UNIT}
-
-[Service]
-User=${REAL_USER}
-ExecStart=${JS_WRAPPER}
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-chmod 0644 "$JS_UNIT_PATH"
+install_template systemd/clearpath-custom-joint-states.service.in "$JS_UNIT_PATH" 0644
 
 # --- octomap feed (optional): the dense obstacle layer for move_group ------
 # Step 2 of the HRL obstacle architecture: move_group maintains an octomap
@@ -1425,33 +1263,9 @@ if [ "$DO_OCTO" -eq 1 ]; then
     # the conversion (numpy only, no ROS needed).  Wrapper + unit only land while a usable copy does.
     if install_repo_tool scripts/octomap_feed.py "$OCTO_FEED_BIN" python3 "$OCTO_FEED_BIN" --selftest; then
         echo ">>> Installing ${OCTO_WRAPPER} + ${OCTO_UNIT}"
-        cat > "$OCTO_WRAPPER" <<EOF
-#!/usr/bin/env bash
-# Throttled depth->PointCloud2 source for MoveIt's octomap (octomap_feed).
-source /etc/clearpath/setup.bash
-exec python3 ${OCTO_FEED_BIN}
-EOF
-        chmod 0755 "$OCTO_WRAPPER"
+        install_template systemd/octomap-feed.sh.in "$OCTO_WRAPPER" 0755
 
-        cat > "$OCTO_UNIT_PATH" <<EOF
-[Unit]
-Description=Octomap feed: depth -> PointCloud2 for MoveIt's occupancy map monitor
-After=clearpath-sensors.service
-Wants=clearpath-sensors.service
-# Stack restart behaviour as for the other custom units: hang off both roots
-# (the practical stack restart goes through clearpath-robot).
-PartOf=clearpath-robot.service clearpath-sensors.service
-
-[Service]
-User=${REAL_USER}
-ExecStart=${OCTO_WRAPPER}
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-        chmod 0644 "$OCTO_UNIT_PATH"
+        install_template systemd/clearpath-custom-octomap-feed.service.in "$OCTO_UNIT_PATH" 0644
         # A pure CHECK (no apt!): the PointCloudOctomapUpdater comes from
         # moveit_ros_perception. Without that package the feed still runs, but
         # move_group has no updater to hand the cloud to - installing it is an
@@ -1582,38 +1396,9 @@ if [ "$DO_MD" -eq 1 ]; then
     # the evaluation logic (pure Python, no ROS needed).  Wrapper + unit only land while a usable copy does.
     if install_repo_tool scripts/manipulator_diagnostics.py "$MD_BIN" python3 "$MD_BIN" --selftest; then
         echo ">>> Installing ${MD_WRAPPER} + ${MD_UNIT}"
-        cat > "$MD_WRAPPER" <<EOF
-#!/usr/bin/env bash
-# UR5 + OnRobot RG6 as diagnostic_msgs for the Clearpath diagnostic_aggregator.
-# No rg6 overlay needed: the gripper state arrives as JSON from the
-# bridge (rg6/bridge_state), so std_msgs is enough -- rg6 ships no
-# interface package at all.
-source /etc/clearpath/setup.bash
-exec python3 ${MD_BIN} --ros-args \\
-    -p manipulator_ns:=${MANIP_NS} \\
-    -p robot_ip:=${ARM_ROBOT_IP}
-EOF
-        chmod 0755 "$MD_WRAPPER"
+        install_template systemd/manipulator-diagnostics.sh.in "$MD_WRAPPER" 0755
 
-        cat > "$MD_UNIT_PATH" <<EOF
-[Unit]
-Description=Manipulator diagnostics: UR5 + RG6 -> diagnostic_msgs (Cockpit/diagnostics_agg)
-After=clearpath-manipulators.service ${RG6_BRIDGE_UNIT}
-Wants=clearpath-manipulators.service
-# Hang off BOTH roots: the practical stack restart goes through clearpath-robot,
-# the direct driver restart through clearpath-manipulators.
-PartOf=clearpath-robot.service clearpath-manipulators.service
-
-[Service]
-User=${REAL_USER}
-ExecStart=${MD_WRAPPER}
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-        chmod 0644 "$MD_UNIT_PATH"
+        install_template systemd/clearpath-custom-manipulator-diagnostics.service.in "$MD_UNIT_PATH" 0644
     else
         echo "    WARN: manipulator_diagnostics.py neither loadable nor present locally - manipulator diagnostics skipped."
     fi
@@ -1751,39 +1536,9 @@ if [ "$DO_RG6_BRIDGE" -eq 1 ]; then
     python3 "$RG6_BRIDGE_BIN" --selftest \
         || echo "    WARN: selftest failed - the service is installed anyway (check the logs)."
 
-    cat > "$RG6_BRIDGE_WRAPPER" <<EOF
-#!/usr/bin/env bash
-# RG6 gripper over XML-RPC to the OnRobot URCap (rg6_grip_bridge).
-source /etc/clearpath/setup.bash
-exec python3 ${RG6_BRIDGE_BIN}
-EOF
-    chmod 0755 "$RG6_BRIDGE_WRAPPER"
+    install_template systemd/rg6-grip-bridge-wrapper.in "$RG6_BRIDGE_WRAPPER" 0755
 
-    cat > "$RG6_BRIDGE_UNIT_PATH" <<EOF
-[Unit]
-Description=RG6 gripper bridge (XML-RPC to the OnRobot URCap)
-After=clearpath-manipulators.service
-Wants=clearpath-manipulators.service
-PartOf=clearpath-robot.service clearpath-manipulators.service
-# WITHOUT these two a broken unit spins FOREVER: the systemd default is burst=5
-# in 10 s, and with RestartSec=5 only two attempts fit into that -- so the limit
-# is never reached. Worked out on 2026-08-17. 120 s, because five attempts at 5 s
-# take about 25 s; the unit then stays visibly 'failed' instead of hiding
-# itself.
-StartLimitIntervalSec=120
-StartLimitBurst=5
-
-[Service]
-Type=simple
-User=${REAL_USER}
-ExecStart=${RG6_BRIDGE_WRAPPER}
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    chmod 0644 "$RG6_BRIDGE_UNIT_PATH"
+    install_template systemd/clearpath-custom-rg6-grip-bridge.service.in "$RG6_BRIDGE_UNIT_PATH" 0644
     systemctl daemon-reload
     systemctl enable "$RG6_BRIDGE_UNIT" >/dev/null 2>&1 \
         || echo "    WARN: systemctl enable ${RG6_BRIDGE_UNIT} failed."

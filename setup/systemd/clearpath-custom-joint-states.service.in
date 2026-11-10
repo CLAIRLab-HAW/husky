@@ -1,0 +1,35 @@
+[Unit]
+Description=Robot-wide joint_states aggregation + legacy bus relays
+# Needs the source topics: wheels (clearpath-platform) + arm
+# (clearpath-manipulators) + gripper (@RG6_BRIDGE_UNIT@). The gripper source is
+# the bridge. An After= on a name that does not exist orders against nothing:
+# systemd carries it without complaint, and the ordering this is about would be
+# gone unnoticed.
+# PartOf: the relay/aggregator (the custom gripper_control nodes joint_state_relay/
+# joint_state_aggregator) does NOT resubscribe reliably under rmw_zenoh when the
+# source publishes anew after a restart -> without restarting along, the rg6
+# joints drop out of the TF feed and the gripper TF goes flat. That is why the
+# unit also hangs off the bridge: a mere bridge restart is exactly that case.
+# The arm relay is unaffected (the arm JSC goes straight into
+# manipulators/joint_states).
+After=clearpath-platform.service clearpath-manipulators.service @RG6_BRIDGE_UNIT@
+Wants=clearpath-platform.service
+# Restart along against BOTH roots (robot + manipulators): PartOf propagates
+# stop/restart only one hop and only on a DIRECT job. A stack restart via
+# 'systemctl restart clearpath-robot' starts clearpath-manipulators only
+# indirectly -> without PartOf=clearpath-robot the rg6 joint relays/aggregators
+# would not restart along -> the gripper TF goes flat. Stopping clearpath-robot
+# stops it too.
+# @RG6_BRIDGE_UNIT@ is in the list because the bridge is the gripper source and
+# restarts on its own (Restart=on-failure, or by hand) -- without this entry the
+# relay survives the change but does not resubscribe.
+PartOf=clearpath-robot.service clearpath-manipulators.service @RG6_BRIDGE_UNIT@
+
+[Service]
+User=@REAL_USER@
+ExecStart=@JS_WRAPPER@
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

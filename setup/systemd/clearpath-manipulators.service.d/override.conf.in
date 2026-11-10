@@ -1,0 +1,14 @@
+[Unit]
+Description=Hard stop parameters for clearpath-manipulators (a clean driver shutdown)
+
+[Service]
+KillSignal=SIGINT
+TimeoutStopSec=95
+KillMode=control-group
+SendSIGKILL=yes
+# ros2_control_node puts its control thread on SCHED_FIFO via
+# configure_sched_fifo() (default priority 50). Systemd units do NOT read
+# /etc/security/limits.conf (pam_limits only applies to login sessions) -> without
+# LimitRTPRIO that fails with EPERM and the loop runs SCHED_OTHER.
+# Measured 2026-07-29: overruns at 125 Hz (cycles up to 18.5 ms).
+LimitRTPRIO=99

@@ -1,0 +1,22 @@
+[Unit]
+Description=RG6 gripper bridge (XML-RPC to the OnRobot URCap)
+After=clearpath-manipulators.service
+Wants=clearpath-manipulators.service
+PartOf=clearpath-robot.service clearpath-manipulators.service
+# WITHOUT these two a broken unit spins FOREVER: the systemd default is burst=5
+# in 10 s, and with RestartSec=5 only two attempts fit into that -- so the limit
+# is never reached. Worked out on 2026-08-17. 120 s, because five attempts at 5 s
+# take about 25 s; the unit then stays visibly 'failed' instead of hiding
+# itself.
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=@REAL_USER@
+ExecStart=@RG6_BRIDGE_WRAPPER@
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

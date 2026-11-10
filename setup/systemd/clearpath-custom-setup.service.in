@@ -1,0 +1,32 @@
+[Unit]
+Description=Custom Clearpath setup: patch generated configs before the sub-services start
+# AFTER the generation: control.yaml and foxglove_bridge.yaml are created in
+# clearpath-robot.service ExecStartPre (/usr/sbin/clearpath-robot-generate).
+After=clearpath-robot.service
+Wants=clearpath-robot.service
+# Restart along: clearpath-robot.service regenerates the configs in
+# ExecStartPre (clearpath-robot-generate) -> the patches get overwritten.
+# PartOf makes this service run again on EVERY restart of
+# clearpath-robot.service (not only at boot) and patch the configs anew.
+# Propagates stop AND restart.
+PartOf=clearpath-robot.service
+# BEFORE the consumers of the patched files:
+#   - clearpath-platform.service starts the foxglove_bridge, which serves the
+#     patched sensor meshes (its asset_uri_allowlist comes from robot.yaml and
+#     needs no ordering).
+#   - clearpath-manipulators.service reads control.launch.py -> the arm JSB
+#     joint_states patch (move_arm_joint_states) MUST take effect
+#     before that.
+Before=clearpath-platform.service clearpath-manipulators.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# A clean journal identity:  journalctl -t clearpath-custom-setup -b
+SyslogIdentifier=clearpath-custom-setup
+StandardOutput=journal
+StandardError=journal
+ExecStart=@PY_PATH@
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Starts the ur_state_manager node (prepare/recover/ensure_ready/power_off).
+# start_dashboard_client:=false -> the dashboard_client runs via clearpath-custom-ur-dashboard.service.
+# auto_recover:=false -> the auto_recover watcher is OFF: it would release the
+#   brakes and start external control via 'recover' (arm -> RUNNING). After a
+#   restart we want ONLY 'driver connected' (the arm stays IDLE, brakes engaged,
+#   no automatic brake release or powering). To move it, the operator calls
+#   'prepare' by hand. The driver connect happens on its own (JSC); the watchdog
+#   is the emergency brake (driver restart only, no brakes/powering).
+source /etc/clearpath/setup.bash
+source @HUSKY_WS@/install/setup.bash
+exec ros2 launch husky_ur_state husky_ur_state.launch.py start_dashboard_client:=false auto_recover:=false

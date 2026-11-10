@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Robot-wide joint_states aggregation + legacy bus relays (see joint_states.launch.py).
+source /etc/clearpath/setup.bash
+source @RG6_WS@/install/setup.bash
+exec ros2 launch gripper_control joint_states.launch.py
