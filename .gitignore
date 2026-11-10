@@ -30,3 +30,8 @@ src/blickfeld_qb2_ros2_driver/
 # connector's two STEPs), whose licenses do not allow redistributing them, and the scripts that wrote those meshes.
 # The meshes are committed and nothing regenerates them; the scripts' last versioned state is husky 1453d06.
 /.local/
+
+# The owner's local tools for setup/: one-off measurements whose R point is closed (rg6_stroke_survey.py, R19), kept
+# on the machine rather than shipped with the robot's checkout.  The survey's last versioned state is husky
+# b15f69e.
+/setup/.local/

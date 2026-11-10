@@ -8,7 +8,7 @@ The repo splits into six, and the boundary is mechanical: `config/` holds the da
 the UR5 kinematics calibration, the RTDE input recipe), `scripts/` the code the installer deploys, `systemd/` the
 units, the drop-in and the service wrappers it writes — templates whose `@NAME@` placeholders it fills from its own
 variables (`@REAL_USER@`, `@ARM_ROBOT_IP@`, the paths) —, `tools/` what a human runs by hand against the robot
-(`wakeup.sh`, `shutdown.sh`, `ur-calibrate.sh`, `rg6_stroke_survey.py`),
+(`wakeup.sh`, `shutdown.sh`, `ur-calibrate.sh`),
 `tests/` the pytest suite that runs without a robot, and the installer at the top level ties them together. `--verify`
 hashes everything in `scripts/` and `systemd/`, the templates as this run renders them. If a file is in the `--verify`
 manifest it belongs in one of those two; if it is not, somebody starts it.
