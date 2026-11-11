@@ -1,10 +1,13 @@
-"""octomap-feed's depth image to point cloud, beyond what ``--selftest`` asserts."""
+"""The octomap feed's depth image to point cloud, beyond what ``--selftest`` asserts."""
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import numpy as np
 import pytest
-from octomap_feed import depth_to_cloud, selftest
+from husky_octomap_feed.feed import depth_to_cloud, selftest
 
 #: A 4x6 camera with its principal point on pixel (u 2, v 1) and different focal lengths, so x and y cannot swap.
 K = np.array([[2.0, 0.0, 2.0], [0.0, 4.0, 1.0], [0.0, 0.0, 1.0]])
@@ -49,3 +52,12 @@ def test_the_stride_keeps_every_nth_row_and_column_and_never_less_than_every_one
 def test_nothing_usable_gives_an_empty_cloud_of_the_right_shape(depth, k):
     cloud = depth_to_cloud(depth, k)
     assert cloud.shape == (0, 3) and cloud.dtype == np.float32
+
+
+def test_the_launch_starts_the_executable_setup_py_installs():
+    """``ros2 launch`` resolves ``executable`` in lib/husky_octomap_feed, where setup.cfg puts the console scripts."""
+    package = Path(__file__).resolve().parents[2] / "src" / "husky_octomap_feed"
+    entry = re.search(r'"(\w+) = husky_octomap_feed\.feed:main"', (package / "setup.py").read_text(encoding="utf-8"))
+    assert entry, "setup.py declares no console script for husky_octomap_feed.feed:main"
+    launch = (package / "launch" / "octomap_feed.launch.py").read_text(encoding="utf-8")
+    assert f'executable="{entry.group(1)}"' in launch

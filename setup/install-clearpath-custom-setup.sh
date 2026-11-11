@@ -167,7 +167,7 @@ arm_files() {
         "$1"
 }
 
-# The octomap feed starts under robot.yaml's platform.extras.launch (husky_bringup's octomap_feed.launch.py), like the
+# The octomap feed starts under robot.yaml's platform.extras.launch (husky_octomap_feed's octomap_feed.launch.py), like the
 # lidar below.  Its former unit, wrapper and root-owned copy are removed where they are still installed.
 RETIRED_OCTO_BIN="${BIN_DIR}/octomap-feed"
 RETIRED_OCTO_WRAPPER="${BIN_DIR}/octomap-feed.sh"
@@ -979,7 +979,8 @@ fi
 # meshes), husky_bringup and husky_bt_joy (the launches robot.yaml's platform.extras.launch starts),
 # rs16_description and qb2_description (the two lidars' macros; both built, so that switching the model in robot.yaml
 # needs no build), husky_lidar and husky_navigation (the lidar's driver configuration, self filter and scan),
-# husky_ur_state and husky_manipulator_diagnostics (the nodes of two custom units).  Built after tools: the extras'
+# husky_ur_state and husky_manipulator_diagnostics (the nodes of two custom units), husky_octomap_feed (another
+# platform.extras.launch entry).  Built after tools: the extras'
 # tool files include tool_description's macros, at run time.  The Qb2 driver, cloned into src/ where robot.yaml names
 # the Qb2, is built by the lidar block below and left out here.
 DO_HUSKY=1
@@ -991,7 +992,7 @@ if [ "$DO_HUSKY" -eq 1 ]; then
     sudo -u "$REAL_USER" env HOME="$USER_HOME" bash -lc \
         "source '$ROS_SETUP' && cd '$HUSKY_WS' && colcon build --packages-select husky_extras_description \
          husky_bringup husky_bt_joy rs16_description qb2_description husky_lidar husky_navigation \
-         husky_ur_state husky_manipulator_diagnostics" \
+         husky_ur_state husky_manipulator_diagnostics husky_octomap_feed" \
         || echo "    WARN: colcon build failed - package://husky_extras_description stays unresolvable (arch without a" \
                 "mesh), and clearpath-platform-extras finds no husky_bringup (no lidar)."
 else
@@ -1691,7 +1692,7 @@ echo "  ${SENSOR_MESH_URI_PATCH_BIN}: root-owned copy of scripts/patch_sensor_me
 echo "  ${RIDE_HEIGHT_PATCH_BIN}    : root-owned copy of scripts/patch_ride_height.py (same; offboard too)"
 [ -f "$A200_LOOK_PATCH_BIN" ] && \
 echo "  ${A200_LOOK_PATCH_BIN}   : root-owned copy of scripts/patch_a200_look.py (same; offboard too)"
-echo "  husky_bringup's octomap_feed : depth─▶PointCloud2 for MoveIt's octomap; clearpath-platform-extras starts it"
+echo "  husky_octomap_feed : depth─▶PointCloud2 for MoveIt's octomap; clearpath-platform-extras starts it"
 [ -z "$(lidar_missing)" ] && \
 echo "  lidar apt packages : rslidar_sdk, pointcloud_to_laserscan, geometric_shapes for the self filter"
 [ -f "$MD_UNIT_PATH" ] && \

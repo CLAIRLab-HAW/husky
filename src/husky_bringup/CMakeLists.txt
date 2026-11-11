@@ -11,12 +11,4 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
-# The octomap feed's one source stays in setup/scripts/: the offboard images COPY it from the husky-setup build context
-# (husky/setup), and a move into this package would take that context and its pins along.
-install(
-  PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/../../setup/scripts/octomap_feed.py
-  DESTINATION lib/${PROJECT_NAME}
-  RENAME octomap_feed
-)
-
 ament_package()

@@ -28,6 +28,7 @@ pythonpath = [
     "src/husky_lidar",
     "src/husky_manipulator_diagnostics",
     "src/husky_navigation",
+    "src/husky_octomap_feed",
     "src/husky_ur_state",
 ]
 testpaths = ["setup/tests", "tests"]

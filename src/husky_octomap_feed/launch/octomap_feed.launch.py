@@ -2,7 +2,7 @@
 
 robot.yaml's ``platform.extras.launch`` names this file; Clearpath's clearpath-platform-extras service runs it.  The
 node keeps its own name, ``/octomap_feed``, outside the robot's namespace -- ``robot:octomap`` sets its ``enabled``
-under that name -- and its topics are absolute (the defaults in setup/scripts/octomap_feed.py).
+under that name -- and its topics are absolute (the defaults in ``husky_octomap_feed.feed``).
 
 No restart along with the camera: after ``systemctl restart clearpath-sensors`` the feed resubscribed on its own and
 was back at 5 Hz within 12 s (2026-11-11, R89).  It respawns because that service's unit carries no Restart=.
@@ -19,7 +19,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             Node(
-                package="husky_bringup",
+                package="husky_octomap_feed",
                 executable="octomap_feed",
                 respawn=True,
                 respawn_delay=RESPAWN_DELAY_S,

@@ -370,12 +370,12 @@ automatically — "freshness" is thus sensor-paced rather than heuristic.
 
 Two building blocks:
 
-1. **`octomap_feed`** (`scripts/octomap_feed.py`, which `husky_bringup` installs as its executable `octomap_feed`):
-   started by `robot.yaml`'s `platform.extras.launch` (`husky_bringup`'s `octomap_feed.launch.py`, respawning) in
+1. **`husky_octomap_feed`** (`src/husky_octomap_feed`, executable `octomap_feed`): started by `robot.yaml`'s
+   `platform.extras.launch` (its `octomap_feed.launch.py`, respawning) in
    Clearpath's `clearpath-platform-extras`. It throttles the camera's 30 fps depth to ~5 Hz, subsamples it (stride 2)
    and publishes `…/sensors/camera_0/octomap_points` (PointCloud2 in the optical frame; QoS RELIABLE, matches any
    subscriber). After a camera restart it resubscribes on its own (2026-11-11, R89). Self-test without ROS:
-   `python3 scripts/octomap_feed.py --selftest`.
+   `python3 src/husky_octomap_feed/husky_octomap_feed/feed.py --selftest`.
 2. **Sensor parameters in `robot.yaml`**: under
    `manipulators.moveit.ros_parameters.move_group` sit `octomap_frame`,
    `octomap_resolution`, `sensors` and the `wrist_depth_camera` block — the Clearpath generator writes them into
@@ -467,7 +467,7 @@ Two of the Python scripts carry a ROS-free self-test:
 
 ```bash
 python3 scripts/boot_patches.py --selftest
-python3 scripts/octomap_feed.py --selftest
+python3 src/husky_octomap_feed/husky_octomap_feed/feed.py --selftest
 ```
 
 The third, `rg6_grip_bridge --selftest`, moved with the node into

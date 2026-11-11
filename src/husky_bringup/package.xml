@@ -4,8 +4,7 @@
   <name>husky_bringup</name>
   <version>0.1.0</version>
   <description>
-    What the a200-0553 starts beyond Clearpath's own services: the lidar's sensor path and its scan, and the octomap
-    feed for move_group. Started by
+    What the a200-0553 starts beyond Clearpath's own services: the lidar's sensor path and its scan. Started by
     Clearpath's clearpath-platform-extras service through robot.yaml (platform.extras.launch);
     husky_extras_description is the matching description half.
   </description>
@@ -21,10 +20,6 @@
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>rslidar_sdk</exec_depend>
   <exec_depend>pointcloud_to_laserscan</exec_depend>
-  <!-- The octomap feed (setup/scripts/octomap_feed.py, installed as lib/husky_bringup/octomap_feed). -->
-  <exec_depend>rclpy</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>python3-numpy</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

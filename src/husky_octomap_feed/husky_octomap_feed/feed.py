@@ -24,14 +24,14 @@ transform into ``octomap_frame`` is done by the updater itself.  QoS: publisher 
 best-effort subscribers -- so the QoS of the MoveIt updater does not concern us), subscriber SensorData (best effort,
 like the camera).
 
-Invocation: on the robot ``husky_bringup``'s ``octomap_feed.launch.py`` (robot.yaml's ``platform.extras.launch``),
-in the offboard images the copy under /usr/local/bin::
+Invocation: on the robot this package's ``octomap_feed.launch.py`` (robot.yaml's ``platform.extras.launch``); the
+offboard images COPY this one file to /usr/local/bin, so it stays runnable on its own, without the package::
 
     octomap-feed --ros-args -p depth_topic:=... -p rate_hz:=5.0
 
 Selftest without ROS (numpy only -- runs on the workstation too)::
 
-    python3 octomap_feed.py --selftest
+    python3 feed.py --selftest
 """
 
 from __future__ import annotations

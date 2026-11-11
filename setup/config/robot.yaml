@@ -18,9 +18,9 @@ system:
     # the flange (rg6_description with the measured rg6_v2.yaml, rg6_control, tool_description's macros); ~/husky
     # carries THIS ROBOT (husky_extras_description: sensor arch, where the hand is bolted onto the UR5 flange, the
     # lidar on its mount; the lidars' macros; husky_bringup, husky_bt_joy, husky_lidar, husky_navigation,
-    # husky_ur_state).  platform.extras.urdf.path below names a file of husky's, which includes macros of both -- so
-    # both have to be listed, and a missing build is not a mesh that fails to draw but a generator run that dies on
-    # the include.
+    # husky_octomap_feed, husky_ur_state).  platform.extras.urdf.path below names a file of husky's, which includes
+    # macros of both -- so both have to be listed, and a missing build is not a mesh that fails to draw but a
+    # generator run that dies on the include.
     workspaces:
       - /home/robot/tools/install/setup.bash   # rg6_description, rg6_control, gripper_control, tool_description
       - /home/robot/husky/install/setup.bash   # husky_extras_description (the file under extras.urdf below) and the rest
@@ -39,10 +39,10 @@ platform:
       # together when this path does.
       path: /home/robot/husky/src/husky_extras_description/urdf/clearpath_extras.urdf.xacro
     # What the robot starts beyond Clearpath's services, run by its clearpath-platform-extras service: the lidar's
-    # driver and self filter (husky_lidar) and the scan on them (husky_navigation), read-only, and the Bluetooth
-    # joystick pairing.  A list in clearpath_config 2.9.x (Clearpath's docs still say one file).  It names a PACKAGE
-    # and a path in its share, not an absolute path: clearpath_generator_robot 2.9.3 builds Package(launch.package)
-    # unconditionally and dies on 'pkg_' + None.
+    # driver and self filter (husky_lidar) and the scan on them (husky_navigation), read-only, the Bluetooth
+    # joystick pairing and the octomap feed.  A list in clearpath_config 2.9.x (Clearpath's docs still say one
+    # file).  It names a PACKAGE and a path in its share, not an absolute path: clearpath_generator_robot 2.9.3 builds
+    # Package(launch.package) unconditionally and dies on 'pkg_' + None.
     # lidar_model names the robot's ONE lidar in the slot lidar3d_0: rs16, or qb2 (the lab's Blickfeld Qb2) in its
     # place (husky_lidar.models).  The container's sim plants read it here; the extras file's
     # lidar_model default has to say the same, which its tests hold, since the generator passes it no arguments.  A
@@ -59,9 +59,9 @@ platform:
         path: launch/bt_joy.launch.py
         args:
           namespace: a200_0553
-      # The octomap feed (setup/scripts/octomap_feed.py): the wrist D435's depth as a 5 Hz PointCloud2 for
-      # move_group's occupancy map.  Remove the entry to run without the dense obstacle layer.
-      - package: husky_bringup
+      # The octomap feed (husky_octomap_feed): the wrist D435's depth as a 5 Hz PointCloud2 for move_group's
+      # occupancy map.  Remove the entry to run without the dense obstacle layer.
+      - package: husky_octomap_feed
         path: launch/octomap_feed.launch.py
     ros_parameters:
       joy_node:
@@ -281,7 +281,7 @@ manipulators:
         wrist_depth_camera:
           sensor_plugin: occupancy_map_monitor/PointCloudOctomapUpdater
           point_cloud_topic: /a200_0553/sensors/camera_0/octomap_points
-          # Same value as the feed's max_depth (scripts/octomap_feed.py): the feed
+          # Same value as the feed's max_depth (husky_octomap_feed): the feed
           # already cuts at 2.5 m, so a wider max_range here would never take effect.
           # The driver's depth_module.clip_distance (3.0) stays wider on purpose -- it
           # serves the other depth consumers, not the octomap.
