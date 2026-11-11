@@ -16,6 +16,10 @@ User=@REAL_USER@
 ExecStart=@RG6_BRIDGE_WRAPPER@
 Restart=on-failure
 RestartSec=5
+# The bridge does not exit on SIGTERM and sat out the 90 s default on every reboot (2026-11-06, 2026-11-11);
+# clearpath-manipulators stops only after it (After= above), so the two timeouts added up. It holds no state
+# that needs a clean close -- XML-RPC is one request at a time.
+TimeoutStopSec=10
 
 [Install]
 # Boot, and every start of a unit in PartOf= -- PartOf passes on stop and restart, never start.

@@ -3,7 +3,10 @@ Description=Hard stop parameters for clearpath-manipulators (a clean driver shut
 
 [Service]
 KillSignal=SIGINT
-TimeoutStopSec=95
+# The driver is down within 0.1 s of SIGINT ("System successfully stopped", sockets closed), but
+# ros2_control_node and its ros2 launch then hang in their own teardown until SIGKILL. Measured on the
+# reboot of 2026-11-11: 95 s of a 3 min 45 s reboot. 15 s keeps a wide margin over the clean part.
+TimeoutStopSec=15
 KillMode=control-group
 SendSIGKILL=yes
 # ros2_control_node puts its control thread on SCHED_FIFO via

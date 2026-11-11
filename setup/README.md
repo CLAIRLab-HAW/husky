@@ -166,7 +166,9 @@ A drop-in that makes `clearpath-manipulators.service` stop with
 `move_group` and `robot_state_pub` are ROS nodes and treat `SIGINT` as a graceful shutdown (reverse and dashboard
 sockets closed within about 1–3 s); under `SIGTERM` the old `ros2_control_node` ignores the signal and hangs around as a
 zombie for up to 90 s, still holding the reverse socket — which is exactly what causes the socket collision in case (b)
-above. The drop-in layers over Clearpath's own unit and survives package updates.
+above. The drop-in layers over Clearpath's own unit and survives package updates. Its `TimeoutStopSec=15` is short on
+purpose: the driver itself is down within 0.1 s, but `ros2_control_node` and its `ros2 launch` then hang in their
+teardown until SIGKILL — with the systemd default that was 95 s of every reboot (measured 2026-11-11).
 
 ### `clearpath-custom-manipulator-diagnostics.service` (UR5 + RG6 in Cockpit)
 

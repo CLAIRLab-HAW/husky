@@ -5,6 +5,15 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-11-11 (reboot in about a minute and a half instead of four)
+
+### Fixed
+
+- A reboot took about 3 min 45 s, 3 min 6 s of it in the shutdown. `clearpath-custom-rg6-grip-bridge` ignores
+  SIGTERM and sat out systemd's 90 s default; `clearpath-manipulators` stops only after it and then waited out its
+  own 95 s, because `ros2_control_node` hangs in its teardown after the driver has already stopped. The bridge now
+  stops with `TimeoutStopSec=10`, the manipulators drop-in with 15. The retired `clearpath-custom-lidar` and
+  `clearpath-custom-bt-joy` units also sat out 90 s each and go away when the installer runs.
 
 
 ## 2026-09-29 (the arm after a reboot)
