@@ -51,6 +51,8 @@ import shutil
 import sys
 
 TAG = "clearpath-custom-setup"
+#: rg6_description's model config, the root-owned copy the installer puts beside rg6-moveit-patch.
+RG6_MODEL_CONFIG = "/usr/local/bin/rg6_v2.yaml"
 
 #: The remap pair of the arm JSB in clearpath_manipulators/control.launch.py.
 #: Deliberately anchored on the SECOND token: 'platform','dynamic_joint_states'
@@ -189,7 +191,9 @@ def run_rg6_moveit_patch(label):
     return run_root_tool(
         label,
         "/usr/local/bin/rg6-moveit-patch",
-        args=("--setup-path", "/etc/clearpath"),
+        # The model config the installer copies beside the tool: a boot service has no AMENT_PREFIX_PATH (R95).
+        args=("--setup-path", "/etc/clearpath")
+        + (("--model-config", RG6_MODEL_CONFIG) if os.path.isfile(RG6_MODEL_CONFIG) else ()),
         missing="MoveIt without the gripper (is tools built?).",
     )
 

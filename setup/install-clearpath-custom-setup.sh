@@ -120,6 +120,9 @@ RG6_BRIDGE_UNIT_PATH="/etc/systemd/system/${RG6_BRIDGE_UNIT}"
 # rg6 build). The boot service clearpath-custom-setup (root) calls ONLY this
 # copy - never the user-writable workspace directly.
 RG6_MOVEIT_PATCH_BIN="${BIN_DIR}/rg6-moveit-patch"
+# ... and the model config it reads the "open" angle from, beside it: the copy cannot find rg6_description's share
+# relative to itself, and the boot service has no AMENT_PREFIX_PATH (R95).  The service passes it as --model-config.
+RG6_MODEL_CONFIG_DST="${BIN_DIR}/rg6_v2.yaml"
 # The other four patch tools are scripts of THIS repo, so all take the ordinary repo_file route like every other
 # deployed script here -- not rg6_tool_src, which resolves against a foreign workspace.
 #
@@ -141,10 +144,10 @@ RIDE_HEIGHT_PATCH_BIN="${BIN_DIR}/ride-height-patch"
 # (built below).  Visual only; copied into the offboard container for the same reason.
 A200_LOOK_PATCH_BIN="${BIN_DIR}/a200-look-patch"
 
-# THREE files live in the rg6 workspace, not in setup/, and each can be taken either from a built workspace or
-# straight from the sources: rg6_moveit_patch (the SRDF patch), rg6_grip_bridge.py (the gripper driver) and its
-# linkage table.  One resolver rather than three candidate lists: a second copy of the same two paths is exactly
-# the drift --verify exists to catch.
+# FOUR files live in the rg6 workspace, not in setup/, and each can be taken either from a built workspace or
+# straight from the sources: rg6_moveit_patch (the SRDF patch), rg6_grip_bridge.py (the gripper driver), its
+# linkage table, and rg6_description's rg6_v2.yaml, the patch's model config.  One resolver rather than four candidate
+# lists: a second copy of the same paths is exactly the drift --verify exists to catch.
 #
 # Both candidate directories are flat and hold all three, which is why the install rules put the table into
 # lib/rg6_control next to the script instead of under share/ -- the bridge resolves it relative to itself.
@@ -153,7 +156,9 @@ rg6_tool_src() {
     # The third: rg6_moveit_patch is installed as a command, but its source carries .py.
     for _cand in "${RG6_WS}/install/rg6_control/lib/rg6_control/$1" \
                  "${RG6_WS}/src/rg6_control/scripts/$1" \
-                 "${RG6_WS}/src/rg6_control/scripts/$1.py"; do
+                 "${RG6_WS}/src/rg6_control/scripts/$1.py" \
+                 "${RG6_WS}/install/rg6_description/share/rg6_description/config/$1" \
+                 "${RG6_WS}/src/rg6_description/config/$1"; do
         [ -f "${_cand}" ] && { printf '%s' "${_cand}"; return 0; }
     done
     return 0
@@ -518,9 +523,10 @@ verify_deployments() {
         printf "  %-16s %-46s ◀─ %s\n" "$status" "$dst" "${src:-${rel} (not found)}"
     done
 
-    # The three files that come from the rg6 workspace instead of from setup/ -- their own resolver, otherwise the
+    # The four files that come from the rg6 workspace instead of from setup/ -- their own resolver, otherwise the
     # manifest run above would never find them.
     for entry in "rg6_moveit_patch|${RG6_MOVEIT_PATCH_BIN}" \
+                 "rg6_v2.yaml|${RG6_MODEL_CONFIG_DST}" \
                  "rg6_grip_bridge.py|${RG6_BRIDGE_BIN}" \
                  "rg6_finger_kinematics.json|${BIN_DIR}/rg6_finger_kinematics.json"; do
         rel="${entry%%|*}"
@@ -1048,6 +1054,12 @@ fi
 if [ -n "$RG6_PATCH_SRC" ]; then
     echo ">>> Installing ${RG6_MOVEIT_PATCH_BIN} (copy of ${RG6_PATCH_SRC})"
     install -m 0755 -o root -g root "$RG6_PATCH_SRC" "$RG6_MOVEIT_PATCH_BIN"
+    if RG6_MODEL_CONFIG_SRC="$(rg6_tool_src rg6_v2.yaml)" && [ -n "$RG6_MODEL_CONFIG_SRC" ]; then
+        install -m 0644 -o root -g root "$RG6_MODEL_CONFIG_SRC" "$RG6_MODEL_CONFIG_DST"
+        echo "    model config ─▶ ${RG6_MODEL_CONFIG_DST}  (from ${RG6_MODEL_CONFIG_SRC})"
+    else
+        echo "    WARN: rg6_v2.yaml not found - the patch falls back to its built-in 'open' angle at boot."
+    fi
 elif [ -f "$RG6_MOVEIT_PATCH_BIN" ]; then
     echo ">>> rg6_moveit_patch: no usable workspace tool - the existing copy ${RG6_MOVEIT_PATCH_BIN} stays."
 else
