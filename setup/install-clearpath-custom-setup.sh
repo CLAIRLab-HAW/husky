@@ -633,18 +633,12 @@ if [ "$DO_VERIFY" -eq 1 ]; then
     verify_deployments && exit 0 || exit 1
 fi
 
-# --- clone husky and tools + robot.yaml symlink -- FIRST ---------------------
+# --- clone husky and tools -- FIRST -------------------------------------------
 # FIRST, because every block below resolves against this checkout: repo_file
 # reads ${SETUP_WS}, the colcon builds run in ${TOOLS_WS} and ${HUSKY_WS},
 # the Cockpit blocks install out of it.  Ahead of it, only "next to
 # the script" or the network can answer, and a wget of the single installer
-# file has no "next to the script".
-# Clearpath intends robot.yaml to be kept under version control and placed at
-# /etc/clearpath/robot.yaml as a SYMLINK (the customization package concept). No
-# network dependency in the boot path, reproducible, and a 'git pull' takes effect
-# IMMEDIATELY instead of only on the next boot -- clearpath-robot-check md5sums
-# /etc/clearpath/robot.yaml every second and restarts the stack on a change
-# (md5sum follows the symlink).
+# file has no "next to the script".  The robot.yaml symlink waits until after the builds (see there).
 ROBOT_YAML_SRC="${SETUP_WS}/${ROBOT_YAML_REL}"
 for clone in "${HUSKY_WS}|${HUSKY_REPO_URL}" "${TOOLS_WS}|${TOOLS_REPO_URL}"; do
     ws="${clone%%|*}"; url="${clone#*|}"
@@ -655,41 +649,6 @@ for clone in "${HUSKY_WS}|${HUSKY_REPO_URL}" "${TOOLS_WS}|${TOOLS_REPO_URL}"; do
         sudo -u "$REAL_USER" git clone "$url" "$ws" || echo "    WARN: git clone failed"
     fi
 done
-echo ">>> robot.yaml: symlink (${ROBOT_YAML_SRC} ─▶ ${ROBOT_YAML_PATH})"
-if [ -f "${ROBOT_YAML_SRC}" ]; then
-    if [ -L "$ROBOT_YAML_PATH" ] && [ "$(readlink -f "$ROBOT_YAML_PATH")" = "$(readlink -f "${ROBOT_YAML_SRC}")" ]; then
-        echo "    symlink already correct - no change."
-    else
-        # A symlink that points nowhere is the state a `git pull` leaves behind
-        # when the target moved -- and it is not harmless: clearpath-robot-check
-        # md5sums /etc/clearpath/robot.yaml every second, so the whole stack sits
-        # without its config until this run repairs it. Say so, do not heal it
-        # quietly, otherwise nobody learns that a pull alone is not a rollout.
-        if [ -L "$ROBOT_YAML_PATH" ] && [ ! -e "$ROBOT_YAML_PATH" ]; then
-            echo "    NOTE: ${ROBOT_YAML_PATH} pointed at $(readlink "$ROBOT_YAML_PATH"), which does not exist."
-            echo "          A pull moved the file; re-pointing it at ${ROBOT_YAML_REL} now."
-        fi
-        # Back up an existing REAL file before the symlink replaces it.
-        if [ -f "$ROBOT_YAML_PATH" ] && [ ! -L "$ROBOT_YAML_PATH" ]; then
-            if ! cmp -s "$ROBOT_YAML_PATH" "${ROBOT_YAML_SRC}"; then
-                echo "    ATTENTION: the existing ${ROBOT_YAML_PATH} differs from the repo state!"
-                confirm "    Replace it with the symlink anyway (a backup is created)?" || {
-                    echo "    robot.yaml: skipped (symlink NOT set)."; SKIP_SYMLINK=1; }
-            fi
-            [ "${SKIP_SYMLINK:-0}" = "1" ] || cp -a "$ROBOT_YAML_PATH" "${ROBOT_YAML_PATH}.pre-symlink.$(date +%Y%m%d%H%M%S)"
-        fi
-        if [ "${SKIP_SYMLINK:-0}" != "1" ]; then
-            # Owned by the user the Clearpath generators run as (clearpath-robot.service: User=robot): as root's, the
-            # generator could not write /etc/clearpath/package.xml, generate_semantic_description died at every boot,
-            # and move_group ran on the robot.srdf of 2026-09-29 for a week (2026-10-07).
-            install -d -m 0755 -o "$REAL_USER" -g "$REAL_USER" "$(dirname "$ROBOT_YAML_PATH")"
-            ln -sfn "${ROBOT_YAML_SRC}" "$ROBOT_YAML_PATH"
-            echo "    symlink set: ${ROBOT_YAML_PATH} ─▶ ${ROBOT_YAML_SRC}"
-        fi
-    fi
-else
-    echo "    WARN: ${ROBOT_YAML_SRC} missing - symlink NOT set, the existing file stays."
-fi
 
 # --- boot service clearpath-custom-setup: the config patcher ----------------
 DO_BOOT=1
@@ -1654,6 +1613,49 @@ if [ "$DO_CRT" -eq 1 ]; then
     fi
 else
     echo ">>> Cockpit page \"Roboter-Werkzeuge\": skipped."
+fi
+
+# --- robot.yaml symlink -- LAST before enabling, after every build ----------
+# Clearpath intends robot.yaml to be kept under version control and placed at /etc/clearpath/robot.yaml as a SYMLINK
+# (the customization package concept): no network dependency in the boot path, reproducible, and a 'git pull' takes
+# effect IMMEDIATELY -- clearpath-robot-check md5sums /etc/clearpath/robot.yaml every second and restarts the stack on
+# a change (md5sum follows the symlink).  That restart is why this comes after the builds: set right after the clone,
+# it restarted the stack while colcon still built ~/tools and ~/husky, and clearpath-platform-extras failed with
+# "package 'husky_bringup' not found" until the next restart (2026-11-11, R90).
+echo ">>> robot.yaml: symlink (${ROBOT_YAML_SRC} ─▶ ${ROBOT_YAML_PATH})"
+if [ -f "${ROBOT_YAML_SRC}" ]; then
+    if [ -L "$ROBOT_YAML_PATH" ] && [ "$(readlink -f "$ROBOT_YAML_PATH")" = "$(readlink -f "${ROBOT_YAML_SRC}")" ]; then
+        echo "    symlink already correct - no change."
+    else
+        # A symlink that points nowhere is the state a `git pull` leaves behind
+        # when the target moved -- and it is not harmless: clearpath-robot-check
+        # md5sums /etc/clearpath/robot.yaml every second, so the whole stack sits
+        # without its config until this run repairs it. Say so, do not heal it
+        # quietly, otherwise nobody learns that a pull alone is not a rollout.
+        if [ -L "$ROBOT_YAML_PATH" ] && [ ! -e "$ROBOT_YAML_PATH" ]; then
+            echo "    NOTE: ${ROBOT_YAML_PATH} pointed at $(readlink "$ROBOT_YAML_PATH"), which does not exist."
+            echo "          A pull moved the file; re-pointing it at ${ROBOT_YAML_REL} now."
+        fi
+        # Back up an existing REAL file before the symlink replaces it.
+        if [ -f "$ROBOT_YAML_PATH" ] && [ ! -L "$ROBOT_YAML_PATH" ]; then
+            if ! cmp -s "$ROBOT_YAML_PATH" "${ROBOT_YAML_SRC}"; then
+                echo "    ATTENTION: the existing ${ROBOT_YAML_PATH} differs from the repo state!"
+                confirm "    Replace it with the symlink anyway (a backup is created)?" || {
+                    echo "    robot.yaml: skipped (symlink NOT set)."; SKIP_SYMLINK=1; }
+            fi
+            [ "${SKIP_SYMLINK:-0}" = "1" ] || cp -a "$ROBOT_YAML_PATH" "${ROBOT_YAML_PATH}.pre-symlink.$(date +%Y%m%d%H%M%S)"
+        fi
+        if [ "${SKIP_SYMLINK:-0}" != "1" ]; then
+            # Owned by the user the Clearpath generators run as (clearpath-robot.service: User=robot): as root's, the
+            # generator could not write /etc/clearpath/package.xml, generate_semantic_description died at every boot,
+            # and move_group ran on the robot.srdf of 2026-09-29 for a week (2026-10-07).
+            install -d -m 0755 -o "$REAL_USER" -g "$REAL_USER" "$(dirname "$ROBOT_YAML_PATH")"
+            ln -sfn "${ROBOT_YAML_SRC}" "$ROBOT_YAML_PATH"
+            echo "    symlink set: ${ROBOT_YAML_PATH} ─▶ ${ROBOT_YAML_SRC}"
+        fi
+    fi
+else
+    echo "    WARN: ${ROBOT_YAML_SRC} missing - symlink NOT set, the existing file stays."
 fi
 
 # --- enable ----------------------------------------------------------------
