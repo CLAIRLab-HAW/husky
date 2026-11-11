@@ -215,6 +215,9 @@ traj = JointTrajectory()
 traj.joint_names = joints
 traj.points = [JointTrajectoryPoint(positions=targets, time_from_start=to_dur(arm_time))]
 goal = FollowJointTrajectory.Goal(); goal.trajectory = traj
+# The controller checks the end within goal_time 0.5 s (R82); the CB3 lags the 10 s fold into packed by more and
+# the goal failed with -5 (2026-11-11). The 0.01 rad band stays, only the time to settle into it is longer here.
+goal.goal_time_tolerance = to_dur(5.0)
 print(f"[shutdown] sending trajectory to packed (travel time {arm_time}s)", flush=True)
 
 gh = cli.send_goal_async(goal)
