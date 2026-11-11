@@ -1,0 +1,5 @@
+[Service]
+# Clearpath's battery_state_estimator outlives SIGTERM, and every stack restart waited systemd's default 90 s for
+# the kill while the rest of the stack waited with it (2026-11-11: SIGKILL to it at 14:53:38, 90 s after the stop
+# began).  The base's own nodes stop on SIGTERM well inside this bound, so it stays in control-group mode.
+TimeoutStopSec=15

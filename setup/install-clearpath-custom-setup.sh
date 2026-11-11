@@ -284,6 +284,9 @@ WD_MANIP_DROPIN="${WD_MANIP_DROPIN_DIR}/override.conf"
 # Stop bound for clearpath-platform-extras, which runs the lidar, the pairing and the octomap feed (see the template).
 EXTRAS_DROPIN_DIR="/etc/systemd/system/clearpath-platform-extras.service.d"
 EXTRAS_DROPIN="${EXTRAS_DROPIN_DIR}/override.conf"
+# Stop bound for Clearpath's clearpath-platform (see the template).
+PLATFORM_DROPIN_DIR="/etc/systemd/system/clearpath-platform.service.d"
+PLATFORM_DROPIN="${PLATFORM_DROPIN_DIR}/override.conf"
 
 # robot.yaml: the git repo is the single source of truth. /etc/clearpath/robot.yaml
 # is a symlink onto the clone, so a 'git pull' takes effect immediately.
@@ -497,6 +500,7 @@ verify_deployments() {
         "${WD_TIMER_PATH}|systemd/clearpath-custom-manipulators-watchdog.timer.in"
         "${WD_MANIP_DROPIN}|systemd/clearpath-manipulators.service.d/override.conf.in"
         "${EXTRAS_DROPIN}|systemd/clearpath-platform-extras.service.d/override.conf.in"
+        "${PLATFORM_DROPIN}|systemd/clearpath-platform.service.d/override.conf.in"
         "${JS_WRAPPER}|systemd/joint-states.sh.in"
         "${JS_UNIT_PATH}|systemd/clearpath-custom-joint-states.service.in"
         "${MD_WRAPPER}|systemd/manipulator-diagnostics.sh.in"
@@ -1340,9 +1344,12 @@ if [ -f "$RETIRED_LIDAR_UNIT_PATH" ]; then
     rm -f "$RETIRED_LIDAR_UNIT_PATH" "$RETIRED_LIDAR_WRAPPER"
     systemctl daemon-reload
 fi
-echo ">>> Installing ${EXTRAS_DROPIN} (stop bound for clearpath-platform-extras)"
+echo ">>> Installing ${EXTRAS_DROPIN} (stop of clearpath-platform-extras)"
 install -d -m 0755 "$EXTRAS_DROPIN_DIR"
 install_template systemd/clearpath-platform-extras.service.d/override.conf.in "$EXTRAS_DROPIN" 0644
+echo ">>> Installing ${PLATFORM_DROPIN} (stop bound for clearpath-platform)"
+install -d -m 0755 "$PLATFORM_DROPIN_DIR"
+install_template systemd/clearpath-platform.service.d/override.conf.in "$PLATFORM_DROPIN" 0644
 
 # --- manipulator diagnostics (optional) ------------------------------------
 # UR mode/safety/external control + RG6 state -> diagnostic_msgs on the
