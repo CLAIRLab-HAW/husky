@@ -42,8 +42,8 @@
 #     the driver stays dead). It checks for "arm pingable, but
 #     robot_program_running does not publish" and restarts ONCE. Installs the
 #     SIGINT stop drop-in on clearpath-manipulators.service along with it.
-#   - clearpath-custom-joint-states.service: joint_state_aggregator
-#     (/a200_0553/joint_states) plus the relays back onto the platform bus
+#   - clearpath-custom-joint-states.service: the arm and gripper relay back onto
+#     the platform bus
 #   - optional: clearpath-custom-octomap-feed.service: throttled depth ->
 #     PointCloud2 for MoveIt's occupancy map monitor
 #   - optional: the lidar's apt packages (rslidar_sdk, pointcloud_to_laserscan, and geometric_shapes for the self
@@ -252,8 +252,7 @@ USM_WRAPPER="${BIN_DIR}/ur-state-manager.sh"
 USM_UNIT="clearpath-custom-ur-state-manager.service"
 USM_UNIT_PATH="/etc/systemd/system/${USM_UNIT}"
 
-# joint-states: robot-wide joint_state_aggregator (/a200_0553/joint_states)
-# plus relays of the clean arm/gripper source topics back onto the
+# joint-states: relays of the clean arm/gripper source topics back onto the
 # platform/joint_states bus (for RSP + move_group). Uses the rg6
 # workspace (gripper_control joint_states.launch.py), no build of its own.
 JS_WRAPPER="${BIN_DIR}/joint-states.sh"
@@ -1231,9 +1230,8 @@ else
     echo ">>> manipulators-watchdog: skipped."
 fi
 
-# --- joint-states aggregation + legacy bus relays ----------------
-# Starts gripper_control/joint_states.launch.py: joint_state_aggregator
-# (-> /a200_0553/joint_states, complete, for rosbag/Foxglove) plus the OWN
+# --- joint-states relay -------------------------------------------
+# Starts gripper_control/joint_states.launch.py: the OWN
 # joint_state_relay (manipulators/joint_states and
 # manipulators/endeffectors/joint_states -> platform/joint_states, so that RSP and
 # move_group run unchanged).  Deliberately NOT topic_tools: that publishes
@@ -1703,7 +1701,7 @@ echo "=============================================================="
 echo "Installation complete."
 echo "  ${UNIT_NAME} : patches the configs on every boot"
 echo "  ${ROBOT_YAML_PATH} ─▶ ${ROBOT_YAML_SRC} (symlink, SSOT in the repo)"
-echo "  ${JS_UNIT}           : joint_state_aggregator + legacy bus relays"
+echo "  ${JS_UNIT}           : arm + gripper relay onto platform/joint_states"
 echo "  ${SYSCTL_UR_PORTS} : UR driver ports 50001-50004 out of the ephemeral range"
 [ -f "$UR_DASH_UNIT_PATH" ] && \
 echo "  ${UR_DASH_UNIT}           : starts the ur_robot_driver dashboard_client"
