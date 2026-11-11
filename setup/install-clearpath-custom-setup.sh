@@ -167,8 +167,8 @@ arm_files() {
         "$1"
 }
 
-# The octomap feed starts under robot.yaml's platform.extras.launch (husky_octomap_feed's octomap_feed.launch.py), like the
-# lidar below.  Its former unit, wrapper and root-owned copy are removed where they are still installed.
+# The octomap feed starts under robot.yaml's platform.extras.launch (husky_octomap_feed's octomap_feed.launch.py),
+# like the lidar below.  Its former unit, wrapper and root-owned copy are removed where they are still installed.
 RETIRED_OCTO_BIN="${BIN_DIR}/octomap-feed"
 RETIRED_OCTO_WRAPPER="${BIN_DIR}/octomap-feed.sh"
 RETIRED_OCTO_UNIT="clearpath-custom-octomap-feed.service"
@@ -629,6 +629,21 @@ fi
 # the script" or the network can answer, and a wget of the single installer
 # file has no "next to the script".  The robot.yaml symlink waits until after the builds (see there).
 ROBOT_YAML_SRC="${SETUP_WS}/${ROBOT_YAML_REL}"
+# Freeze robot.yaml for this run: a pull that changes the file would restart the stack at once (clearpath-robot-check,
+# see the symlink block), against workspaces the builds below have not rebuilt yet -- on 2026-11-11 the extras
+# launch then failed with "package ... not found".  A copy with the same content keeps the md5; the symlink block
+# after the builds puts the link back, and that is when the stack restarts.
+ROBOT_YAML_FROZEN=0
+say_if_still_frozen() {
+    [ "$ROBOT_YAML_FROZEN" = 1 ] && [ ! -L "$ROBOT_YAML_PATH" ] || return 0
+    echo "NOTE: ${ROBOT_YAML_PATH} is still this run's frozen copy (it ended before the symlink block)." >&2
+    echo "      Pulls do not reach the robot until the installer runs through once more." >&2
+}
+if [ -L "$ROBOT_YAML_PATH" ] && [ -e "$ROBOT_YAML_PATH" ]; then
+    cp "$ROBOT_YAML_PATH" "${ROBOT_YAML_PATH}.frozen" && mv -f "${ROBOT_YAML_PATH}.frozen" "$ROBOT_YAML_PATH" \
+        && ROBOT_YAML_FROZEN=1
+    trap say_if_still_frozen EXIT
+fi
 for clone in "${HUSKY_WS}|${HUSKY_REPO_URL}" "${TOOLS_WS}|${TOOLS_REPO_URL}"; do
     ws="${clone%%|*}"; url="${clone#*|}"
     echo ">>> $(basename "$ws") to ${ws} (user ${REAL_USER})"
@@ -1608,8 +1623,8 @@ if [ -f "${ROBOT_YAML_SRC}" ]; then
             echo "    NOTE: ${ROBOT_YAML_PATH} pointed at $(readlink "$ROBOT_YAML_PATH"), which does not exist."
             echo "          A pull moved the file; re-pointing it at ${ROBOT_YAML_REL} now."
         fi
-        # Back up an existing REAL file before the symlink replaces it.
-        if [ -f "$ROBOT_YAML_PATH" ] && [ ! -L "$ROBOT_YAML_PATH" ]; then
+        # Back up an existing REAL file before the symlink replaces it -- unless it is this run's own frozen copy.
+        if [ -f "$ROBOT_YAML_PATH" ] && [ ! -L "$ROBOT_YAML_PATH" ] && [ "$ROBOT_YAML_FROZEN" != 1 ]; then
             if ! cmp -s "$ROBOT_YAML_PATH" "${ROBOT_YAML_SRC}"; then
                 echo "    ATTENTION: the existing ${ROBOT_YAML_PATH} differs from the repo state!"
                 confirm "    Replace it with the symlink anyway (a backup is created)?" || {
