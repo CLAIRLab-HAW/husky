@@ -1,0 +1,5 @@
+[Service]
+# The extras launch exits on SIGTERM, but two of its nodes outlive it: rslidar_sdk_node (upstream) hangs after
+# SIGTERM, and every stack restart waited systemd's default 90 s for the kill (2026-11-11: stop 14:44:10, SIGKILL to
+# rslidar_sdk_node and bt_joy_pairing 14:45:40).  None of them holds state that needs a clean close.
+TimeoutStopSec=15
