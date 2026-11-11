@@ -5,6 +5,16 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-11-11 (the arm controller checks the end of a motion)
+
+### Fixed
+
+- The arm's trajectory controller reported success the moment its path ran out: Clearpath's template ships every
+  tolerance at 0, and `joint_trajectory_controller` skips a check whose tolerance is 0. `robot.yaml` now sets 0.01 rad
+  per joint, `stopped_velocity_tolerance` 0.01 rad/s and `goal_time` 0.5 s, from R82's 20 confirmed moves (at rest
+  0.010-0.170 s after the result, 0.56-1.13 mrad off). The container plants read the same file; one that does not
+  reach the goal now ends the motion with `GOAL_TOLERANCE_VIOLATED` instead of a silent success.
+
 ## 2026-11-11 (the watchdog when the dashboard is silent)
 
 ### Fixed

@@ -375,6 +375,22 @@ manipulators:
             type: ur_controllers/GPIOController
         io_and_status_controller:
           tf_prefix: arm_0_
+        # Clearpath's template ships every tolerance at 0, and joint_trajectory_controller skips a check whose
+        # tolerance is 0: it reported success the moment the path ran out, at rest or not (R82). Measured 2026-11-11,
+        # 2 x 10 confirmed joint moves with and without a cube in the gripper: at rest 0.010-0.170 s after the result,
+        # 0.56-1.13 mrad off the goal. The values leave 10x and 3x of that. They hold for the container plants too, on
+        # purpose: a plant that does not reach the goal now says so (ManiSkill stood 0.076 rad off at "success",
+        # 2026-09-22).
+        arm_0_joint_trajectory_controller:
+          constraints:
+            stopped_velocity_tolerance: 0.01
+            goal_time: 0.5
+            arm_0_shoulder_pan_joint: {goal: 0.01}
+            arm_0_shoulder_lift_joint: {goal: 0.01}
+            arm_0_elbow_joint: {goal: 0.01}
+            arm_0_wrist_1_joint: {goal: 0.01}
+            arm_0_wrist_2_joint: {goal: 0.01}
+            arm_0_wrist_3_joint: {goal: 0.01}
 sensors:
   camera:
     - model: intel_realsense
