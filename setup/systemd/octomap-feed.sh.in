@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-# Throttled depth->PointCloud2 source for MoveIt's octomap (octomap_feed).
-source /etc/clearpath/setup.bash
-exec python3 @OCTO_FEED_BIN@

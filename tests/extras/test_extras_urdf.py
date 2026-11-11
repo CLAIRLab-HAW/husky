@@ -185,6 +185,19 @@ def test_the_bringup_installs_its_launch_directory():
     assert "DESTINATION share/${PROJECT_NAME}" in cmake
 
 
+def test_the_bringup_installs_the_octomap_feed_its_launch_starts():
+    """The launch runs ``octomap_feed`` out of the package; CMake installs it from setup/scripts/, the one source the
+    offboard images COPY as well."""
+    cmake = (BRINGUP / "CMakeLists.txt").read_text(encoding="utf-8")
+    m = re.search(
+        r"PROGRAMS \$\{CMAKE_CURRENT_SOURCE_DIR\}/(\S+)\s+DESTINATION lib/\$\{PROJECT_NAME\}\s+RENAME (\S+)", cmake
+    )
+    assert m, "CMakeLists.txt installs no program into lib/husky_bringup"
+    assert (BRINGUP / m.group(1)).resolve() == REPO / "setup" / "scripts" / "octomap_feed.py"
+    launch = (BRINGUP / "launch" / "octomap_feed.launch.py").read_text(encoding="utf-8")
+    assert f'executable="{m.group(2)}"' in launch
+
+
 def test_robot_yaml_starts_launch_files_this_repository_ships():
     """Every ``platform.extras.launch`` entry names a package -- clearpath_generator_robot 2.9.3 dies on
     ``'pkg_' + None`` without one -- and one of this repository's packages a file it installs: a wrong path fails at

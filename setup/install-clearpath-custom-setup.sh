@@ -44,8 +44,6 @@
 #     SIGINT stop drop-in on clearpath-manipulators.service along with it.
 #   - clearpath-custom-joint-states.service: the arm and gripper relay back onto
 #     the platform bus
-#   - optional: clearpath-custom-octomap-feed.service: throttled depth ->
-#     PointCloud2 for MoveIt's occupancy map monitor
 #   - optional: the lidar's apt packages (rslidar_sdk, pointcloud_to_laserscan, and geometric_shapes for the self
 #     filter's bodies).  Clearpath's
 #     clearpath-platform-extras service starts the chain itself, from robot.yaml's platform.extras.launch; a
@@ -169,18 +167,12 @@ arm_files() {
         "$1"
 }
 
-# Octomap feed (step 2 of the HRL obstacle architecture): throttled
-# depth->PointCloud2 source for MoveIt's occupancy map monitor, so that
-# move_group also avoids UNTRACKED obstacles (the dense voxel layer; the
-# object-based boxes from the workstation stay for task objects + twin).
-# The canonical source is in the repo (scripts/octomap_feed.py, SSOT like
-# robot.yaml); a root-owned copy sits under /usr/local/bin, started by the boot
-# service.  repo_file resolves the source (checkout before GitHub main, see
-# there) -- which is why no URL stands here.
-OCTO_FEED_BIN="${BIN_DIR}/octomap-feed"
-OCTO_WRAPPER="${BIN_DIR}/octomap-feed.sh"
-OCTO_UNIT="clearpath-custom-octomap-feed.service"
-OCTO_UNIT_PATH="/etc/systemd/system/${OCTO_UNIT}"
+# The octomap feed starts under robot.yaml's platform.extras.launch (husky_bringup's octomap_feed.launch.py), like the
+# lidar below.  Its former unit, wrapper and root-owned copy are removed where they are still installed.
+RETIRED_OCTO_BIN="${BIN_DIR}/octomap-feed"
+RETIRED_OCTO_WRAPPER="${BIN_DIR}/octomap-feed.sh"
+RETIRED_OCTO_UNIT="clearpath-custom-octomap-feed.service"
+RETIRED_OCTO_UNIT_PATH="/etc/systemd/system/${RETIRED_OCTO_UNIT}"
 
 # The lidar's sensor path and its scan start under robot.yaml's platform.extras.launch, in Clearpath's
 # clearpath-platform-extras service, not in a unit of this script's.  This unit and its wrapper are the custom service
@@ -483,7 +475,6 @@ verify_deployments() {
     local -a MANIFEST=(
         "${PY_PATH}|scripts/boot_patches.py"
         "${WD_BIN}|scripts/manipulators_watchdog.sh"
-        "${BIN_DIR}/octomap-feed|scripts/octomap_feed.py"
         "${URDF_PHYSICS_PATCH_BIN}|scripts/patch_urdf_physics.py"
         "${SENSOR_MESH_URI_PATCH_BIN}|scripts/patch_sensor_mesh_uri.py"
         "${RIDE_HEIGHT_PATCH_BIN}|scripts/patch_ride_height.py"
@@ -499,8 +490,6 @@ verify_deployments() {
         "${WD_MANIP_DROPIN}|systemd/clearpath-manipulators.service.d/override.conf.in"
         "${JS_WRAPPER}|systemd/joint-states.sh.in"
         "${JS_UNIT_PATH}|systemd/clearpath-custom-joint-states.service.in"
-        "${OCTO_WRAPPER}|systemd/octomap-feed.sh.in"
-        "${OCTO_UNIT_PATH}|systemd/clearpath-custom-octomap-feed.service.in"
         "${MD_WRAPPER}|systemd/manipulator-diagnostics.sh.in"
         "${MD_UNIT_PATH}|systemd/clearpath-custom-manipulator-diagnostics.service.in"
         "${RG6_BRIDGE_WRAPPER}|systemd/rg6-grip-bridge-wrapper.in"
@@ -1050,7 +1039,7 @@ else
 fi
 
 # Every script of THIS repo that lands under /usr/local/bin takes the same route, so it takes the same function:
-# the four patchers directly below, the octomap feed and the manipulator diagnostics further down.
+# the four patchers directly below and the manipulator diagnostics further down.
 #
 # repo_file and NOT require_repo_file: a missing tool of this kind is a warning, not a dead unit -- each caller
 # owns what its absence costs (the boot service skips that one patch by name, the optional services stay
@@ -1204,43 +1193,25 @@ install_template systemd/joint-states.sh.in "$JS_WRAPPER" 0755
 
 install_template systemd/clearpath-custom-joint-states.service.in "$JS_UNIT_PATH" 0644
 
-# --- octomap feed (optional): the dense obstacle layer for move_group ------
-# Step 2 of the HRL obstacle architecture: move_group maintains an octomap
-# (occupancy map monitor) from the wrist D435 and thereby also avoids obstacles
-# the offboard object tracker does not (or does not yet) know about -- raycasts
-# clear freed space automatically.  This service delivers the throttled
-# PointCloud2 (octomap_feed.py, default 5 Hz / stride 2); the move_group sensor
-# parameters come from robot.yaml.  Uninstalling: 'systemctl disable --now
-# clearpath-custom-octomap-feed', delete the unit file, reboot.
-DO_OCTO=1
-if [ -f "$OCTO_UNIT_PATH" ]; then
-    confirm ">>> ${OCTO_UNIT} is already installed. Update?" || DO_OCTO=0
-else
-    confirm ">>> Install the octomap feed (move_group then also avoids untracked obstacles; ~5 Hz onboard load)?" || DO_OCTO=0
+# --- octomap feed: the dense obstacle layer for move_group -----------------
+# move_group maintains an octomap from the wrist D435 (occupancy map monitor) and thereby also avoids obstacles the
+# offboard object tracker does not know about.  The feed itself starts from robot.yaml's platform.extras.launch; its
+# move_group sensor parameters come from robot.yaml as well.  What stays here is the check for the updater and the
+# removal of the feed's former unit.
+#
+# A pure CHECK (no apt!): the PointCloudOctomapUpdater comes from moveit_ros_perception.  Without that package the feed
+# still runs, but move_group has no updater to hand the cloud to -- installing it is an admin decision.
+if ! ls -d /opt/ros/*/share/moveit_ros_perception >/dev/null 2>&1; then
+    echo "    WARN: ros-<distro>-moveit-ros-perception is NOT installed."
+    echo "          The octomap stays inactive until the package is there."
+    echo "          Install it ONLY deliberately, in a maintenance window (mind the"
+    echo "          apt history of this robot; check with 'apt-get install -s' first)."
 fi
-if [ "$DO_OCTO" -eq 1 ]; then
-    # Resolve order, compile check and discard rule live in install_repo_tool; the smoke test is the selftest of
-    # the conversion (numpy only, no ROS needed).  Wrapper + unit only land while a usable copy does.
-    if install_repo_tool scripts/octomap_feed.py "$OCTO_FEED_BIN" python3 "$OCTO_FEED_BIN" --selftest; then
-        echo ">>> Installing ${OCTO_WRAPPER} + ${OCTO_UNIT}"
-        install_template systemd/octomap-feed.sh.in "$OCTO_WRAPPER" 0755
-
-        install_template systemd/clearpath-custom-octomap-feed.service.in "$OCTO_UNIT_PATH" 0644
-        # A pure CHECK (no apt!): the PointCloudOctomapUpdater comes from
-        # moveit_ros_perception. Without that package the feed still runs, but
-        # move_group has no updater to hand the cloud to - installing it is an
-        # admin decision.
-        if ! ls -d /opt/ros/*/share/moveit_ros_perception >/dev/null 2>&1; then
-            echo "    WARN: ros-<distro>-moveit-ros-perception is NOT installed."
-            echo "          The octomap stays inactive until the package is there."
-            echo "          Install it ONLY deliberately, in a maintenance window (mind the"
-            echo "          apt history of this robot; check with 'apt-get install -s' first)."
-        fi
-    else
-        echo "    WARN: octomap_feed.py neither loadable nor present locally - octomap skipped."
-    fi
-else
-    echo ">>> Octomap feed: skipped."
+if [ -f "$RETIRED_OCTO_UNIT_PATH" ]; then
+    echo ">>> Removing ${RETIRED_OCTO_UNIT}: robot.yaml's platform.extras.launch starts the feed"
+    systemctl disable --now "$RETIRED_OCTO_UNIT" || true
+    rm -f "$RETIRED_OCTO_UNIT_PATH" "$RETIRED_OCTO_WRAPPER" "$RETIRED_OCTO_BIN"
+    systemctl daemon-reload
 fi
 
 # --- lidar (optional) --------------------------------------------------------
@@ -1672,7 +1643,6 @@ systemctl enable --now "$UNIT_NAME" "$JS_UNIT"
 [ -f "$USM_UNIT_PATH" ] && systemctl enable --now "$USM_UNIT"
 # Watchdog: enable + start the TIMER (the .service is the oneshot check it triggers).
 [ -f "$WD_TIMER_PATH" ] && systemctl enable --now "$WD_TIMER"
-[ -f "$OCTO_UNIT_PATH" ] && systemctl enable --now "$OCTO_UNIT"
 [ -f "$MD_UNIT_PATH" ] && systemctl enable --now "$MD_UNIT"
 # Start the bridge IMMEDIATELY too, not only on the next boot: without it
 # rg6_finger_joint is missing from /joint_states, and until the reboot move_group
@@ -1684,7 +1654,6 @@ VERIFY_UNITS=("$UNIT_PATH" "$JS_UNIT_PATH")
 [ -f "$UR_DASH_UNIT_PATH" ] && VERIFY_UNITS+=("$UR_DASH_UNIT_PATH")
 [ -f "$USM_UNIT_PATH" ] && VERIFY_UNITS+=("$USM_UNIT_PATH")
 [ -f "$WD_UNIT_PATH" ] && VERIFY_UNITS+=("$WD_UNIT_PATH" "$WD_TIMER_PATH")
-[ -f "$OCTO_UNIT_PATH" ] && VERIFY_UNITS+=("$OCTO_UNIT_PATH")
 [ -f "$MD_UNIT_PATH" ] && VERIFY_UNITS+=("$MD_UNIT_PATH")
 [ -f "$RG6_BRIDGE_UNIT_PATH" ] && VERIFY_UNITS+=("$RG6_BRIDGE_UNIT_PATH")
 systemd-analyze verify "${VERIFY_UNITS[@]}" && echo "    units OK."
@@ -1722,8 +1691,7 @@ echo "  ${SENSOR_MESH_URI_PATCH_BIN}: root-owned copy of scripts/patch_sensor_me
 echo "  ${RIDE_HEIGHT_PATCH_BIN}    : root-owned copy of scripts/patch_ride_height.py (same; offboard too)"
 [ -f "$A200_LOOK_PATCH_BIN" ] && \
 echo "  ${A200_LOOK_PATCH_BIN}   : root-owned copy of scripts/patch_a200_look.py (same; offboard too)"
-[ -f "$OCTO_UNIT_PATH" ] && \
-echo "  ${OCTO_UNIT}   : depth─▶PointCloud2 for MoveIt's octomap (the move_group sensor parameters come from robot.yaml)"
+echo "  husky_bringup's octomap_feed : depth─▶PointCloud2 for MoveIt's octomap; clearpath-platform-extras starts it"
 [ -z "$(lidar_missing)" ] && \
 echo "  lidar apt packages : rslidar_sdk, pointcloud_to_laserscan, geometric_shapes for the self filter"
 [ -f "$MD_UNIT_PATH" ] && \
@@ -1747,8 +1715,7 @@ echo "  journalctl -u ${UR_DASH_UNIT} -b"
 echo "  journalctl -u ${USM_UNIT} -b"
 [ -f "$WD_TIMER_PATH" ] && \
 echo "  journalctl -t manipulators-watchdog -b   # + 'systemctl list-timers ${WD_TIMER}'"
-[ -f "$OCTO_UNIT_PATH" ] && \
-echo "  journalctl -u ${OCTO_UNIT} -b"
+echo "  journalctl -u clearpath-platform-extras -b | grep octomap_feed   # + 'ros2 topic hz …/camera_0/octomap_points'"
 [ -z "$(lidar_missing)" ] && \
 echo "  journalctl -u clearpath-platform-extras -b   # + 'ros2 topic hz /a200_0553/sensors/lidar3d_0/points'"
 [ -f "$MD_UNIT_PATH" ] && \

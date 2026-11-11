@@ -24,7 +24,8 @@ transform into ``octomap_frame`` is done by the updater itself.  QoS: publisher 
 best-effort subscribers -- so the QoS of the MoveIt updater does not concern us), subscriber SensorData (best effort,
 like the camera).
 
-Invocation (service clearpath-custom-octomap-feed, see installer)::
+Invocation: on the robot ``husky_bringup``'s ``octomap_feed.launch.py`` (robot.yaml's ``platform.extras.launch``),
+in the offboard images the copy under /usr/local/bin::
 
     octomap-feed --ros-args -p depth_topic:=... -p rate_hz:=5.0
 

@@ -108,7 +108,7 @@ the Clearpath stack restarts. `--verify` reports both files as `MISSING` when th
 All units the installer creates carry the prefix `clearpath-custom-*`
 (`clearpath-custom-rg6-grip-bridge`, `clearpath-custom-joint-states`,
 `clearpath-custom-ur-dashboard`, `clearpath-custom-ur-state-manager`,
-`clearpath-custom-manipulator-diagnostics`, `clearpath-custom-octomap-feed`,
+`clearpath-custom-manipulator-diagnostics`,
 `clearpath-custom-manipulators-watchdog.service`/`.timer` and
 `clearpath-custom-setup`). The arm controllers are not a service of their own but part of `husky_ur_state.launch.py`
 (argument `load_arm_controllers`). Drop-ins on Clearpath's own units (`clearpath-manipulators.service.d/override.conf`)
@@ -360,7 +360,7 @@ journalctl -u clearpath-platform-extras -b
 ros2 topic hz /a200_0553/sensors/lidar3d_0/points
 ```
 
-### `clearpath-custom-octomap-feed.service` (MoveIt octomap: dense obstacle layer)
+### The octomap feed (MoveIt octomap: dense obstacle layer)
 
 Step 2 of the HRL obstacle architecture (step 1 = object-based boxes from the offboard client via `/motion/scene_update`):
 through its **occupancy map monitor**
@@ -368,13 +368,14 @@ through its **occupancy map monitor**
 avoids obstacles the object tracker does not know (or does not know yet). Raycasts clear space that has become free
 automatically — "freshness" is thus sensor-paced rather than heuristic.
 
-Two building blocks, both from the installer (optional step):
+Two building blocks:
 
-1. **`octomap-feed`** (`scripts/octomap_feed.py`, a root-owned copy under
-   `/usr/local/bin`): throttles the camera's 30 fps depth to ~5 Hz, subsamples it (stride 2) and publishes
-   `…/sensors/camera_0/octomap_points`
-   (PointCloud2 in the optical frame; QoS RELIABLE, matches any subscriber). Self-test without ROS:
-   `python3 /usr/local/bin/octomap-feed --selftest`.
+1. **`octomap_feed`** (`scripts/octomap_feed.py`, which `husky_bringup` installs as its executable `octomap_feed`):
+   started by `robot.yaml`'s `platform.extras.launch` (`husky_bringup`'s `octomap_feed.launch.py`, respawning) in
+   Clearpath's `clearpath-platform-extras`. It throttles the camera's 30 fps depth to ~5 Hz, subsamples it (stride 2)
+   and publishes `…/sensors/camera_0/octomap_points` (PointCloud2 in the optical frame; QoS RELIABLE, matches any
+   subscriber). After a camera restart it resubscribes on its own (2026-11-11, R89). Self-test without ROS:
+   `python3 scripts/octomap_feed.py --selftest`.
 2. **Sensor parameters in `robot.yaml`**: under
    `manipulators.moveit.ros_parameters.move_group` sit `octomap_frame`,
    `octomap_resolution`, `sensors` and the `wrist_depth_camera` block — the Clearpath generator writes them into
@@ -403,7 +404,7 @@ process (the candidate
 
 **Verification after install + reboot (checklist):**
 
-1. `journalctl -u clearpath-custom-octomap-feed -b` → start line with topic/rate.
+1. `journalctl -u clearpath-platform-extras -b | grep octomap_feed` → start line with topic/rate.
 2. `ros2 topic hz /a200_0553/sensors/camera_0/octomap_points` → ~5 Hz.
 3. `grep -A10 wrist_depth_camera /etc/clearpath/manipulators/config/moveit.yaml`
    → the sensor block is in the generated file (it comes from robot.yaml).
@@ -414,10 +415,10 @@ process (the candidate
 6. Grasp regression: cube collision objects must carry NO voxels (masking); a descent onto a cube must still plan.
 7. CPU: `top` on the onboard PC — feed + move_group insertion together should stay in the single-digit percent range;
    otherwise lower `rate_hz`/`stride`
-   (ROS params of the unit) and reduce `max_range`.
+   (ROS params in the launch) and reduce `max_range`.
 
-**Rollback:** `sudo systemctl disable --now clearpath-custom-octomap-feed`
-**and** remove the `move_group` block from `robot.yaml` (otherwise the updater keeps looking for a cloud nobody
+**Rollback:** remove the `octomap_feed.launch.py` entry from `robot.yaml`'s `platform.extras.launch`
+**and** the `move_group` block (otherwise the updater keeps looking for a cloud nobody
 publishes). The change to robot.yaml takes effect immediately — `clearpath-robot-check` restarts the stack; the
 generated file is recreated on every boot anyway, and a `.bak` sits next to it.
 

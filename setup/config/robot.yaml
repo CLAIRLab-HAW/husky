@@ -59,6 +59,10 @@ platform:
         path: launch/bt_joy.launch.py
         args:
           namespace: a200_0553
+      # The octomap feed (setup/scripts/octomap_feed.py): the wrist D435's depth as a 5 Hz PointCloud2 for
+      # move_group's occupancy map.  Remove the entry to run without the dense obstacle layer.
+      - package: husky_bringup
+        path: launch/octomap_feed.launch.py
     ros_parameters:
       joy_node:
         # The Xbox 360 wireless receiver's pad under its own udev name (installer, managed udev block): js0 goes to
