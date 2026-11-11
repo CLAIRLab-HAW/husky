@@ -213,7 +213,18 @@ def main(argv: list[str] | None = None) -> int:
 
     def spin() -> bool:
         nonlocal exit_code
-        rclpy.spin_once(node, timeout_sec=0.0)
+        # A stop first: after rclpy's SIGTERM handler, spin_once raises, GLib drops a callback that raised, and the
+        # loop ran on until systemd's SIGKILL (2026-11-11, 90 s on every stack restart).
+        if not rclpy.ok():
+            loop.quit()
+            return False
+        try:
+            rclpy.spin_once(node, timeout_sec=0.0)
+        except Exception:
+            if rclpy.ok():
+                raise
+            loop.quit()
+            return False
         dead = [c.args[0] for c in children if c.poll() is not None]
         if dead:
             # systemd restarts the unit: a teleop chain without its joy_node or teleop half would look alive and drive
