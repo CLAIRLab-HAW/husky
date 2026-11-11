@@ -59,6 +59,13 @@ ros_cmd() { sudo -u "$RUN_USER" env HOME="$RUN_HOME" bash -lc "source /etc/clear
 # --- helpers: mode/safety query and trigger calls (all via the dashboard) ---
 robot_mode() { ros_cmd "timeout -k 5 10 ros2 service call '${DASH_NS}/get_robot_mode' ur_dashboard_msgs/srv/GetRobotMode" 2>&1 | grep -oE 'Robotmode: [A-Z_]+' | head -1; }
 safety_mode() { ros_cmd "timeout -k 5 10 ros2 service call '${DASH_NS}/get_safety_mode' ur_dashboard_msgs/srv/GetSafetyMode" 2>&1 | grep -oE 'Safetymode: [A-Z_]+' | head -1; }
+# An empty answer is "unknown", not a mode: under load the dashboard client answers late or not at all (R86,
+# 2026-11-06, the router at 92 % CPU), and right after 3a it is still starting. Three tries, then empty.
+known_mode() {  # $1 = robot_mode | safety_mode
+    local m="" _
+    for _ in 1 2 3; do m="$("$1")"; [ -n "$m" ] && break; sleep 3; done
+    echo "$m"
+}
 call_trigger() {  # $1 service path, $2 timeout(s); 0 = success=True
     local svc="$1" t="${2:-12}"
     ros_cmd "timeout -k 5 ${t} ros2 service call '${svc}' std_srvs/srv/Trigger" 2>&1 | grep -q 'success=True'
@@ -169,7 +176,14 @@ fi
 #     maintenance/end of day). It additionally prevents an endless driver restart
 #     against an unpowered arm (the HW activation fails anyway -> the JSC would
 #     stay silent -> loop).
-rm_mode="$(robot_mode)"
+rm_mode="$(known_mode robot_mode)"
+if [ -z "$rm_mode" ]; then
+    # 2026-11-06 16:45: a restart while the dashboard was silent came up against the same overloaded router and
+    # failed (`Unable to connect to a Zenoh router`, spawner exit 1), leaving neither dashboard nor controllers.
+    log "the dashboard does not answer (robot mode unknown) -> no driver restart, it would fail the same way." \
+        "The next run after the cooldown checks again."
+    exit 0
+fi
 if [ "$rm_mode" = "Robotmode: POWER_OFF" ]; then
     log "the arm is POWER_OFF (deliberately unpowered) -> no auto recovery, no powering. Power it up by hand if needed; the watchdog connects the motion link as soon as the arm is on."
     exit 0
@@ -189,7 +203,12 @@ systemctl restart "$SERVICE" || log "systemctl restart ${SERVICE} did not run cl
 
 # 3d) Safety check: a protective/safety stop is NOT auto-cleared (manual only).
 #     During a safety stop there is no resend (the operator must release first).
-sm="$(safety_mode)"
+sm="$(known_mode safety_mode)"
+if [ -z "$sm" ]; then
+    log "the safety mode is unknown (the dashboard does not answer after the restart) -> resend skipped." \
+        "The next run after the cooldown checks again."
+    exit 0
+fi
 if [ "$sm" != "Safetymode: NORMAL" ]; then
     log "the safety mode is '${sm:-unknown}' (not NORMAL) -> protective/safety stop. NOT auto-cleared, resend skipped. Manual inspection needed."
     exit 0

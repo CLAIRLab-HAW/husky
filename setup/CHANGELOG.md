@@ -5,6 +5,15 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-11-11 (the watchdog when the dashboard is silent)
+
+### Fixed
+
+- The manipulators watchdog took a silent dashboard for a mode. With no answer to `get_robot_mode` it restarted
+  `clearpath-manipulators`, which under the same load could not reach the Zenoh router and left neither dashboard
+  nor controllers (R86, 2026-11-06); with no answer to `get_safety_mode` after the restart it logged a protective
+  stop. Both queries now try three times, and an unknown mode means no restart and no resend, logged as unknown.
+
 ## 2026-11-11 (the lidar in Cockpit)
 
 ### Added
