@@ -5,6 +5,14 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-11-11 (the lidar in Cockpit)
+
+### Added
+
+- Cockpit shows the lidar under *Sensors → Lidar3D*, OK at 10 Hz and Error when the points stop. `robot.yaml`
+  hands Clearpath's `clearpath_diagnostic_updater` the points topic and the aggregator a `Lidar3D` analyzer — what
+  the generator writes for a declared lidar3d and cannot for the RS16. A test holds topic and rate to `husky_lidar`.
+
 ## 2026-11-11 (reboot in about a minute and a half instead of four)
 
 ### Fixed

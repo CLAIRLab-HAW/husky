@@ -166,6 +166,23 @@ platform:
               path: Gripper
               startswith: ['manipulator_diagnostics: Gripper']
               expected: ['manipulator_diagnostics: Gripper']
+        # The lidar's group under Sensors, as the generator writes it for a lidar3d it knows -- the RS16 cannot be
+        # one (see sensors below), so the generator writes neither this nor the topic check that feeds it.
+        sensors:
+          type: diagnostic_aggregator/AnalyzerGroup
+          path: Sensors
+          analyzers:
+            lidar3d:
+              type: diagnostic_aggregator/GenericAnalyzer
+              path: Lidar3D
+              contains: ['lidar3d']
+      # The lidar's rate check, by Clearpath's own updater: the entry the generator writes for a declared lidar3d's
+      # points.  topic and rate are husky_lidar's (wiring.points_topic, the model's rate_hz); a test holds them equal.
+      clearpath_diagnostic_updater:
+        topics:
+          sensors/lidar3d_0/points:
+            type: sensor_msgs/msg/PointCloud2
+            rate: 10.0
   battery:
     model: HE2411
     configuration: S1P4

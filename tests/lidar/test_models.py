@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from husky_lidar import models
+from husky_lidar import models, wiring
 
 ROBOT_YAML = Path(__file__).resolve().parents[2] / "setup" / "config" / "robot.yaml"
 LAUNCH = Path(__file__).resolve().parents[2] / "src" / "husky_lidar" / "launch" / "lidar.launch.py"
@@ -54,6 +54,16 @@ def test_an_unknown_model_is_refused_by_name():
 
 def test_robot_yaml_names_exactly_one_known_lidar():
     assert models.robot_model(ROBOT_YAML).name in models.MODELS
+
+
+def test_robot_yaml_checks_the_lidar_points_at_the_models_rate():
+    """Clearpath's diagnostic updater watches the points for Cockpit; the generator cannot write the entry (the RS16 is
+    no lidar3d it knows), so robot.yaml does, and it must name husky_lidar's topic at the robot model's rate."""
+    ros_parameters = yaml.safe_load(ROBOT_YAML.read_text(encoding="utf-8"))["platform"]["extras"]["ros_parameters"]
+    topic = wiring.points_topic().removeprefix(f"/{wiring.NAMESPACE}/")
+    entry = ros_parameters["clearpath_diagnostic_updater"]["topics"][topic]
+    assert entry == {"type": "sensor_msgs/msg/PointCloud2", "rate": models.robot_model(ROBOT_YAML).rate_hz}
+    assert "lidar3d" in topic, "the aggregator's Lidar3D group picks the status up by this substring"
 
 
 def test_robot_model_reads_the_one_lidar_model(tmp_path):

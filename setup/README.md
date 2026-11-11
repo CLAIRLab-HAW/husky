@@ -348,6 +348,13 @@ into `~/husky/src` (no apt package; its build fetches
 Blickfeld's protocol from GitHub). A `clearpath-custom-lidar` service found installed is taken out: next to the extras
 launch it would start a second driver on the same ports.
 
+**In Cockpit** the lidar stands under *Sensors → Lidar3D*: OK while the points arrive at the model's 10 Hz, Error
+("No events recorded.") when they stop. No node of ours does it. `robot.yaml` gives Clearpath's
+`clearpath_diagnostic_updater` the points as one more topic to watch and the aggregator the `Lidar3D` analyzer,
+the two entries the generator writes for a lidar3d it knows. It cannot write them for the RS16, which
+`clearpath_config` has no model for. Measured 2026-11-11 with the generator, updater and aggregator in the
+plant-mock image.
+
 ```bash
 journalctl -u clearpath-platform-extras -b
 ros2 topic hz /a200_0553/sensors/lidar3d_0/points
