@@ -5,6 +5,15 @@ What changed when. The current state is described in the [README](README.md).
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 the versioning [Semantic Versioning](https://semver.org/).
 
+## 2026-11-17 (the arm driver waits for the CB3)
+
+### Fixed
+
+- `clearpath-manipulators` died for good when the robot PC booted before the CB3 (R98, 2026-11-11 17:15):
+  `ros2_control_node` could not configure `arm_0`, the launch exited 0 and systemd left the unit inactive until a hand
+  restart. The drop-in now holds the start until the CB3 dashboard port 29999 answers, at most about 4 min; after that
+  the start goes on as before.
+
 ## 2026-11-11 (the arm controller checks the end of a motion)
 
 ### Fixed

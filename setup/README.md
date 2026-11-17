@@ -159,7 +159,13 @@ off the OnRobot URCap, and no ROS service can power its tool connector — see t
 `journalctl -t manipulators-watchdog -b`; schedule:
 `systemctl list-timers clearpath-custom-manipulators-watchdog.timer`.
 
-### `clearpath-manipulators.service.d/override.conf` (clean stop)
+### `clearpath-manipulators.service.d/override.conf` (start after the CB3, clean stop)
+
+Before the start, an `ExecStartPre` waits until the CB3 answers on its dashboard port (29999), at most about 4 min.
+A robot PC that boots before the CB3 otherwise starts `ros2_control_node` against nothing; it fails to configure
+`arm_0`, the launch exits 0, and the unit stays inactive until a hand restart (R98). The wait is prefixed with `-`: a
+CB3 switched off on purpose only delays the start, it does not block it.
+
 
 A drop-in that makes `clearpath-manipulators.service` stop with
 `KillSignal=SIGINT` instead of the default `SIGTERM`. `ros2_control_node`,
