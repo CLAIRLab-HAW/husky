@@ -283,7 +283,10 @@ a200_0553:
         inflation_layer:
           plugin: "nav2_costmap_2d::InflationLayer"
           cost_scaling_factor: 3.0
-          inflation_radius: 0.70
+          # At least the footprint's circumscribed radius (0.97 m with the arm out ahead and the padding): below it the
+          # lattice planner loses its cheap collision check -- "inflation radius (0.700000) is smaller than the
+          # circumscribed radius (0.966644)" on the a200-0553 (2026-11-23).  At 0.97 m the cost is ~44 of 253.
+          inflation_radius: 1.0
 
   planner_server:
     ros__parameters:
