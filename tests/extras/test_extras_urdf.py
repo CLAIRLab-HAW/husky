@@ -194,7 +194,12 @@ def test_robot_yaml_starts_launch_files_this_repository_ships():
     robot_yaml = yaml.safe_load(ROBOT_YAML.read_text(encoding="utf-8"))
     launches = robot_yaml["platform"]["extras"]["launch"]
     assert all(launch.get("package") for launch in launches), launches
-    assert {launch["package"] for launch in launches} == {BRINGUP.name, "husky_bt_joy", "husky_octomap_feed"}
+    assert {launch["package"] for launch in launches} == {
+        BRINGUP.name,
+        "husky_bt_joy",
+        "husky_navigation",
+        "husky_octomap_feed",
+    }
     for launch in launches:
         assert (REPO / "src" / launch["package"] / launch["path"]).is_file(), launch
 
