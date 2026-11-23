@@ -63,7 +63,9 @@ start_unit() {
     sudo -n systemctl start "${UNIT}@${loc}.service"
     echo "[nav] ${UNIT}@${loc} started -- waiting for navigate_to_pose ..."
     deadline=$((SECONDS + READY_TIMEOUT_S))
-    until ros ros2 action list 2>/dev/null | grep -q '/navigate_to_pose$'; do
+    # The list first, then the search: grep -q/-m1 closes the pipe at the first match, ros2 dies of the broken pipe
+    # (exit 120), and pipefail makes that the pipeline's -- the 2026-11-23 save-map stopped there.
+    until grep -q '/navigate_to_pose$' <<<"$(ros ros2 action list 2>/dev/null || true)"; do
         if ! systemctl is-active -q "${UNIT}@${loc}.service"; then
             echo "[nav] the unit stopped:" >&2
             journalctl -u "${UNIT}@${loc}.service" -n 20 --no-pager >&2 || true
@@ -79,7 +81,7 @@ start_unit() {
 
 # The name a slam_toolbox service has in the graph (its namespace is the launch's, not this script's).
 slam_service() {
-    ros ros2 service list 2>/dev/null | grep -m1 "/$1\$"
+    grep -m1 "/$1\$" <<<"$(ros ros2 service list 2>/dev/null || true)"
 }
 
 publish_initialpose() {
