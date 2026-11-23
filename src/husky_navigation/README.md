@@ -16,6 +16,10 @@ itself — models, driver, self filter — is [husky_lidar](../../src/husky_lida
   before Nav2 is.
 - **Nav2** with switchable localization (`localization:=none|slam|amcl`): a static identity `map→odom`,
   `slam_toolbox` while mapping, or AMCL against a stored map.
+- **Relocalization from one scan** (`husky_navigation.relocalize`, `task robot:nav:relocalize`): AMCL starts at the
+  map's origin and corrects only while the robot moves. The scan is matched against the map around AMCL's pose,
+  and a clear, better match goes out as `initialpose` -- run by `nav.sh start amcl` whenever no SLAM hands its pose
+  over, and worth running before a drive after the robot stood a while.
 - **ROS-free core.** The decisions live in `src/clair/navigation/` and are
   testable without ROS; the launch files import them.
 

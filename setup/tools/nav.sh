@@ -5,6 +5,7 @@
 #
 #   nav.sh start slam|amcl     # the other localization stops (Conflicts=); waits for navigate_to_pose
 #   nav.sh stop
+#   nav.sh relocalize          # scan-match AMCL's pose against the map; corrects it when the match is clear
 #   nav.sh status
 #   nav.sh save-map NAME       # the running SLAM's map -> /tmp/NAME.{pgm,yaml}, for task robot:map:save to fetch
 set -euo pipefail
@@ -78,8 +79,10 @@ PY
                              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0625]}}" >/dev/null
             echo "[nav] AMCL starts at the pose SLAM handed over."
         elif [ "$loc" = amcl ]; then
-            echo "[nav] AMCL starts at the map's origin -- set the pose in Echo (2D Pose Estimate) if the robot is not"
-            echo "[nav] standing where the mapping run began."
+            # No SLAM to hand over (a stack restart stops it): find the pose from the scan instead.
+            if ! ros python3 -m husky_navigation.relocalize; then
+                echo "[nav] no clear match -- set the pose in Echo (2D Pose Estimate)."
+            fi
         fi
         echo "[nav] up: Nav2 on the robot, localization ${loc}."
         ;;
@@ -90,6 +93,9 @@ PY
                 echo "[nav] ${UNIT}@${loc} stopped."
             fi
         done
+        ;;
+    relocalize)
+        ros python3 -m husky_navigation.relocalize
         ;;
     status)
         for loc in slam amcl; do
@@ -102,7 +108,7 @@ PY
         ls -la "${MAPS}/${name}".*
         ;;
     *)
-        echo "usage: nav.sh start slam|amcl | stop | status | save-map NAME" >&2
+        echo "usage: nav.sh start slam|amcl | stop | relocalize | status | save-map NAME" >&2
         exit 2
         ;;
 esac
