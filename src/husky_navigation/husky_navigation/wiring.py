@@ -15,6 +15,9 @@ __all__ = [
     "NAMESPACE",
     "TF_REMAPS",
     "cmd_vel_topic",
+    "imu_topic",
+    "unbiased_imu_topic",
+    "wheel_odom_topic",
     "filtered_points_topic",
     "pointcloud_to_laserscan_params",
     "points_topic",
@@ -32,6 +35,21 @@ def scan_topic() -> str:
     therefore not a convenience but a precondition.
     """
     return f"/{NAMESPACE}/sensors/lidar3d_0/scan"
+
+
+def imu_topic() -> str:
+    """The UM7 driver's output (sensor_msgs/Imu, frame imu_0_link, mounted on its side: robot.yaml)."""
+    return f"/{NAMESPACE}/sensors/imu_0/data"
+
+
+def unbiased_imu_topic() -> str:
+    """The UM7's message with the gyro bias learned at rest taken off (husky_navigation.gyro_bias) -- the EKF's imu0."""
+    return f"/{NAMESPACE}/sensors/imu_0/data_unbiased"
+
+
+def wheel_odom_topic() -> str:
+    """The wheels' odometry from the platform's velocity controller -- exactly 0.0 while the base stands."""
+    return f"/{NAMESPACE}/platform/odom"
 
 
 def cmd_vel_topic() -> str:
