@@ -1,0 +1,7 @@
+# Lets @REAL_USER@ start and stop Nav2 over ssh (task robot:nav) without a password -- these four commands and nothing
+# else; every other sudo still asks.
+@REAL_USER@ ALL=(root) NOPASSWD: \
+    /usr/bin/systemctl start clearpath-custom-navigation@slam.service, \
+    /usr/bin/systemctl start clearpath-custom-navigation@amcl.service, \
+    /usr/bin/systemctl stop clearpath-custom-navigation@slam.service, \
+    /usr/bin/systemctl stop clearpath-custom-navigation@amcl.service

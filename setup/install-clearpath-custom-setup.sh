@@ -48,6 +48,8 @@
 #     filter's bodies).  Clearpath's
 #     clearpath-platform-extras service starts the chain itself, from robot.yaml's platform.extras.launch; a
 #     clearpath-custom-lidar.service found installed is taken out, it would start a second driver
+#   - optional: Nav2 on the robot -- its apt packages, clearpath-custom-navigation@slam|amcl.service (started on
+#     demand by task robot:nav, never at boot) and the sudoers drop-in that lets the user start and stop it
 #   - optional: clearpath-custom-manipulator-diagnostics.service: UR5 + RG6 as
 #     diagnostic_msgs for the Clearpath aggregator (Cockpit, diagnostics_agg)
 #   - optional: mask ds4drv.service (a PS4 pad driver this robot does not use;
@@ -255,6 +257,20 @@ USM_UNIT_PATH="/etc/systemd/system/${USM_UNIT}"
 JS_WRAPPER="${BIN_DIR}/joint-states.sh"
 JS_UNIT="clearpath-custom-joint-states.service"
 JS_UNIT_PATH="/etc/systemd/system/${JS_UNIT}"
+
+# navigation: Nav2 on the robot, husky_navigation's launch -- a template unit, the instance is the localization
+# (slam | amcl).  Started on demand, never at boot; the sudoers drop-in lets the user start and stop it over ssh.
+NAV_WRAPPER="${BIN_DIR}/navigation.sh"
+NAV_UNIT="clearpath-custom-navigation@.service"
+NAV_UNIT_PATH="/etc/systemd/system/${NAV_UNIT}"
+NAV_SUDOERS_PATH="/etc/sudoers.d/clearpath-custom-navigation"
+# The map AMCL drives against, in husky_navigation/maps (R36).
+# shellcheck disable=SC2034  # read only through render_template's ${!var}, which shellcheck cannot follow
+NAV_MAP="labor.yaml"
+# Nav2 as the plant-mock image carries it (deploy/offboard/a200/Dockerfile), from the same pinned snapshot: on
+# 2026-11-23 a simulation showed 222 new packages, 0 upgraded, 0 removed.
+NAV_APT=(ros-jazzy-nav2-bringup ros-jazzy-nav2-amcl ros-jazzy-nav2-map-server ros-jazzy-slam-toolbox
+    ros-jazzy-spatio-temporal-voxel-layer)
 
 # manipulators watchdog: covers TWO gaps that are NOT solvable at the ROS level.
 #  (a) If the UR is powered up LONG AFTER the boot, the one-shot ros2_control HW
@@ -503,6 +519,9 @@ verify_deployments() {
         "${PLATFORM_DROPIN}|systemd/clearpath-platform.service.d/override.conf.in"
         "${JS_WRAPPER}|systemd/joint-states.sh.in"
         "${JS_UNIT_PATH}|systemd/clearpath-custom-joint-states.service.in"
+        "${NAV_WRAPPER}|systemd/navigation.sh.in"
+        "${NAV_UNIT_PATH}|systemd/clearpath-custom-navigation@.service.in"
+        "${NAV_SUDOERS_PATH}|systemd/clearpath-custom-navigation.sudoers.in"
         "${MD_WRAPPER}|systemd/manipulator-diagnostics.sh.in"
         "${MD_UNIT_PATH}|systemd/clearpath-custom-manipulator-diagnostics.service.in"
         "${RG6_BRIDGE_WRAPPER}|systemd/rg6-grip-bridge-wrapper.in"
@@ -1350,6 +1369,39 @@ install_template systemd/clearpath-platform-extras.service.d/override.conf.in "$
 echo ">>> Installing ${PLATFORM_DROPIN} (stop bound for clearpath-platform)"
 install -d -m 0755 "$PLATFORM_DROPIN_DIR"
 install_template systemd/clearpath-platform.service.d/override.conf.in "$PLATFORM_DROPIN" 0644
+
+# --- Nav2 on the robot (optional) -------------------------------------------
+# Nav2 ran offboard first, in the plant-mock image over the LAN: scans arrived 64 ms late, the controller logged
+# "extrapolation into the future", slam_toolbox dropped scans, and a lost link would have taken navigation with it
+# (2026-11-23).  On the robot it reads its sensors locally.  The packages are the image's, the parameters and the
+# launch husky_navigation's, so both places run the same Nav2.
+DO_NAV=1
+if [ -f "$NAV_UNIT_PATH" ]; then
+    confirm ">>> ${NAV_UNIT} is already installed. Update it?" || DO_NAV=0
+else
+    confirm ">>> Install Nav2 on the robot (apt: ${#NAV_APT[@]} packages and their dependencies; started on demand)?" \
+        || DO_NAV=0
+fi
+if [ "$DO_NAV" -eq 1 ]; then
+    if ls -d /opt/ros/*/share/nav2_bringup >/dev/null 2>&1 || apt_add_only "${NAV_APT[@]}"; then
+        echo ">>> Installing ${NAV_WRAPPER} + ${NAV_UNIT} + ${NAV_SUDOERS_PATH}"
+        install_template systemd/navigation.sh.in "$NAV_WRAPPER" 0755
+        install_template systemd/clearpath-custom-navigation@.service.in "$NAV_UNIT_PATH" 0644
+        # visudo first: a broken drop-in under /etc/sudoers.d takes every sudo on the robot with it.
+        install_template systemd/clearpath-custom-navigation.sudoers.in "${NAV_SUDOERS_PATH}.new" 0440
+        if visudo -cf "${NAV_SUDOERS_PATH}.new" >/dev/null; then
+            mv "${NAV_SUDOERS_PATH}.new" "$NAV_SUDOERS_PATH"
+        else
+            rm -f "${NAV_SUDOERS_PATH}.new"
+            echo "    WARN: the sudoers drop-in did not validate -- starting Nav2 needs a password."
+        fi
+        systemctl daemon-reload
+    else
+        echo "    WARN: Nav2's packages are missing -- the unit is not installed."
+    fi
+else
+    echo ">>> Nav2 on the robot: skipped."
+fi
 
 # --- manipulator diagnostics (optional) ------------------------------------
 # UR mode/safety/external control + RG6 state -> diagnostic_msgs on the

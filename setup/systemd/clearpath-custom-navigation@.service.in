@@ -1,0 +1,17 @@
+[Unit]
+Description=Nav2 on the robot, localization %i (slam maps, amcl drives against the stored map)
+After=clearpath-robot.service
+# A stack stop takes it along; it never comes back by itself.
+PartOf=clearpath-robot.service
+# One localization at a time: the two instances would drive the same base from two maps.
+Conflicts=clearpath-custom-navigation@slam.service clearpath-custom-navigation@amcl.service
+
+[Service]
+User=@REAL_USER@
+ExecStart=@NAV_WRAPPER@ %i
+# SIGINT, as ros2 launch expects it: its nodes shut down and controller_server's last command is a stop.
+KillSignal=SIGINT
+TimeoutStopSec=15
+
+# No [Install]: started on demand (task robot:nav), never at boot -- a robot that boots must not come up able to
+# drive.
