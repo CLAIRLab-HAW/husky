@@ -16,6 +16,10 @@ itself — models, driver, self filter — is [husky_lidar](../../src/husky_lida
   before Nav2 is.
 - **Nav2** with switchable localization (`localization:=none|slam|amcl`): a static identity `map→odom`,
   `slam_toolbox` while mapping, or AMCL against a stored map.
+- **A map that grows** (`task robot:nav`, `task robot:map:save`): the robot keeps its map in `~/maps/labor` -- the
+  image AMCL reads and slam_toolbox's pose graph, saved together so they share one frame. SLAM continues that graph
+  by default, from the pose AMCL has the robot at (`deserialize_map`, `START_AT_GIVEN_POSE`); `FRESH=1` starts an
+  empty map, and saving it keeps the previous one beside it.
 - **Relocalization from one scan** (`husky_navigation.relocalize`, `task robot:nav:relocalize`): AMCL starts at the
   map's origin and corrects only while the robot moves. The scan is matched against the map around AMCL's pose,
   and a clear, better match goes out as `initialpose` -- run by `nav.sh start amcl` whenever no SLAM hands its pose

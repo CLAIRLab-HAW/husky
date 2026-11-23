@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # Starts Nav2 on the robot: husky_navigation's navigation.launch.py, localization from the unit's instance --
-# clearpath-custom-navigation@slam maps, @amcl drives against the stored map (@NAV_MAP@ in husky_navigation/maps).
+# clearpath-custom-navigation@slam maps, @amcl drives against the stored map: ~/maps/@NAV_MAP@ where nav.sh save-map
+# put it, else the one husky_navigation ships (maps/@NAV_MAP@).
 # Sources ~/husky as well: robot.yaml lists it under system.ros2.workspaces.
 source /etc/clearpath/setup.bash
 localization="${1:?usage: navigation.sh slam|amcl}"
 args=("localization:=${localization}")
-[ "$localization" = amcl ] && args+=("map:=@NAV_MAP@")
+if [ "$localization" = amcl ]; then
+    map="${HOME}/maps/@NAV_MAP@"
+    [ -f "$map" ] || map="@NAV_MAP@"
+    args+=("map:=${map}")
+fi
 exec ros2 launch husky_navigation navigation.launch.py "${args[@]}"
