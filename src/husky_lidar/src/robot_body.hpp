@@ -43,6 +43,17 @@ constexpr double kArmPaddingM = 0.15;
 //: The arm's links, by name prefix.
 inline const std::vector<std::string> kArmLinks = { "arm_0_", "rg6_", "camera_0" };
 
+//: A box around the sensor arch and what hangs off it, fixed to the lidar's link -- dropped like a robot body.  On the
+//: a200-0553 ~2 points a sweep stayed at x -0.28, y -0.38..-0.57, z 0.65..0.70 m in base_link, on the arch's right
+//: and past the base's half width, where no link of the description stands (2026-11-23): something on the arch the
+//: model does not carry, mapped beside the robot wherever it stood.  The box reaches 0.65 m to either side and from
+//: 0.43 to 0.98 m up; what stands there at the robot's rear is dropped with it.
+//: Its center in the lidar link's frame [m] (the lidar sits at x -0.28, z 0.75 in base_link) and its size [m].
+inline const Eigen::Vector3d kArchBoxCenterM{ 0.0, -0.01, -0.05 };
+inline const Eigen::Vector3d kArchBoxSizeM{ 0.35, 1.30, 0.55 };
+//: The link the box is fixed to.
+inline const std::string kArchBoxLink = "lidar3d_0_link";
+
 inline double paddingFor(const std::string& link, double padding_m)
 {
   for (const auto& prefix : kArmLinks)
@@ -76,6 +87,14 @@ public:
         parts_.push_back({ name, toIsometry(collision->origin), std::move(body) });
         links_.insert(name);
       }
+    if (model.links_.count(kArchBoxLink))
+    {
+      const shapes::Box box(kArchBoxSizeM.x(), kArchBoxSizeM.y(), kArchBoxSizeM.z());
+      std::unique_ptr<bodies::Body> body(bodies::createBodyFromShape(&box));
+      body->setPadding(padding_m);
+      parts_.push_back({ kArchBoxLink, Eigen::Isometry3d(Eigen::Translation3d(kArchBoxCenterM)), std::move(body) });
+      links_.insert(kArchBoxLink);
+    }
   }
 
   std::size_t size() const { return parts_.size(); }
