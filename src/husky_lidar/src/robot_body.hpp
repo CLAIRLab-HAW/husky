@@ -33,19 +33,21 @@ namespace husky_lidar
 constexpr double kNearM = 2.2;
 //: How far around a link a point still counts as the robot [m]: the RS16's centimeter noise and a link a TF tick off.
 constexpr double kPaddingM = 0.05;
-//: The wrist camera's cable runs along the forearm, the wrist and the gripper outside every collision body --
-//: rg6_cable has none -- and the RS16 saw it there: 12 points a sweep near those links with the arm in `forward`,
-//: and in the look poses it fell into the 2D scan and SLAM mapped it around every place the robot looked from
-//: (a200-0553, 2026-11-23).  Those links get this padding instead [m].
-constexpr double kCabledPaddingM = 0.12;
-//: The links the cable runs along, by name prefix.
-inline const std::vector<std::string> kCabledLinks = { "arm_0_forearm", "arm_0_wrist", "rg6_", "camera_0" };
+//: The arm's links -- the UR5, the gripper, the wrist camera -- get this padding instead [m].  Its cable lies off the
+//: model, and not where the description would put it: rg6_cable has no collision body, and the RS16 kept 12 points
+//: a sweep near the arm in `forward`; in the look poses they fell into the 2D scan and SLAM mapped them around every
+//: place the robot looked from (a200-0553, 2026-11-23).  0.12 m around the forearm, wrist and gripper left 1; the
+//: whole arm gets 0.15 m, as the owner asked for a margin.  What stands within it of the arm is dropped with it --
+//: harmless for driving, where the arm stands in the footprint, and MoveIt plans from the D435's octomap.
+constexpr double kArmPaddingM = 0.15;
+//: The arm's links, by name prefix.
+inline const std::vector<std::string> kArmLinks = { "arm_0_", "rg6_", "camera_0" };
 
 inline double paddingFor(const std::string& link, double padding_m)
 {
-  for (const auto& prefix : kCabledLinks)
+  for (const auto& prefix : kArmLinks)
     if (link.rfind(prefix, 0) == 0)
-      return std::max(padding_m, kCabledPaddingM);
+      return std::max(padding_m, kArmPaddingM);
   return padding_m;
 }
 
