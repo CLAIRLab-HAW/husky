@@ -19,7 +19,12 @@ setup(
         ("share/" + package_name + "/maps", glob("maps/*")),
     ],
     install_requires=["setuptools"],
-    entry_points={"console_scripts": ["gyro_bias = husky_navigation.gyro_bias:main"]},
+    entry_points={
+        "console_scripts": [
+            "arm_drive_lock = husky_navigation.arm_drive_lock:main",
+            "gyro_bias = husky_navigation.gyro_bias:main",
+        ]
+    },
     zip_safe=True,
     maintainer="Hannes Voss",
     maintainer_email="hannes.voss@haw-hamburg.de",

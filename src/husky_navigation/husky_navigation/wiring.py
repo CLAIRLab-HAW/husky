@@ -14,8 +14,10 @@ __all__ = [
     "LIDAR_FRAME",
     "NAMESPACE",
     "TF_REMAPS",
+    "arm_drive_lock_topic",
     "cmd_vel_topic",
     "imu_topic",
+    "joint_states_topic",
     "unbiased_imu_topic",
     "wheel_odom_topic",
     "filtered_points_topic",
@@ -50,6 +52,19 @@ def unbiased_imu_topic() -> str:
 def wheel_odom_topic() -> str:
     """The wheels' odometry from the platform's velocity controller -- exactly 0.0 while the base stands."""
     return f"/{NAMESPACE}/platform/odom"
+
+
+def joint_states_topic() -> str:
+    """The platform's joint states -- the arm's joints relayed onto them (gripper_control's joint_state_relay)."""
+    return f"/{NAMESPACE}/platform/joint_states"
+
+
+def arm_drive_lock_topic() -> str:
+    """std_msgs/Bool, ``true`` while the arm stands out of a drive pose (husky_navigation.arm_drive_lock).
+
+    twist_mux's lock ``arm_out`` reads it (robot.yaml), and so does the plan server, which names it the same.
+    """
+    return f"/{NAMESPACE}/platform/arm_drive_lock"
 
 
 def cmd_vel_topic() -> str:

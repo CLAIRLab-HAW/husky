@@ -58,6 +58,9 @@ platform:
       # The UM7's gyro bias, learned while the wheels stand still and taken off before the EKF (husky_navigation).
       - package: husky_navigation
         path: launch/gyro_bias.launch.py
+      # The arm's drive-pose lock for twist_mux and the plan server (husky_navigation).
+      - package: husky_navigation
+        path: launch/arm_drive_lock.launch.py
       - package: husky_bt_joy
         path: launch/bt_joy.launch.py
         args:
@@ -88,6 +91,16 @@ platform:
       # 10 Hz steps -- at 0.4 m/s 4 cm each, and up to 2 m/s in one 20 ms sample while its speed changed (measured
       # 2026-09-27 on the a200's MuJoCo stack: the robot shook while driving and most of all while braking).  Fed
       # velocities, it carries the pose on with them between two reports; the IMU adds the yaw rate as before.
+      # The arm out of a drive pose locks Nav2's cmd_vel (husky_navigation.arm_drive_lock, started below): priority 5
+      # sits above Nav2's `external` (1) and below the marker (8), the joystick (10) and the RC (12), so a person
+      # still drives.  A lock that stops arriving counts as locked after 0.5 s.  Clearpath's generator merges it
+      # into the platform's twist_mux.yaml as locks.arm_out (checked with generate_param, 2026-11-23).
+      twist_mux:
+        locks:
+          arm_out:
+            topic: 'platform/arm_drive_lock'
+            timeout: 0.5
+            priority: 5
       ekf_node:
         # x y z, roll pitch yaw, vx vy vz, vroll vpitch vyaw, ax ay az
         odom0_config: [false, false, false, false, false, false, true, true, false,

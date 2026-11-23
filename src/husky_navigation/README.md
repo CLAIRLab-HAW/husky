@@ -16,6 +16,10 @@ itself — models, driver, self filter — is [husky_lidar](../../src/husky_lida
   before Nav2 is.
 - **Nav2** with switchable localization (`localization:=none|slam|amcl`): a static identity `map→odom`,
   `slam_toolbox` while mapping, or AMCL against a stored map.
+- **The base drives only with the arm in a drive pose** (`husky_navigation.arm_drive_lock`): out of `forward` and
+  `packed` -- the poses Nav2's footprint covers, read from robot.yaml -- it publishes `platform/arm_drive_lock`, and
+  twist_mux's lock `arm_out` (priority 5) holds Nav2's cmd_vel while the joystick, marker and RC still drive. A
+  lock that falls silent locks. The plan server refuses a drive on `/motion/nav_cmd` with `precondition_failed`.
 - **A map that grows** (`task robot:nav`, `task robot:map:save`): the robot keeps its map in `~/maps/labor` -- the
   image AMCL reads and slam_toolbox's pose graph, saved together so they share one frame. SLAM continues that graph
   by default, from the pose AMCL has the robot at (`deserialize_map`, `START_AT_GIVEN_POSE`); `FRESH=1` starts an
