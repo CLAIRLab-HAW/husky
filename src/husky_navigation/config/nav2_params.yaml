@@ -114,10 +114,12 @@ a200_0553:
         primary_controller: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
         angular_dist_threshold: 0.785
         forward_sampling_distance: 0.5
-        rotate_to_heading_angular_vel: 0.8
+        # 0,4 rad/s and 0,2 m/s, half of what the mock drove at: the first drives on the real a200-0553 turned and
+        # drove briskly for a room with people in it (owner, 2026-11-23).  Same ratio, so the tightest arc stays 0,5 m.
+        rotate_to_heading_angular_vel: 0.4
         max_angular_accel: 1.0
         simulate_ahead_time: 1.0
-        desired_linear_vel: 0.4
+        desired_linear_vel: 0.2
         max_vel_x: 0.5              # the wheel controller clamps at 1.0
         max_vel_theta: 0.8          # the wheel controller clamps at 1.0
         lookahead_dist: 0.6
@@ -145,8 +147,11 @@ a200_0553:
         # the collision model).  Not a circle around all of it: 0,60 m puts every cell within 0,60 m of a table leg
         # in inscribed cost -- in ArchitecTHOR's dining corner the robot stood in its own, and no plan left it
         # (2026-09-27).
-        # An arm reaching out stands beyond this outline -- pack it before driving.
-        footprint: "[[0.55, 0.39], [0.55, -0.39], [-0.55, -0.39], [-0.55, 0.39]]"
+        # The front edge reaches 0.87 m instead: the robot drives with the arm in `forward`, and there its RG6's finger
+        # tips stand 0.82 m ahead of base_link (TF and UR5 FK, 2026-11-23), plus 5 cm.  Shorter, Nav2 planned the
+        # gripper into whatever stood ahead, and the RS16 points on it -- the self-filter misses it (R63) -- lay
+        # outside the outline, where STVL's footprint clearing did not reach them: every start was start_occupied.
+        footprint: "[[0.87, 0.39], [0.87, -0.39], [-0.55, -0.39], [-0.55, 0.39]]"
         plugins: ["obstacle_layer", "inflation_layer"]
         # A spatio-temporal voxel layer (STVL): 3D, so the RS16's points mark a tabletop the scan's height band passes
         # under, and every mark decays unless the lidar sees it again.  The voxel layer kept a mark until a ray passed
@@ -212,13 +217,16 @@ a200_0553:
         publish_frequency: 1.0
         global_frame: map
         robot_base_frame: base_link
-        footprint: "[[0.55, 0.39], [0.55, -0.39], [-0.55, -0.39], [-0.55, 0.39]]"  # as the local costmap's
+        footprint: "[[0.87, 0.39], [0.87, -0.39], [-0.55, -0.39], [-0.55, 0.39]]"  # as the local costmap's
         resolution: 0.05
         track_unknown_space: true
         plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
         static_layer:
           plugin: "nav2_costmap_2d::StaticLayer"
           map_subscribe_transient_local: true
+          # slam_toolbox maps the gripper ahead of a standing robot (R63), and the cell stays occupied until the robot
+          # moves; under the footprint it is the robot itself, so it is cleared there (2026-11-23).
+          footprint_clearing_enabled: true
         # A spatio-temporal voxel layer (STVL): 3D, so the RS16's points mark a tabletop the scan's height band passes
         # under, and every mark decays unless the lidar sees it again.  The voxel layer kept a mark until a ray passed
         # through it, which the RS16's 16 rings seldom do: after some driving the global costmap was 0.8 % free, 20 %
@@ -286,7 +294,7 @@ a200_0553:
       # does not fit in is not planned.  The id stays GridBased, which the behavior trees name.
       GridBased:
         plugin: "nav2_smac_planner::SmacPlannerLattice"
-        # 5 cm, like the costmaps; 0,5 m: the tightest arc RPP drives at its desired 0,4 m/s within max_vel_theta.
+        # 5 cm, like the costmaps; 0,5 m: the tightest arc RPP drives at its desired 0,2 m/s within 0,4 rad/s.
         lattice_filepath: "/opt/ros/jazzy/share/nav2_smac_planner/sample_primitives/\
           5cm_resolution/0.5m_turning_radius/diff/output.json"
         # Forward only, see FollowPath.  A turn on the spot costs more than an arc.
@@ -326,7 +334,7 @@ a200_0553:
         plugin: "nav2_behaviors::BackUp"
       wait:
         plugin: "nav2_behaviors::Wait"
-      max_rotational_vel: 0.8
+      max_rotational_vel: 0.4     # as the shim's turn (2026-11-23)
       min_rotational_vel: 0.2
       rotational_acc_lim: 1.0
 

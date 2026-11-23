@@ -95,6 +95,13 @@ platform:
         # With odom0 on velocities alone (above) nothing pulls that back, so the two go out together.
         imu0_config: [false, false, false, false, false, false, false, false, false,
                       false, false, true, false, false, false]
+        # The topic as well: Clearpath's generator writes imu0 only while these extras name no ekf_node, so with them
+        # the EKF read the wheels alone (R66) -- and the a200's wheels report a turn 16-18 % short (91 deg turned,
+        # 76 deg reported; 2026-11-23), which put rotated copies of every wall into the SLAM map.
+        imu0: sensors/imu_0/data
+        imu0_differential: false
+        imu0_queue_size: 10
+        imu0_remove_gravitational_acceleration: true
       # And it follows the wheels' linear speed closely: at the generated 0.001 the filter took some 70 % of a speed
       # change per report and the pose still stepped while the speed changed.  The encoders measure the linear speed
       # directly; the yaw rate keeps its 0.01, as a skid steer's wheels measure turning poorly and the IMU weighs in.
@@ -435,7 +442,10 @@ sensors:
       launch_enabled: true
       parent: base_link
       xyz: [0.0, 0.0, 0.0]
-      rpy: [0.0, 0.0, 0.0]
+      # The UM7 is mounted on its side: at rest it reads gravity on -y (0.01, -10.06, -0.04 m/s^2), and in a turn its
+      # -y follows the wheels' yaw rate (correlation -0.95; x +0.50, z +0.37) -- so -y is the base's up axis, and a
+      # roll of -90 deg puts it there for the EKF's yaw rate (2026-11-23).  Which of its x/z points ahead is unmeasured.
+      rpy: [-1.5708, 0.0, 0.0]
       ros_parameters:
         um7_driver:
           port: /dev/clearpath/um7

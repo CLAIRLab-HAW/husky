@@ -24,8 +24,9 @@ itself — models, driver, self filter — is [husky_lidar](../../src/husky_lida
 **Nav2 drives in the container, not yet on the robot.** Evidenced, not claimed: on the plain mock a
 `NavigateToPose` over 1 m ends with `SUCCEEDED`, and the EKF odometry before and after confirms the distance; on the
 ManiSkill stack it reaches goals around the furniture of an ArchitecTHOR scene (see the CHANGELOG). On the robot the
-RS16 chain runs as a service of the installer (`scan.launch.py`, scans at 10.6 Hz), but `nav` has no start path
-there and there is no map of the lab yet (R36).
+RS16 chain runs as a service of the installer (`scan.launch.py`, scans at 10.6 Hz); Nav2 itself runs offboard
+against the robot's graph (`task robot:nav`, SLAM by default) and has not driven it yet, and there is no map of the
+lab yet (R36).
 
 **Localization is wheel odometry everywhere; what corrects it depends on where it runs.** `start_nav` in `clair.stack`
 passes `localization:=slam` to a sim plant with the lidar on; everything else gets the launch default `none`.
@@ -35,7 +36,7 @@ passes `localization:=slam` to a sim plant with the lidar on; everything else ge
 | plain mock (`plant:=mock`) | mock wheels | static identity | none, synthetic map |
 | sim plant, lidar on (the default) | mock wheels + sim UM7 yaw rate | `slam_toolbox` | the cast RS16 |
 | sim plant, `--no-lidar` | mock wheels + sim UM7 yaw rate | static identity | none |
-| real robot | wheel encoders (UM7 meant, not wired: R66) | — (Nav2 not started) | — |
+| real robot (`task robot:nav`) | wheel encoders (UM7 meant, not wired: R66) | `slam_toolbox` | the RS16 |
 
 **The sim's odometry errs as the robot's does.** The mock wheels (`mock_components/GenericSystem`) turn exactly as
 commanded, and the world does not follow the odometry but `base-truth`, which moves the body for the same wheel speeds

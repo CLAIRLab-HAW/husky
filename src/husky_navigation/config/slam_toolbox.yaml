@@ -33,7 +33,11 @@ a200_0553:
       # The Husky is large and sluggish -- smaller thresholds produced scan
       # matches while standing still, which smear the map.
       minimum_travel_distance: 0.3
-      minimum_travel_heading: 0.3
+      # 0,15 rad: on the real a200-0553 the wheel odometry lost 13 deg in a few
+      # turns (skid slip, no IMU in the EKF: R66), and matching only every
+      # 0,3 rad let the drift reach the 20 deg search window first -- rotated
+      # copies of the walls in the map (2026-11-23).
+      minimum_travel_heading: 0.15
       scan_buffer_size: 10
       use_scan_matching: true
       loop_search_maximum_distance: 3.0

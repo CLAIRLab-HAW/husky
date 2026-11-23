@@ -113,7 +113,12 @@ private:
     sensor_msgs::PointCloud2ConstIterator<float> x(msg, "x"), y(msg, "y"), z(msg, "z");
     for (std::size_t i = 0; i < n; ++i, ++x, ++y, ++z)
       xyz.emplace_back(*x, *y, *z);
-    const auto drop = body_->robotPoints(xyz, poses(msg.header.frame_id, msg.header.stamp));
+    const auto found = poses(msg.header.frame_id, msg.header.stamp);
+    if (found.size() < body_->links().size())
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 60000,
+                           "%zu of %zu body links have no transform to %s -- their points stay in",
+                           body_->links().size() - found.size(), body_->links().size(), msg.header.frame_id.c_str());
+    const auto drop = body_->robotPoints(xyz, found);
 
     PointCloud2 out;
     out.header = msg.header;
