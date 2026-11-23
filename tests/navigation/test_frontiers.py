@@ -1,6 +1,9 @@
-"""frontiers' core: free cells beside unknown ones, grouped, short ones dropped, the goal point free."""
+"""frontiers' core: free cells beside unknown ones, grouped, short ones dropped, each with a viewpoint the base can
+stand at -- clear of obstacles and the unknown, in sight of the frontier -- or left out."""
 
 from __future__ import annotations
+
+import math
 
 import numpy as np
 
@@ -20,19 +23,39 @@ def _room() -> np.ndarray:
     return g
 
 
+def _cell(x, y):
+    return int(y / RES), int(x / RES)
+
+
+def _clearance(g, x, y, mask):
+    r, c = _cell(x, y)
+    rr, cc = np.nonzero(mask)
+    return np.min(np.hypot(rr - r, cc - c)) * RES
+
+
 def test_the_doorway_is_a_frontier_and_the_gap_is_not():
     found = fr.find_frontiers(_room(), RES, (0.0, 0.0))
     assert len(found) == 1
     (door,) = found
-    assert abs(door["x"] - 89.5 * RES) < 0.01 and 30 * RES <= door["y"] <= 50 * RES
+    assert abs(door["fx"] - 89.5 * RES) < 0.01 and 30 * RES <= door["fy"] <= 50 * RES
     assert door["size_m"] >= 0.9
 
 
-def test_the_goal_point_is_a_free_cell():
+def test_the_viewpoint_keeps_clear_of_walls_and_the_unknown_and_sees_the_frontier():
     g = _room()
-    for f in fr.find_frontiers(g, RES, (0.0, 0.0)):
-        r, c = int(f["y"] / RES), int(f["x"] / RES)
-        assert 0 <= g[r, c] <= fr.FREE_MAX
+    (door,) = fr.find_frontiers(g, RES, (0.0, 0.0))
+    assert _clearance(g, door["x"], door["y"], g > fr.FREE_MAX) >= fr.CLEAR_OF_OCCUPIED_M - RES
+    assert _clearance(g, door["x"], door["y"], g < 0) >= fr.CLEAR_OF_UNKNOWN_M - RES
+    assert math.hypot(door["x"] - door["fx"], door["y"] - door["fy"]) <= fr.VIEW_RANGE_M
+    assert fr._in_sight(g > fr.FREE_MAX, _cell(door["x"], door["y"]), _cell(door["fx"], door["fy"]))
+    assert 0 <= g[_cell(door["x"], door["y"])] <= fr.FREE_MAX
+
+
+def test_a_frontier_in_a_corridor_too_narrow_to_stand_in_is_left_out():
+    g = np.full((60, 120), -1, dtype=np.int16)
+    g[20:40, 10:100] = 100
+    g[28:32, 10:100] = 0  # a 0.2 m slot, open at its east end into the unknown
+    assert fr.find_frontiers(g, RES, (0.0, 0.0)) == []
 
 
 def test_a_fully_seen_room_has_no_frontiers():

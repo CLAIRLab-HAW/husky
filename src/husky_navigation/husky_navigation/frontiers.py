@@ -2,14 +2,22 @@
 
 slam_toolbox's map grows wherever the robot looks; what it has not seen yet is ``-1``.  A frontier is a free cell
 with an unknown neighbor, and the cells that touch each other form one; a frontier shorter than ``MIN_SIZE_M`` is
-noise along a wall, not a way on.  Each goes out with its length and a goal point: its own cell nearest its centroid,
-so the point is free by construction -- whether the base fits there is the costmap's question, asked by the explorer
-(``cost``, ``plan``) before it drives.
+noise along a wall, not a way on.
+
+The frontier itself is a poor goal: in a furnished room most frontiers are the scan shadows behind furniture, and
+their cells stand right beside the obstacle that casts them -- on the a200-0553 33 of 37 frontier points answered
+``inscribed`` and none was driven to (2026-11-23).  Each frontier therefore goes out with a **viewpoint**: the free
+cell nearest it that keeps ``CLEAR_OF_OCCUPIED_M`` from every obstacle and ``CLEAR_OF_UNKNOWN_M`` from the unknown,
+within ``VIEW_RANGE_M`` and with a clear line of sight to it -- the RS16 sees all round, and from there it maps past
+the frontier.  A frontier without one is left out.  Whether the base fits at the viewpoint is still the costmap's
+question, asked by the explorer (``cost``, ``plan``) before it drives.
 
 Published as JSON on ``frontiers_topic()`` (std_msgs/String, the text the SDK's transport carries), on every map and
 again every second, since a late subscriber gets nothing old::
 
-    {"frame": "map", "stamp_s": 1795.2, "frontiers": [{"x": 1.2, "y": -0.4, "size_m": 1.35}, ...]}
+    {"frame": "map", "stamp_s": 1795.2, "frontiers": [{"x": 0.6, "y": -0.1, "fx": 1.2, "fy": -0.4, "size_m": 1.35}]}
+
+``x``/``y`` the viewpoint, ``fx``/``fy`` the frontier's own cell nearest its centroid.
 
 largest first.  Checked and not taken: explore_lite (m-explore-ros2) finds frontiers and drives Nav2 to them itself
 -- past the plan server, its arm interlock and the explorer's look around -- and is not packaged for Jazzy in the
@@ -26,22 +34,47 @@ from collections import deque
 
 import numpy as np
 
+from husky_navigation.relocalize import hit_grid
+
 #: A frontier shorter than this is the edge of a wall's shadow, not a way into the unknown [m].
 MIN_SIZE_M = 0.40
 #: OccupancyGrid values up to this count as free: slam_toolbox writes 0 for seen-free, 100 for occupied, -1 unknown.
 FREE_MAX = 25
+#: How far a viewpoint stays from any obstacle [m]: past the footprint's inscribed radius (0.39 m), so its cell is not
+#: ``inscribed``; the plan server moves the goal up to 0.5 m on to where the whole footprint fits at its heading.
+CLEAR_OF_OCCUPIED_M = 0.7
+#: How far a viewpoint stays from the unknown [m]: the costmap knows nothing there, and the footprint reaches 0.87 m.
+CLEAR_OF_UNKNOWN_M = 0.5
+#: How far from its frontier a viewpoint may stand [m]: the RS16 sees 25 m, and 3 m keeps the frontier in plain view.
+VIEW_RANGE_M = 3.0
+#: How many of the nearest viewpoint cells are checked for a line of sight before a frontier is given up.
+SIGHT_TRIES = 60
 #: How often the frontiers go out again between map updates [s] -- a late subscriber gets nothing old.
 REPUBLISH_S = 1.0
 
 
+def _in_sight(occupied: np.ndarray, a, b) -> bool:
+    """Whether the straight line from cell ``a`` to cell ``b`` crosses no occupied cell (the ends left out)."""
+    steps = int(2 * max(abs(b[0] - a[0]), abs(b[1] - a[1]))) + 1
+    for t in np.linspace(0.0, 1.0, steps)[1:-1]:
+        if occupied[round(a[0] + t * (b[0] - a[0])), round(a[1] + t * (b[1] - a[1]))]:
+            return False
+    return True
+
+
 def find_frontiers(grid: np.ndarray, resolution_m: float, origin_xy, min_size_m: float = MIN_SIZE_M) -> list[dict]:
-    """The frontiers of an OccupancyGrid's data, largest first.
+    """The frontiers of an OccupancyGrid's data that have a viewpoint, largest first.
 
     :param grid: ``(height, width)`` int, the map's values (-1 unknown, 0..100 occupancy).
-    :returns: ``[{"x", "y", "size_m"}]`` in the map's frame; ``x``/``y`` a frontier cell's center.
+    :returns: ``[{"x", "y", "fx", "fy", "size_m"}]`` in the map's frame: the viewpoint, the frontier point, the length.
     """
     free = (grid >= 0) & (grid <= FREE_MAX)
     unknown = grid < 0
+    occupied = grid > FREE_MAX
+    standable = free & ~hit_grid(occupied, round(CLEAR_OF_OCCUPIED_M / resolution_m))
+    standable &= ~hit_grid(unknown, round(CLEAR_OF_UNKNOWN_M / resolution_m))
+    stand_cells = np.argwhere(standable).astype(float)
+    view_cells = VIEW_RANGE_M / resolution_m
     padded = np.pad(unknown, 1)
     touches_unknown = padded[:-2, 1:-1] | padded[2:, 1:-1] | padded[1:-1, :-2] | padded[1:-1, 2:]
     frontier = free & touches_unknown
@@ -67,14 +100,25 @@ def find_frontiers(grid: np.ndarray, resolution_m: float, origin_xy, min_size_m:
         if size_m < min_size_m:
             continue
         rc = np.array(cells, dtype=float)
-        r, c = cells[int(np.argmin(np.hypot(*(rc - rc.mean(axis=0)).T)))]
-        out.append(
-            {
-                "x": round(origin_xy[0] + (c + 0.5) * resolution_m, 3),
-                "y": round(origin_xy[1] + (r + 0.5) * resolution_m, 3),
-                "size_m": round(size_m, 2),
-            }
+        fr, fc = cells[int(np.argmin(np.hypot(*(rc - rc.mean(axis=0)).T)))]
+        if not len(stand_cells):
+            continue
+        dist = np.hypot(stand_cells[:, 0] - fr, stand_cells[:, 1] - fc)
+        view = None
+        for k in np.argsort(dist)[:SIGHT_TRIES]:
+            if dist[k] > view_cells:
+                break
+            if _in_sight(occupied, (fr, fc), stand_cells[k]):
+                view = stand_cells[k]
+                break
+        if view is None:
+            continue
+        cell_xy = lambda r, c: (  # noqa: E731
+            round(origin_xy[0] + (c + 0.5) * resolution_m, 3),
+            round(origin_xy[1] + (r + 0.5) * resolution_m, 3),
         )
+        (x, y), (fx, fy) = cell_xy(*view), cell_xy(fr, fc)
+        out.append({"x": x, "y": y, "fx": fx, "fy": fy, "size_m": round(size_m, 2)})
     return sorted(out, key=lambda f: -f["size_m"])
 
 
