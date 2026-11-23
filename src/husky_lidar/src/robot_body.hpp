@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <set>
@@ -32,6 +33,21 @@ namespace husky_lidar
 constexpr double kNearM = 2.2;
 //: How far around a link a point still counts as the robot [m]: the RS16's centimeter noise and a link a TF tick off.
 constexpr double kPaddingM = 0.05;
+//: The wrist camera's cable runs along the forearm, the wrist and the gripper outside every collision body --
+//: rg6_cable has none -- and the RS16 saw it there: 12 points a sweep near those links with the arm in `forward`,
+//: and in the look poses it fell into the 2D scan and SLAM mapped it around every place the robot looked from
+//: (a200-0553, 2026-11-23).  Those links get this padding instead [m].
+constexpr double kCabledPaddingM = 0.12;
+//: The links the cable runs along, by name prefix.
+inline const std::vector<std::string> kCabledLinks = { "arm_0_forearm", "arm_0_wrist", "rg6_", "camera_0" };
+
+inline double paddingFor(const std::string& link, double padding_m)
+{
+  for (const auto& prefix : kCabledLinks)
+    if (link.rfind(prefix, 0) == 0)
+      return std::max(padding_m, kCabledPaddingM);
+  return padding_m;
+}
 
 //: Each link's pose in the points' frame.
 using Poses = std::map<std::string, Eigen::Isometry3d>;
@@ -54,7 +70,7 @@ public:
         // shortcut: a flat mesh (a plate) has no hull and stays in the scan; the Python filter took its bounding
         // sphere.  Upgrade if a plate of the robot shows up in points_filtered.
         std::unique_ptr<bodies::Body> body(bodies::createBodyFromShape(shape.get()));
-        body->setPadding(padding_m);
+        body->setPadding(paddingFor(name, padding_m));
         parts_.push_back({ name, toIsometry(collision->origin), std::move(body) });
         links_.insert(name);
       }
