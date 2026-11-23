@@ -6,11 +6,13 @@
 #   nav.sh start slam|amcl     # the other localization stops (Conflicts=); waits for navigate_to_pose
 #   nav.sh stop
 #   nav.sh status
-#   nav.sh save-map NAME       # the running SLAM's map -> ~/husky/src/husky_navigation/maps/NAME.{pgm,yaml}
+#   nav.sh save-map NAME       # the running SLAM's map -> /tmp/NAME.{pgm,yaml}, for task robot:map:save to fetch
 set -euo pipefail
 
 UNIT=clearpath-custom-navigation
-MAPS="${HOME}/husky/src/husky_navigation/maps"
+# Outside the husky checkout: a map saved into it left the robot's clone dirty, and its next pull refused
+# (2026-11-23).  The map reaches the robot as a commit, like every other file.
+MAPS="/tmp"
 # How long Nav2 may take to offer navigate_to_pose [s]: slam_toolbox and the lifecycle bring-up took ~10 s in the
 # container (2026-11-23).
 READY_TIMEOUT_S=90
@@ -96,7 +98,6 @@ PY
         ;;
     save-map)
         name="${2:?usage: nav.sh save-map NAME}"
-        mkdir -p "$MAPS"
         ros ros2 run nav2_map_server map_saver_cli -f "${MAPS}/${name}" --ros-args -r map:=/a200_0553/map
         ls -la "${MAPS}/${name}".*
         ;;
