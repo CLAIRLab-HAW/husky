@@ -22,6 +22,7 @@ setup(
     entry_points={
         "console_scripts": [
             "arm_drive_lock = husky_navigation.arm_drive_lock:main",
+            "frontiers = husky_navigation.frontiers:main",
             "gyro_bias = husky_navigation.gyro_bias:main",
         ]
     },

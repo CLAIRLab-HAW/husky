@@ -16,6 +16,7 @@ __all__ = [
     "TF_REMAPS",
     "arm_drive_lock_topic",
     "cmd_vel_topic",
+    "frontiers_topic",
     "imu_topic",
     "joint_states_topic",
     "unbiased_imu_topic",
@@ -65,6 +66,11 @@ def arm_drive_lock_topic() -> str:
     twist_mux's lock ``arm_out`` reads it (robot.yaml), and so does the plan server, which names it the same.
     """
     return f"/{NAMESPACE}/platform/arm_drive_lock"
+
+
+def frontiers_topic() -> str:
+    """The SLAM map's frontiers as JSON (std_msgs/String, husky_navigation.frontiers), what clair.explore drives to."""
+    return f"/{NAMESPACE}/navigation/frontiers"
 
 
 def cmd_vel_topic() -> str:

@@ -130,6 +130,9 @@ def _setup(context, *args, **kwargs):
             )
         )
         managed.insert(0, "slam_toolbox")
+        # The map's frontiers for an explorer (husky_navigation.frontiers) -- only while it maps: a stored map does not
+        # grow, and its frontiers lead nowhere new.
+        nodes.append(Node(package="husky_navigation", executable="frontiers", name="frontiers", **common))
     else:
         # Identity map ─▶ odom. The robot therefore drifts against the map, because only the wheel odometry carries it
         # -- that is the deliberate state as long as there are no scans.
