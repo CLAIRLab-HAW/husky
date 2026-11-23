@@ -108,9 +108,11 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover - needs a r
         node.get_logger().info(f"gyro bias (rad/s): {x:+.2e} {y:+.2e} {z:+.2e}")
 
     node.create_timer(60.0, say)
+    from rclpy.executors import ExternalShutdownException
+
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):  # Ctrl-C, or the SIGTERM systemd stops it with
         pass
     finally:
         node.destroy_node()
