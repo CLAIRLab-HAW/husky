@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.20)
 project(husky_lidar)
 
 find_package(ament_cmake REQUIRED)
@@ -12,7 +12,7 @@ find_package(tf2_ros REQUIRED)
 find_package(urdf REQUIRED)
 
 add_executable(self_filter src/self_filter.cpp)
-target_compile_features(self_filter PRIVATE cxx_std_17)
+target_compile_features(self_filter PRIVATE cxx_std_23)
 target_link_libraries(self_filter
   geometric_shapes::geometric_shapes rclcpp::rclcpp ${sensor_msgs_TARGETS} ${std_msgs_TARGETS}
   tf2_eigen::tf2_eigen tf2_ros::tf2_ros urdf::urdf)
@@ -23,8 +23,16 @@ ament_python_install_package(${PROJECT_NAME})
 install(DIRECTORY launch config DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
+  find_package(ament_cmake_cpplint REQUIRED)
+  find_package(ament_cmake_lint_cmake REQUIRED)
+  find_package(ament_cmake_uncrustify REQUIRED)
+  # The workspace's 120 columns rather than ROS' 100, and no copyright line, as nowhere else in the workspace.
+  ament_cpplint(MAX_LINE_LENGTH 120 FILTERS "-legal/copyright")
+  ament_lint_cmake()
+  ament_uncrustify(MAX_LINE_LENGTH 120)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(test_robot_body test/test_robot_body.cpp)
+  target_compile_features(test_robot_body PRIVATE cxx_std_23)
   target_include_directories(test_robot_body PRIVATE src)
   target_link_libraries(test_robot_body geometric_shapes::geometric_shapes rclcpp::rclcpp urdf::urdf)
 endif()

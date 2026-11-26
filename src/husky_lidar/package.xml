@@ -20,14 +20,19 @@
   <depend>tf2_ros</depend>
   <depend>urdf</depend>
 
-  <exec_depend>python3-yaml</exec_depend>
   <exec_depend>launch_ros</exec_depend>
-  <!-- the drivers the launch starts, by model: rslidar_sdk from apt, Blickfeld's built from source (setup/'s installer) -->
-  <exec_depend>rslidar_sdk</exec_depend>
-  <exec_depend>rs16_description</exec_depend>
-  <exec_depend>qb2_description</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
 
+  <!-- the drivers the launch starts, by model: rslidar_sdk from apt, Blickfeld's built from source (setup/'s
+       installer), and the models' descriptions -->
+  <exec_depend>qb2_description</exec_depend>
+  <exec_depend>rs16_description</exec_depend>
+  <exec_depend>rslidar_sdk</exec_depend>
+
+  <test_depend>ament_cmake_cpplint</test_depend>
   <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_cmake_lint_cmake</test_depend>
+  <test_depend>ament_cmake_uncrustify</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
