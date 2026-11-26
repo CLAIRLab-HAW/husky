@@ -3,11 +3,9 @@
 <package format="3">
   <name>qb2_description</name>
   <version>0.1.0</version>
-  <description>
-    The Blickfeld Qb2 as a URDF macro: its housing, mass and the measurement frame its driver stamps the points with.
-    Describes the sensor and nothing else; where it is mounted is the robot's business (robot.yaml and
-    husky_extras_description).
-  </description>
+  <description>The Blickfeld Qb2 as a URDF macro: its housing, mass and the measurement frame its driver stamps the
+    points with. Describes the sensor and nothing else; where it is mounted is the robot's business (robot.yaml and
+    husky_extras_description).</description>
   <maintainer email="hannes.voss@haw-hamburg.de">Hannes Voss</maintainer>
   <license>MIT</license>
 

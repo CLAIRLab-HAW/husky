@@ -10,10 +10,11 @@
   <buildtool_depend>ament_python</buildtool_depend>
 
   <exec_depend>husky_lidar</exec_depend>
-  <exec_depend>pointcloud_to_laserscan</exec_depend>
-  <exec_depend>nav2_bringup</exec_depend>
-  <exec_depend>slam_toolbox</exec_depend>
   <exec_depend>launch_ros</exec_depend>
+  <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>pointcloud_to_laserscan</exec_depend>
+  <exec_depend>slam_toolbox</exec_depend>
+
   <!-- arm_drive_lock reads its drive poses from robot.yaml -->
   <exec_depend>python3-yaml</exec_depend>
 
