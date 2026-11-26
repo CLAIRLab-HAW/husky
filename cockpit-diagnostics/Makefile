@@ -18,6 +18,7 @@ NODE_MODULES_TEST=package-lock.json
 DIST_TEST=dist/manifest.json
 # one example file in pkg/lib to check if it was already checked out
 COCKPIT_REPO_STAMP=pkg/lib/cockpit-po-plugin.js
+COCKPIT_COMMON_FIXES=test/common-fixes.patch
 # common arguments for tar, mostly to make the generated tarballs reproducible
 TAR_ARGS = --sort=name --mtime "@$(shell git show --no-patch --format='%at')" --mode=go=rX,u+rw,a-s --numeric-owner --owner=0 --group=0
 
@@ -36,12 +37,15 @@ COCKPIT_REPO_COMMIT = a30c5d16d975a22527473516e6006a7d39faa7ab # 359 + 9 commits
 
 $(COCKPIT_REPO_FILES): $(COCKPIT_REPO_STAMP)
 COCKPIT_REPO_TREE = '$(strip $(COCKPIT_REPO_COMMIT))^{tree}'
-$(COCKPIT_REPO_STAMP): Makefile
+$(COCKPIT_REPO_STAMP): Makefile $(COCKPIT_COMMON_FIXES)
 	@git rev-list --quiet --objects $(COCKPIT_REPO_TREE) -- 2>/dev/null || \
 	    git fetch --no-tags --no-write-fetch-head --depth=1 $(COCKPIT_REPO_URL) $(COCKPIT_REPO_COMMIT)
 	# from the repository root: inside the husky repository this package is a subdirectory, and git would read
 	# the pathspecs relative to it ("pathspec 'pkg/lib' did not match any files")
 	git -C "$$(git rev-parse --show-toplevel)" archive $(COCKPIT_REPO_TREE) -- $(COCKPIT_REPO_FILES) | tar x
+	# Keep the fork's test gates when refreshing these generated, gitignored upstream helpers.
+	patch -p1 < $(COCKPIT_COMMON_FIXES)
+	touch $(COCKPIT_REPO_STAMP)
 
 #
 # Build/Install/dist

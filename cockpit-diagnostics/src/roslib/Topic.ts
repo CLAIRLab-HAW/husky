@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0 AND LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics but was originally sourced from
  * https://github.com/tier4/roslibjs-foxglove under the Apache License 2.0.
@@ -35,7 +36,7 @@ export class Topic<TMessage = Message> {
     readonly #name: string;
     readonly #messageType: string;
 
-    #publisher?: Promise<Publisher<TMessage>>;
+    #publisher: Promise<Publisher<TMessage>> | undefined;
     #subscriptions = new Map<(message: TMessage) => void, Subscription>();
 
     constructor(
@@ -88,7 +89,7 @@ export class Topic<TMessage = Message> {
     }
 
     advertise() {
-        this.#publisher = this.#ros.rosImpl?.createPublisher(
+        this.#publisher = this.#ros.rosImpl?.createPublisher<TMessage>(
             this.name,
             this.messageType,
         );

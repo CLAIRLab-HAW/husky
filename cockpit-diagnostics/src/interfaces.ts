@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics.
  *
@@ -39,4 +40,17 @@ export interface DiagnosticsStatus {
     timestamp: number;
     level: number;
     diagnostics: DiagnosticsEntry[];
+}
+
+export interface DiagnosticStatusMessage {
+    name: string;
+    message: string;
+    level?: number;
+    hardware_id: string;
+    values?: { key: string; value: string }[] | Record<string, string>;
+}
+
+export interface DiagnosticArrayMessage {
+    status: DiagnosticStatusMessage[];
+    header?: { stamp?: { sec: number; nanosec: number } };
 }

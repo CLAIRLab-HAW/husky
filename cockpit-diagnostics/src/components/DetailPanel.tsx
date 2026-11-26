@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics.
  *
@@ -19,17 +20,9 @@
  */
 
 import React from 'react';
-import {
-    DescriptionList,
-    DescriptionListDescription,
-    DescriptionListGroup,
-    DescriptionListTerm,
-    DrawerActions,
-    DrawerCloseButton,
-    DrawerHead,
-    DrawerPanelBody,
-    Title,
-} from "@patternfly/react-core";
+import { DescriptionList, DescriptionListDescription, DescriptionListGroup, DescriptionListTerm } from "@patternfly/react-core/dist/esm/components/DescriptionList";
+import { DrawerActions, DrawerCloseButton, DrawerHead, DrawerPanelBody } from "@patternfly/react-core/dist/esm/components/Drawer";
+import { Title } from "@patternfly/react-core/dist/esm/components/Title";
 
 import cockpit from 'cockpit';
 

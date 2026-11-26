@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics.
  *
@@ -18,20 +19,13 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-    Bullseye,
-    Button,
-    Card,
-    CardBody,
-    CardTitle,
-    EmptyState,
-    EmptyStateVariant,
-    EmptyStateBody,
-    SearchInput,
-    ToggleGroup,
-    ToggleGroupItem,
-} from "@patternfly/react-core";
-import { Table, Thead, Tr, Th, Tbody, Td, TreeRowWrapper, TdProps } from "@patternfly/react-table";
+import { Bullseye } from "@patternfly/react-core/dist/esm/layouts/Bullseye";
+import { Button } from "@patternfly/react-core/dist/esm/components/Button";
+import { Card, CardBody, CardTitle } from "@patternfly/react-core/dist/esm/components/Card";
+import { EmptyState, EmptyStateVariant, EmptyStateBody } from "@patternfly/react-core/dist/esm/components/EmptyState";
+import { SearchInput } from "@patternfly/react-core/dist/esm/components/SearchInput";
+import { ToggleGroup, ToggleGroupItem } from "@patternfly/react-core/dist/esm/components/ToggleGroup";
+import { Table, Thead, Tr, Th, Tbody, Td, TdProps } from "@patternfly/react-table";
 
 import cockpit from 'cockpit';
 
@@ -130,9 +124,10 @@ export const DiagnosticsTreeTable = ({
             : [];
 
         return [
-            <TreeRowWrapper
+            <Tr
                 key={diag.rawName}
-                row={{ props: treeRow.props }}
+                {...treeRow.props}
+                aria-expanded={isExpanded}
                 isSelectable
                 isRowSelected={selectedRawName === diag.rawName}
                 isClickable
@@ -150,7 +145,7 @@ export const DiagnosticsTreeTable = ({
                     {diag.path}
                 </Td>
                 <Td dataLabel={_("Message")}>{diag.message}</Td>
-            </TreeRowWrapper>,
+            </Tr>,
             ...childRows,
             ...renderRows(remainingDiag, indentLevel, posinset + 1, rowIndex + 1 + childRows.length, isHidden),
         ];

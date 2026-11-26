@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics.
  *
@@ -18,15 +19,10 @@
  */
 
 import React from 'react';
-import {
-    Button,
-    Dropdown,
-    DropdownList,
-    Flex,
-    FlexItem,
-    MenuToggle,
-    MenuToggleElement,
-} from "@patternfly/react-core";
+import { Button } from "@patternfly/react-core/dist/esm/components/Button";
+import { Dropdown, DropdownList } from "@patternfly/react-core/dist/esm/components/Dropdown";
+import { Flex, FlexItem } from "@patternfly/react-core/dist/esm/layouts/Flex";
+import { MenuToggle, MenuToggleElement } from "@patternfly/react-core/dist/esm/components/MenuToggle";
 import { EllipsisVIcon, PauseIcon, PlayIcon } from "@patternfly/react-icons";
 
 import cockpit from 'cockpit';

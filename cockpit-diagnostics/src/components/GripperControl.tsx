@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics.
  *
@@ -18,7 +19,8 @@
  */
 
 import React from 'react';
-import { Alert, Button } from "@patternfly/react-core";
+import { Alert } from "@patternfly/react-core/dist/esm/components/Alert";
+import { Button } from "@patternfly/react-core/dist/esm/components/Button";
 
 import cockpit from 'cockpit';
 

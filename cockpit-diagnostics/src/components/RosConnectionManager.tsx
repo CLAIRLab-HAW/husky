@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics.
  *
@@ -19,7 +20,7 @@
 
 import React, { useEffect, useRef } from "react";
 
-import { DiagnosticsEntry, DiagnosticsStatus } from "../interfaces";
+import { DiagnosticArrayMessage, DiagnosticStatusMessage, DiagnosticsEntry, DiagnosticsStatus } from "../interfaces";
 import * as ROSLIB from "../roslib/index";
 import {
     LEVEL_NONE,
@@ -47,8 +48,7 @@ interface RosConnectionManagerProps {
 // Helper function to build a nested DiagnosticsEntry tree
 // Exported so the severity-override behaviour can be tested against captured
 // aggregator payloads without standing up a websocket.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const buildDiagnosticsTree = (diagnostics: any[]): DiagnosticsEntry[] => {
+export const buildDiagnosticsTree = (diagnostics: DiagnosticStatusMessage[]): DiagnosticsEntry[] => {
     const root: DiagnosticsEntry[] = [];
 
     diagnostics.forEach(({ name, message, level, hardware_id, values }) => {
@@ -85,7 +85,7 @@ export const buildDiagnosticsTree = (diagnostics: any[]): DiagnosticsEntry[] => 
                 existingEntry.rawName = name;
 
                 existingEntry.values = Array.isArray(values)
-                    ? values.reduce((acc, { key, value }) => {
+                    ? values.reduce<Record<string, string>>((acc, { key, value }) => {
                         acc[key] = value;
                         return acc;
                     }, {})
@@ -132,7 +132,7 @@ export const RosConnectionManager: React.FC<RosConnectionManagerProps> = ({
         console.log(`Creating new connection to ${url} for namespace ${namespace}`);
         const ros = new ROSLIB.Ros({ url });
 
-        const diagnosticsTopic = new ROSLIB.Topic({
+        const diagnosticsTopic = new ROSLIB.Topic<DiagnosticArrayMessage>({
             ros,
             name: `${namespace}/diagnostics_agg`,
             messageType: "diagnostic_msgs/DiagnosticArray",
@@ -159,15 +159,7 @@ export const RosConnectionManager: React.FC<RosConnectionManagerProps> = ({
 
                     // Process incoming diagnostics messages
                     if (Array.isArray(message.status)) {
-                        const diagnosticsTree = buildDiagnosticsTree(
-                            message.status.map(({ name, message, level, hardware_id, values }) => ({
-                                name,
-                                message,
-                                level: level !== undefined ? level : -1,
-                                hardware_id,
-                                values,
-                            }))
-                        );
+                        const diagnosticsTree = buildDiagnosticsTree(message.status);
 
                         // Calculate overall level from diagnostics tree. Priority, not
                         // magnitude -- see utils/summary.ts:headlineLevel. A plain

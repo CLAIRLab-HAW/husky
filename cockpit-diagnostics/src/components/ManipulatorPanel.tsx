@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics.
  *
@@ -19,22 +20,13 @@
  */
 
 import React from 'react';
-import {
-    Alert,
-    Button,
-    Card,
-    CardBody,
-    CardTitle,
-    DescriptionList,
-    DescriptionListDescription,
-    DescriptionListGroup,
-    DescriptionListTerm,
-    Flex,
-    FlexItem,
-    Grid,
-    GridItem,
-    Label,
-} from "@patternfly/react-core";
+import { Alert } from "@patternfly/react-core/dist/esm/components/Alert";
+import { Button } from "@patternfly/react-core/dist/esm/components/Button";
+import { Card, CardBody, CardTitle } from "@patternfly/react-core/dist/esm/components/Card";
+import { DescriptionList, DescriptionListDescription, DescriptionListGroup, DescriptionListTerm } from "@patternfly/react-core/dist/esm/components/DescriptionList";
+import { Flex, FlexItem } from "@patternfly/react-core/dist/esm/layouts/Flex";
+import { Grid, GridItem } from "@patternfly/react-core/dist/esm/layouts/Grid";
+import { Label } from "@patternfly/react-core/dist/esm/components/Label";
 import { Table, Thead, Tr, Th, Tbody, Td } from "@patternfly/react-table";
 
 import cockpit from 'cockpit';

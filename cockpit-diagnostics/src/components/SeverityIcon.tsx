@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics.
  *
@@ -18,7 +19,7 @@
  */
 
 import React from 'react';
-import { Icon } from "@patternfly/react-core";
+import { Icon } from "@patternfly/react-core/dist/esm/components/Icon";
 import {
     CheckCircleIcon,
     ClockIcon,

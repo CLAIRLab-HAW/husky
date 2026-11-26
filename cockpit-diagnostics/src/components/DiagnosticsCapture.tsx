@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics.
  *
@@ -18,7 +19,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Alert, Button } from "@patternfly/react-core";
+import { Alert } from "@patternfly/react-core/dist/esm/components/Alert";
+import { Button } from "@patternfly/react-core/dist/esm/components/Button";
 
 import cockpit from 'cockpit';
 import { downloadFile } from './Download';
@@ -41,7 +43,7 @@ export const useCapture = (namespace: string): CaptureState => {
 
     useEffect(() => {
         const permission = cockpit.permission({ admin: true });
-        const update = () => setAdminAccess(permission.allowed);
+        const update = () => setAdminAccess(permission.allowed === true);
         permission.addEventListener("changed", update);
         update();
         return () => {
@@ -50,7 +52,7 @@ export const useCapture = (namespace: string): CaptureState => {
         };
     }, []);
 
-    const runBash = async (command: string, options: { superuser?: string } = {}) => {
+    const runBash = async (command: string, options: cockpit.SpawnOptions & { binary?: false } = {}) => {
         return await cockpit.spawn(["bash", "-c", command], options);
     };
 

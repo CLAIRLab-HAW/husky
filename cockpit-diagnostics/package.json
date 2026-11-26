@@ -8,7 +8,7 @@
     "author": "",
     "license": "LGPL-2.1",
     "engines": {
-        "node": ">= 16"
+        "node": ">= 20"
     },
     "scripts": {
         "watch": "ESBUILD_WATCH='true' ./build.js",
@@ -47,8 +47,9 @@
         "typescript": "5.9.3"
     },
     "dependencies": {
+        "@foxglove/ros2idl-parser": "0.3.6",
         "@foxglove/rosmsg": "^5.0.4",
-        "@foxglove/rosmsg2-serialization": "^3.0.2",
+        "@foxglove/rosmsg2-serialization": "3.1.2",
         "@foxglove/ws-protocol": "^0.8.0",
         "@patternfly/patternfly": "^6.2.3",
         "@patternfly/react-core": "^6.2.2",

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from math import isfinite
 from pathlib import Path
 
 #: The poses the base may drive in: the ones inside Nav2's footprint (UR5 FK against TF, 2026-11-23).  ``tuck`` puts
@@ -59,23 +60,39 @@ class ArmDriveLock:
     poses: Mapping[str, Mapping[str, float]]
     positions: dict[str, float] = field(default_factory=dict)
     stamp: float | None = None
+    _stamps_s: dict[str, float] = field(default_factory=dict, init=False, repr=False)
 
     def joints(self, stamp: float, names: Sequence[str], values: Sequence[float]) -> None:
         """One joint state: the arm's joints among ``names``."""
-        wanted = next(iter(self.poses.values()))
-        heard = {n: float(v) for n, v in zip(names, values, strict=False) if n in wanted}
-        if heard:
-            self.positions.update(heard)
+        wanted = {joint for pose in self.poses.values() for joint in pose}
+        for index, name in enumerate(names):
+            if name not in wanted:
+                continue
+            try:
+                value = float(values[index])
+            except (IndexError, TypeError, ValueError):
+                value = float("nan")
+            if not isfinite(value) or not isfinite(stamp):
+                self.positions.pop(name, None)
+                self._stamps_s.pop(name, None)
+                continue
+            self.positions[name] = value
+            self._stamps_s[name] = stamp
             self.stamp = stamp
 
     def verdict(self, now: float) -> tuple[bool, str]:
         """``(locked, why)``: unlocked in a drive pose, locked out of one or without fresh joint states."""
-        if self.stamp is None or now - self.stamp > JOINT_STALE_S:
+        if self.stamp is None or not isfinite(now) or not 0.0 <= now - self.stamp <= JOINT_STALE_S:
             return True, "no fresh joint states of the arm"
+        wanted = {joint for pose in self.poses.values() for joint in pose}
+        missing = wanted - self.positions.keys()
+        if missing:
+            return True, f"joint states lack {sorted(missing)}"
+        stale = sorted(j for j in wanted if not 0.0 <= now - self._stamps_s.get(j, float("nan")) <= JOINT_STALE_S)
+        if stale:
+            return True, f"no fresh joint states of the arm: {stale}"
         nearest, worst = "", (None, float("inf"))
         for name, pose in self.poses.items():
-            if any(j not in self.positions for j in pose):
-                return True, f"joint states lack {sorted(set(pose) - set(self.positions))}"
             off = max(((j, abs(self.positions[j] - v)) for j, v in pose.items()), key=lambda jv: jv[1])
             if off[1] <= JOINT_TOLERANCE_RAD:
                 return False, f"arm in {name}"

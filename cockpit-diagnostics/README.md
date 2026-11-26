@@ -94,7 +94,12 @@ nothing at all.
 
 ## Tech Stack
 
-TypeScript, React, PatternFly, Cockpit starter kit; roslibjs-foxglove for the bridge connection. Node ≥ 18.
+TypeScript, React, PatternFly, Cockpit starter kit; roslibjs-foxglove for the bridge connection. Node ≥ 20.
+ROS 2 message and IDL schemas use Foxglove's dedicated parsers and CDR serializer. The pinned serializer preserves
+UTF-8 string payloads, covered by `test/unit/wire.test.ts` for both schema encodings.
+
+The `cockpit-diagnostics` CI job prepares the pinned Cockpit helpers, then runs static checks, TypeScript, eslint,
+stylelint and all local unit files. These checks require neither a VM nor a ROS connection.
 
 ### Where the data comes from
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0 AND LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics but was originally sourced from
  * https://github.com/tier4/roslibjs-foxglove under the Apache License 2.0.
@@ -20,7 +21,8 @@
  * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { parse, parseRos2idl } from '@foxglove/rosmsg';
+import { parseRos2idl } from '@foxglove/ros2idl-parser';
+import { parse } from '@foxglove/rosmsg';
 import {
     MessageReader as Ros2MessageReader,
     MessageWriter as Ros2MessageWriter,
@@ -87,6 +89,9 @@ export const serviceSchemaOf = (
         `the bridge sent neither ${side} nor ${side}Schema`,
     );
 };
+
+export const messageDefinitionsOf = (schema: string, schemaEncoding?: string) =>
+    schemaEncoding === 'ros2idl' ? parseRos2idl(schema) : parse(schema, { ros2: true });
 
 export class Impl {
     readonly emitter = new EventEmitter<EventTypes>();
@@ -399,9 +404,7 @@ export class Impl {
       (() => {
           const reader =
             new Ros2MessageReader(
-                resolved.schemaEncoding === 'ros2idl'
-                    ? parseRos2idl(resolved.schema)
-                    : parse(resolved.schema, { ros2: true }),
+                messageDefinitionsOf(resolved.schema, resolved.schemaEncoding),
             );
           this.#messageReaders.set(name, reader);
           return reader;
@@ -426,9 +429,7 @@ export class Impl {
             this.#messageWriters.get(name) ??
       (() => {
           const writer = new Ros2MessageWriter(
-              resolved.schemaEncoding === 'ros2idl'
-                  ? parseRos2idl(resolved.schema)
-                  : parse(resolved.schema, { ros2: true }),
+              messageDefinitionsOf(resolved.schema, resolved.schemaEncoding),
           );
           this.#messageWriters.set(name, writer);
           return writer;

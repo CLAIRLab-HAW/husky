@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0 AND LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics but was originally sourced from
  * https://github.com/tier4/roslibjs-foxglove under the Apache License 2.0.

@@ -4,15 +4,17 @@ name: ci
 # pyproject.toml, uv.lock and ruff.toml.  The tests that need clearpath live there (deploy/offboard/tests,
 # robot/contract/tests, twin/twinlink/tests), and clearpath's own CI runs them.
 #
-# Three jobs, by toolchain:
+# Four jobs, by toolchain:
 #
 #   python              src/'s packages and setup/ -- their suites, `bash -n` over the installer scripts,
 #                       ruff over everything but cockpit-diagnostics.
 #   cockpit-tools       the Cockpit page: `node --check`, `bash -n`, `npm test`.
-#   cockpit-diagnostics the upstream-derived plugin: `npm ci`, eslint, stylelint. The upstream's two bot
+#   cockpit-diagnostics the upstream-derived plugin: static checks, TypeScript and local unit tests.
+#                       The upstream's two bot
 #                       workflows (cockpit-lib-update, tasks-container-update) are NOT carried over: they open
 #                       pull requests against the upstream repository from a Cockpit-project identity, which
 #                       has no place in this one.
+#   lidar-native        the self-filter gtests, built on ROS Jazzy at the shipped apt snapshot.
 
 on:
   push:
@@ -25,6 +27,83 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lidar-native:
+    runs-on: ubuntu-24.04
+    container: ros:jazzy-ros-base
+    timeout-minutes: 30
+    env:
+      WORKSPACE_REF: ${{ github.head_ref || github.ref_name }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: husky
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: husky
+      - uses: actions/checkout@v7
+        with:
+          repository: CLAIRLab-HAW/deploy
+          path: deploy
+          ref: ${{ env.WORKSPACE_REF }}
+          token: ${{ secrets.CLAIRLAB_READ_TOKEN }}
+      - name: Install the shipped ROS snapshot and native test dependencies
+        run: |
+          install -Dm644 ../deploy/offboard-base/apt/ros-snapshots.asc /etc/apt/keyrings/ros-snapshots.asc
+          install -Dm644 ../deploy/offboard-base/apt/ros2-snapshot.list /etc/apt/sources.list.d/ros2-snapshot.list
+          install -Dm644 ../deploy/offboard-base/apt/ros-snapshot-pin /etc/apt/preferences.d/ros-snapshot-pin
+          apt-get update
+          mapfile -t ros_packages < <(
+            dpkg-query -W -f='${Package} ${db:Status-Status}\n' 'ros-jazzy-*' | awk '$2 == "installed" {print $1}'
+          )
+          apt-get install -y --no-install-recommends --allow-downgrades \
+            "${ros_packages[@]}" \
+            build-essential cmake python3-colcon-common-extensions \
+            ros-jazzy-ament-cmake-python ros-jazzy-ament-cmake-gtest ros-jazzy-geometric-shapes \
+            ros-jazzy-rclcpp ros-jazzy-sensor-msgs ros-jazzy-std-msgs \
+            ros-jazzy-tf2-eigen ros-jazzy-tf2-ros ros-jazzy-urdf
+      - name: Build the self filter and its registered gtests
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon --log-base log/native-build build --base-paths src/husky_lidar \
+            --packages-select husky_lidar --build-base build/native --install-base install/native \
+            --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
+      - name: Run the self-filter gtests
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/native/setup.bash
+          colcon --log-base log/native-test test --base-paths src/husky_lidar \
+            --packages-select husky_lidar --build-base build/native \
+            --return-code-on-test-failure --event-handlers console_direct+
+      - name: Require and report native test results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          report = ET.parse("build/native/husky_lidar/test_results/husky_lidar/test_robot_body.gtest.xml").getroot()
+          cases = report.findall(".//testcase")
+          active = [c for c in cases if c.get("status", "run") == "run"
+                    and c.get("result") not in ("suppressed", "skipped") and c.find("skipped") is None]
+          if int(report.get("tests", "0")) <= 0 or not active:
+              raise SystemExit("the native result contains no executed tests")
+          for suite in report.iter():
+              if suite.tag in ("testsuite", "testsuites"):
+                  if int(suite.get("failures", "0")) or int(suite.get("errors", "0")):
+                      raise SystemExit("the native result reports failures or errors")
+          if any(c.find("failure") is not None or c.find("error") is not None for c in cases):
+              raise SystemExit("a native testcase failed")
+          print(f"{len(active)} native testcases executed successfully")
+          PY
+          colcon test-result --test-result-base build/native --all --verbose
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: husky-lidar-native-results
+          path: |
+            husky/build/native/husky_lidar/test_results/
+            husky/log/native-build/
+            husky/log/native-test/
+
   python:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -46,6 +125,9 @@ jobs:
       - run: uv run ruff check --extend-exclude cockpit-diagnostics .
       # cockpit-diagnostics is upstream code with a [tool.ruff] of its own, formatted to its own rules.
       - run: uv run ruff format --check --extend-exclude cockpit-diagnostics .
+
+      - name: Prepare the pinned Cockpit test helpers
+        run: make -C cockpit-diagnostics test/common
 
       - run: uv run pytest -q
 
@@ -74,5 +156,10 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci
+      - name: Prepare the pinned Cockpit test helpers
+        run: make test/common
       - run: npm run eslint
       - run: npm run stylelint
+      - run: WITH_PARTIAL_TREE=1 bash test/common/static-code --tap
+      - run: python3 test/common/typecheck
+      - run: node test/unit/run.js

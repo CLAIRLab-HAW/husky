@@ -19,7 +19,6 @@ class TestApplication(testlib.MachineCase):
 
     def testBasic(self):
         b = self.browser
-        m = self.machine
 
         self.enter_ros2_diagnostics()
 

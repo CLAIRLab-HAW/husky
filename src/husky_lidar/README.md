@@ -101,6 +101,10 @@ uv run pytest tests/lidar                 # from the husky root: no ROS, no cont
 colcon test --packages-select husky_lidar # the self filter's bodies (gtest), in a ROS workspace
 ```
 
+The `lidar-native` CI job builds `husky_lidar` with `BUILD_TESTING=ON`, runs its gtests and requires their XML results
+before reporting success. It uses `ros:jazzy-ros-base` and the same ROS apt snapshot as the shipped images, with the
+snapshot configuration from the matching deploy branch. It starts no robot, driver or offboard stack.
+
 The driver replaying the RS16 recording in the offboard container is clearpath's
 `deploy/offboard/tests/test_lidar_driver_e2e.py`.
 

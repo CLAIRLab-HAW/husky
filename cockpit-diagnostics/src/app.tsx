@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics.
  *
@@ -19,25 +20,15 @@
 
 import React, { useCallback, useState } from 'react';
 
-import {
-    Alert,
-    Bullseye,
-    Card,
-    CardBody,
-    CardTitle,
-    Drawer,
-    DrawerContent,
-    DrawerContentBody,
-    DrawerPanelContent,
-    DropdownItem,
-    EmptyState,
-    EmptyStateBody,
-    EmptyStateVariant,
-    Page,
-    PageSection,
-    Spinner,
-    Stack,
-} from "@patternfly/react-core";
+import { Alert } from "@patternfly/react-core/dist/esm/components/Alert";
+import { Bullseye } from "@patternfly/react-core/dist/esm/layouts/Bullseye";
+import { Card, CardBody, CardTitle } from "@patternfly/react-core/dist/esm/components/Card";
+import { Drawer, DrawerContent, DrawerContentBody, DrawerPanelContent } from "@patternfly/react-core/dist/esm/components/Drawer";
+import { DropdownItem } from "@patternfly/react-core/dist/esm/components/Dropdown";
+import { EmptyState, EmptyStateBody, EmptyStateVariant } from "@patternfly/react-core/dist/esm/components/EmptyState";
+import { Page, PageSection } from "@patternfly/react-core/dist/esm/components/Page";
+import { Spinner } from "@patternfly/react-core/dist/esm/components/Spinner";
+import { Stack } from "@patternfly/react-core/dist/esm/layouts/Stack";
 
 import cockpit from 'cockpit';
 

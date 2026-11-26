@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * This file is part of Cockpit ROS 2 Diagnostics.
  *
@@ -18,21 +19,12 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-    ActionGroup,
-    Button,
-    Card,
-    CardBody,
-    CardTitle,
-    Flex,
-    FlexItem,
-    Form,
-    FormHelperText,
-    FormGroup,
-    HelperText,
-    HelperTextItem,
-    TextInput
-} from '@patternfly/react-core';
+import { ActionGroup, Form, FormHelperText, FormGroup } from "@patternfly/react-core/dist/esm/components/Form";
+import { Button } from "@patternfly/react-core/dist/esm/components/Button";
+import { Card, CardBody, CardTitle } from "@patternfly/react-core/dist/esm/components/Card";
+import { Flex, FlexItem } from "@patternfly/react-core/dist/esm/layouts/Flex";
+import { HelperText, HelperTextItem } from "@patternfly/react-core/dist/esm/components/HelperText";
+import { TextInput } from "@patternfly/react-core/dist/esm/components/TextInput";
 import { ExclamationCircleIcon } from "@patternfly/react-icons";
 
 import cockpit from 'cockpit';
@@ -64,13 +56,13 @@ export const ManualNamespace = ({
         const isSame = sameNamespace(value, sanitizedValue);
         setValidated(!isSame ? 'error' : 'default');
         setInvalidNamespaceMessage(!isSame
-            ? cockpit.format(_('Invalid namespace. Legal namespace would be: $0'), sanitizedValue)
+            ? cockpit.format(_("Invalid namespace. Legal namespace would be: $0"), sanitizedValue)
             : '');
     }, [namespace, value]);
 
     return (
         <Card>
-            <CardTitle component='h2' className='diagnostics-title'>{_('Namespace')}</CardTitle>
+            <CardTitle component='h2' className='diagnostics-title'>{_("Namespace")}</CardTitle>
             <CardBody>
                 <Form onSubmit={e => e.preventDefault()}>
                     <Flex direction={{ default: 'row' }} spaceItems={{ default: 'spaceItemsMd' }}>
@@ -79,10 +71,10 @@ export const ManualNamespace = ({
                                 <TextInput
                                     value={value}
                                     type='text'
-                                    placeholder={_('Enter namespace for the diagnostics_agg topic')}
+                                    placeholder={_("Enter namespace for the diagnostics_agg topic")}
                                     onChange={(_event, value) => setValue(value)}
                                     validated={validated}
-                                    aria-label={_('Manual Namespace Entry')}
+                                    aria-label={_("Manual Namespace Entry")}
                                 />
                                 <FormHelperText>
                                     <HelperText>
@@ -107,7 +99,7 @@ export const ManualNamespace = ({
                                     }}
                                     type='submit'
                                 >
-                                    {unsaved ? _('Apply') : _('Applied')}
+                                    {unsaved ? _("Apply") : _("Applied")}
                                 </Button>
                             </ActionGroup>
                         </FlexItem>

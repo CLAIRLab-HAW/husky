@@ -54,6 +54,56 @@ def test_joint_states_without_the_arm_lock():
     assert lock.verdict(10.0)[0]
 
 
+@pytest.mark.parametrize("pose_name", adl.DRIVE_POSES)
+@pytest.mark.parametrize("index", range(len(adl.UR_JOINTS)))
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf"), None])
+def test_invalid_feedback_for_any_arm_joint_locks_even_after_a_valid_pose(pose_name, index, value):
+    pose = POSES[pose_name]
+    lock = _lock_at(pose)
+    names = list(pose)
+    lock.joints(10.1, [names[index]], [value])
+    assert lock.verdict(10.1)[0]
+    lock.joints(10.2, [names[index]], [pose[names[index]]])
+    assert not lock.verdict(10.2)[0]
+
+
+def test_one_fresh_joint_does_not_refresh_the_other_joints():
+    pose = POSES["forward"]
+    lock = _lock_at(pose)
+    joint = next(iter(pose))
+    lock.joints(11.0, [joint], [pose[joint]])
+    locked, why = lock.verdict(11.0)
+    assert locked and "fresh" in why
+
+
+def test_partial_messages_unlock_only_when_every_joint_is_fresh():
+    pose = POSES["packed"]
+    lock = adl.ArmDriveLock(POSES)
+    for index, (joint, value) in enumerate(pose.items()):
+        lock.joints(10.0 + index * 0.01, [joint], [value])
+        assert lock.verdict(10.05)[0] is (index < len(pose) - 1)
+
+
+@pytest.mark.parametrize("count", range(len(adl.UR_JOINTS)))
+def test_shortened_position_arrays_invalidate_the_named_joints_without_values(count):
+    pose = POSES["forward"]
+    lock = _lock_at(pose)
+    lock.joints(10.1, list(pose), list(pose.values())[:count])
+    assert lock.verdict(10.1)[0]
+
+
+@pytest.mark.parametrize("stamp", [float("nan"), float("inf"), float("-inf")])
+def test_nonfinite_feedback_timestamps_cannot_keep_cached_values_valid(stamp):
+    pose = POSES["forward"]
+    lock = _lock_at(pose)
+    lock.joints(stamp, list(pose), list(pose.values()))
+    assert lock.verdict(10.1)[0]
+
+
+def test_a_clock_reset_does_not_make_future_feedback_fresh():
+    assert _lock_at(POSES["forward"]).verdict(9.0)[0]
+
+
 def test_a_missing_drive_pose_refuses_to_start():
     with pytest.raises(KeyError):
         adl.drive_poses_from_robot_yaml(ROBOT_YAML.read_text(encoding="utf-8"), names=("forward", "nowhere"))

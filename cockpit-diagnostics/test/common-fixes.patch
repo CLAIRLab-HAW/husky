@@ -1,0 +1,85 @@
+--- a/test/common/static-code
++++ b/test/common/static-code
+@@ -22,11 +22,11 @@
+     # Helper to find all scripts in the tree
+     (
+         # Any non-binary file which contains a given shebang
+-        git grep --cached -lIz '^#!.*'"$1"
++        git grep --cached -lIz '^#!.*'"$1" -- .
+         shift
+         # Any file matching the provided globs
+         git ls-files -z "$@"
+-    ) | sort -z | uniq -z
++    ) | sort -zu
+ }
+ 
+ find_python_files() {
+@@ -171,7 +171,7 @@
+     fi
+ 
+     cd "${0%/*}/../.."
+-    if [ ! -e .git ]; then
++    if [ "$(git rev-parse --is-inside-work-tree 2>/dev/null)" != true ]; then
+         echo '1..0 # SKIP not in a git checkout'
+         exit 0
+     fi
+--- a/test/common/testlib.py
++++ b/test/common/testlib.py
+@@ -1610,7 +1610,7 @@
+         """Return the current javascript log"""
+ 
+         if self._is_running():
+-            return [str(log) for log in self.driver.logs]
++            return [f"{log.level}: {log.text}" for log in self.driver.logs]
+         return []
+ 
+     def copy_js_log(self, title: str, label: str | None = None) -> None:
+--- a/test/common/typecheck
++++ b/test/common/typecheck
+@@ -125,6 +125,7 @@
+ 
+ 
+ num_errors = 0
++num_ignored = 0
+ 
+ 
+ def show_error(lines):
+@@ -135,8 +136,13 @@
+ 
+ 
+ def consider(lines, js_error_codes):
++    global num_ignored
+     m = re.match(r"([^:]*)\(.*\): error ([^:]*): .*", lines[0])
+-    if m and not should_ignore(m[1]):
++    if not m:
++        show_error(lines)
++    elif should_ignore(m[1]):
++        num_ignored += 1
++    else:
+         relaxed = is_relaxed(m[1])
+         is_js = m[1].endswith(('.js', '.jsx'))
+ 
+@@ -145,8 +151,11 @@
+                 show_error(lines)
+             else:
+                 js_error_codes[m[2]] += 1
++                num_ignored += 1
+         if not is_js and (not relaxed or m[2] not in ignored_codes):
+             show_error(lines)
++        elif not is_js:
++            num_ignored += 1
+ 
+ 
+ try:
+@@ -172,6 +181,11 @@
+     if len(cur) > 0:
+         consider(cur, js_error_codes)
+ 
++returncode = proc.wait()
++if returncode not in (0, 1, 2) or (returncode and not num_errors and not num_ignored):
++    print(f"tsc failed with exit status {returncode}", file=sys.stderr)
++    num_errors += 1
++
+ if args.stats:
+     for ts_error, count in js_error_codes.most_common():
+         print(ts_error, count)
