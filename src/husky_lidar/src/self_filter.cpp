@@ -131,6 +131,21 @@ private:
       publisher_->publish(msg);
       return;
     }
+    const auto xyz = pointsOf(msg);
+    const auto found = poses(msg.header.frame_id, msg.header.stamp);
+    if (found.size() < body_->links().size()) {
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 60000,
+                           "%zu of %zu body links have no transform to %s -- their points stay in",
+                           body_->links().size() - found.size(), body_->links().size(), msg.header.frame_id.c_str());
+    }
+    const auto out = kept(msg, body_->robotPoints(xyz, found));
+    publisher_->publish(out);
+    tally(xyz.size(), xyz.size() - out.width);
+  }
+
+  /// The cloud's points as vectors, in its own frame.
+  static std::vector<Eigen::Vector3d> pointsOf(const PointCloud2 & msg)
+  {
     const std::size_t n = std::size_t(msg.width) * msg.height;
     std::vector<Eigen::Vector3d> xyz;
     xyz.reserve(n);
@@ -138,14 +153,12 @@ private:
     for (std::size_t i = 0; i < n; ++i, ++x, ++y, ++z) {
       xyz.emplace_back(*x, *y, *z);
     }
-    const auto found = poses(msg.header.frame_id, msg.header.stamp);
-    if (found.size() < body_->links().size()) {
-      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 60000,
-                           "%zu of %zu body links have no transform to %s -- their points stay in",
-                           body_->links().size() - found.size(), body_->links().size(), msg.header.frame_id.c_str());
-    }
-    const auto drop = body_->robotPoints(xyz, found);
+    return xyz;
+  }
 
+  /// `msg` with the points `drop` marks left out, every field of the rest as it was, in one row.
+  static PointCloud2 kept(const PointCloud2 & msg, const std::vector<bool> & drop)
+  {
     PointCloud2 out;
     out.header = msg.header;
     out.fields = msg.fields;
@@ -161,10 +174,14 @@ private:
     }
     out.width = out.data.size() / msg.point_step;
     out.row_step = out.data.size();
-    publisher_->publish(out);
+    return out;
+  }
 
-    dropped_ += n - out.width;
-    seen_ += n;
+  /// Once a minute, how many of the points seen were the robot's.
+  void tally(std::size_t seen, std::size_t dropped)
+  {
+    dropped_ += dropped;
+    seen_ += seen;
     if (std::chrono::steady_clock::now() - said_ > std::chrono::minutes(1)) {
       RCLCPP_INFO(get_logger(), "%zu of %zu points were the robot's in the last minute", dropped_, seen_);
       dropped_ = seen_ = 0;
